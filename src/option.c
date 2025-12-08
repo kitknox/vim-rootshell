@@ -1029,8 +1029,15 @@ free_all_options(void)
 	if (options[i].indir == PV_NONE)
 	{
 	    // global option: free value and default value.
+#if TARGET_OS_IPHONE
+	    // iOS: Use clear_string_option to NULL pointer after freeing,
+	    // preventing dangling pointers in TLS p_* variables.
+	    if ((options[i].flags & P_ALLOCED) && options[i].var != NULL)
+		clear_string_option((char_u **)options[i].var);
+#else
 	    if ((options[i].flags & P_ALLOCED) && options[i].var != NULL)
 		free_string_option(*(char_u **)options[i].var);
+#endif
 	    if (options[i].flags & P_DEF_ALLOCED)
 		free_string_option(options[i].def_val[VI_DEFAULT]);
 	}
@@ -1038,6 +1045,16 @@ free_all_options(void)
 		&& (options[i].flags & P_STRING))
 	    // buffer-local option: free global value
 	    clear_string_option((char_u **)options[i].var);
+#if TARGET_OS_IPHONE
+	// iOS: Clear runtime flags to prevent state leakage to next session.
+	// TLS options[] persists across vim sessions on the same thread.
+	// - P_ALLOCED/P_DEF_ALLOCED: prevent double-free
+	// - P_WAS_SET: allow proper re-initialization of options
+	// - P_INSECURE: reset modeline security flag
+	if (options[i].flags & P_DEF_ALLOCED)
+	    options[i].def_val[VI_DEFAULT] = NULL;
+	options[i].flags &= ~(P_ALLOCED | P_DEF_ALLOCED | P_WAS_SET | P_INSECURE);
+#endif
     }
     free_operatorfunc_option();
     free_tagfunc_option();

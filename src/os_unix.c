@@ -4453,11 +4453,14 @@ mch_get_shellsize(void)
 
 #  if TARGET_OS_IPHONE
 	// On iOS, ios_ioctl returns the window size set by ios_setWindowSize().
-	// The fd parameter is ignored - it always returns the current session's size.
-	// Try fd=0 first as that's what ios_system typically uses.
+	// Use fileno(thread_stdout) like Joe does - this is more reliable than
+	// using fd 0 or 1 directly because it uses the actual pipe fd that
+	// ios_system set up for this command.
 	// Important: Check that returned values are non-zero, as ios_ioctl may
 	// return success with 0,0 if ios_setWindowSize() hasn't been called yet.
-	if ((ios_ioctl(0, TIOCGWINSZ, &ws) == 0 || ios_ioctl(1, TIOCGWINSZ, &ws) == 0)
+	if (thread_stdout != NULL)
+	    fd = fileno(thread_stdout);
+	if (ios_ioctl(fd, TIOCGWINSZ, &ws) == 0
 		&& ws.ws_col > 0 && ws.ws_row > 0)
 	{
 	    columns = ws.ws_col;
