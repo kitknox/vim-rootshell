@@ -457,20 +457,23 @@ static tcap_entry_T builtin_xterm[] = {
 #if TARGET_OS_IPHONE || TARGET_OS_MACCATALYST
     // iOS: Add color support since we don't have termcap/terminfo
     {(int)KS_ME,	"\033[0m"},		// normal mode (reset all)
-    {(int)KS_OP,	"\033[0m"},		// original color pair (reset)
+    {(int)KS_OP,	"\033[39;49m"},		// original color pair (reset fg/bg only)
     {(int)KS_CCO,	"256"},			// 256 colors
     {(int)KS_CAB,	"\033[4%dm"},		// set background color (ANSI)
     {(int)KS_CAF,	"\033[3%dm"},		// set foreground color (ANSI)
     {(int)KS_CZH,	"\033[3m"},		// italic mode on
     {(int)KS_CZR,	"\033[23m"},		// italic mode off
-    {(int)KS_SO,	"\033[91m"},		// standout: bright red text
-    {(int)KS_SE,	"\033[39m"},		// standout end
+    {(int)KS_SO,	"\033[7m"},		// standout: reverse video (Ghostty compatible)
+    {(int)KS_SE,	"\033[27m"},		// standout end: disable reverse
+    {(int)KS_UE,	"\033[24m"},		// underline end (disable underline only)
 #else
     {(int)KS_ME,	"\033[m"},
 #endif
     {(int)KS_MR,	"\033[7m"},
     {(int)KS_MD,	"\033[1m"},
+#if !TARGET_OS_IPHONE && !TARGET_OS_MACCATALYST
     {(int)KS_UE,	"\033[m"},
+#endif
     {(int)KS_US,	"\033[4m"},
     {(int)KS_STE,	"\033[29m"},
     {(int)KS_STS,	"\033[9m"},
@@ -544,6 +547,10 @@ static tcap_entry_T builtin_xterm[] = {
 #endif
 
 #if TARGET_OS_IPHONE || TARGET_OS_MACCATALYST
+    // iOS: Enable alternate screen buffer for clean terminal separation
+    // Use modern ?1049 sequence that Ghostty expects (smcup/rmcup)
+    {(int)KS_TI,	"\033[?1049h"},   // Enter alternate screen
+    {(int)KS_TE,	"\033[?1049l"},   // Leave alternate screen
     // iOS: Use CSI style instead of SS3 with modifier for better compatibility
     {K_UP,		"\033[A"},
     {K_DOWN,		"\033[B"},
