@@ -266,16 +266,16 @@ linelen(int *has_tab)
 
 // Buffer for two lines used during sorting.  They are allocated to
 // contain the longest line being sorted.
-static char_u	*sortbuf1;
-static char_u	*sortbuf2;
+static __thread char_u	*sortbuf1 = NULL;
+static __thread char_u	*sortbuf2 = NULL;
 
-static int	sort_lc;	// sort using locale
-static int	sort_ic;	// ignore case
-static int	sort_nr;	// sort on number
-static int	sort_rx;	// sort on regex instead of skipping it
-static int	sort_flt;	// sort on floating number
+static __thread int	sort_lc = 0;	// sort using locale
+static __thread int	sort_ic = 0;	// ignore case
+static __thread int	sort_nr = 0;	// sort on number
+static __thread int	sort_rx = 0;	// sort on regex instead of skipping it
+static __thread int	sort_flt = 0;	// sort on floating number
 
-static int	sort_abort;	// flag to indicate if sorting has been interrupted
+static __thread int	sort_abort = 0;	// flag to indicate if sorting has been interrupted
 
 // Struct to store info to be sorted.
 typedef struct
@@ -1075,7 +1075,7 @@ ex_copy(linenr_T line1, linenr_T line2, linenr_T n)
     msgmore((long)count);
 }
 
-static char_u	*prevcmd = NULL;	// the previous command
+static __thread char_u	*prevcmd = NULL;	// the previous command
 
 #if defined(EXITFREE)
     void
@@ -3550,7 +3550,7 @@ delbuf_msg(char_u *name)
     au_new_curbuf.br_buf_free_count = 0;
 }
 
-static int append_indent = 0;	    // autoindent for first line
+static __thread int append_indent = 0;	    // autoindent for first line
 
 /*
  * ":insert" and ":append", also used by ":change"
@@ -3929,8 +3929,8 @@ check_secure(void)
     return FALSE;
 }
 
-static char_u	*old_sub = NULL;	// previous substitute pattern
-static int	global_need_beginline;	// call beginline() after ":g"
+static __thread char_u	*old_sub = NULL;	// previous substitute pattern
+static __thread int	global_need_beginline = 0;	// call beginline() after ":g"
 
 /*
  * Flags that are kept between calls to :substitute.

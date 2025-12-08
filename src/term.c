@@ -127,39 +127,39 @@ typedef struct
 #define TERMREQUEST_INIT {STATUS_GET, -1}
 
 // Request Terminal Version status:
-static termrequest_T crv_status = TERMREQUEST_INIT;
+static __thread termrequest_T crv_status = TERMREQUEST_INIT;
 
 // Request Cursor position report:
-static termrequest_T u7_status = TERMREQUEST_INIT;
+static __thread termrequest_T u7_status = TERMREQUEST_INIT;
 
 // Request xterm compatibility check:
-static termrequest_T xcc_status = TERMREQUEST_INIT;
+static __thread termrequest_T xcc_status = TERMREQUEST_INIT;
 
 #ifdef FEAT_TERMRESPONSE
 # ifdef FEAT_TERMINAL
 // Request foreground color report:
-static termrequest_T rfg_status = TERMREQUEST_INIT;
-static int fg_r = 0;
-static int fg_g = 0;
-static int fg_b = 0;
-static int bg_r = 255;
-static int bg_g = 255;
-static int bg_b = 255;
+static __thread termrequest_T rfg_status = TERMREQUEST_INIT;
+static __thread int fg_r = 0;
+static __thread int fg_g = 0;
+static __thread int fg_b = 0;
+static __thread int bg_r = 255;
+static __thread int bg_g = 255;
+static __thread int bg_b = 255;
 # endif
 
 // Request background color report:
-static termrequest_T rbg_status = TERMREQUEST_INIT;
+static __thread termrequest_T rbg_status = TERMREQUEST_INIT;
 
 // Request cursor blinking mode report:
-static termrequest_T rbm_status = TERMREQUEST_INIT;
+static __thread termrequest_T rbm_status = TERMREQUEST_INIT;
 
 // Request cursor style report:
-static termrequest_T rcs_status = TERMREQUEST_INIT;
+static __thread termrequest_T rcs_status = TERMREQUEST_INIT;
 
 // Request window's position report:
-static termrequest_T winpos_status = TERMREQUEST_INIT;
+static __thread termrequest_T winpos_status = TERMREQUEST_INIT;
 
-static termrequest_T *all_termrequests[] = {
+static __thread termrequest_T *all_termrequests[] = {
     &crv_status,
     &u7_status,
     &xcc_status,
@@ -210,23 +210,23 @@ char *UP, *BC, PC;
 static char_u *vim_tgetstr(char *s, char_u **pp);
 #endif // HAVE_TGETENT
 
-static int  detected_8bit = FALSE;	// detected 8-bit terminal
+static __thread int  detected_8bit = FALSE;	// detected 8-bit terminal
 
 #if (defined(UNIX) || defined(VMS))
-static int focus_state = MAYBE; // TRUE if the Vim window has focus
+static __thread int focus_state = MAYBE; // TRUE if the Vim window has focus
 #endif
 
 #ifdef FEAT_TERMRESPONSE
 // When the cursor shape was detected these values are used:
 // 1: block, 2: underline, 3: vertical bar
-static int initial_cursor_shape = 0;
+static __thread int initial_cursor_shape = 0;
 
 // The blink flag from the style response may be inverted from the actual
 // blinking state, xterm XORs the flags.
-static int initial_cursor_shape_blink = FALSE;
+static __thread int initial_cursor_shape_blink = FALSE;
 
 // The blink flag from the blinking-cursor mode response
-static int initial_cursor_blink = FALSE;
+static __thread int initial_cursor_blink = FALSE;
 #endif
 
 /*
@@ -677,7 +677,7 @@ static tcap_entry_T builtin_rgb[] = {
 #endif
 
 #ifdef HAVE_TGETENT
-static tcap_entry_T special_term[] = {
+static __thread tcap_entry_T special_term[] = {
     // These are printf strings, not terminal codes.
     {(int)KS_CF,	"\033[%dm"},
     {(int)KS_NAME,	NULL}  // end marker
@@ -1469,10 +1469,10 @@ termgui_mch_get_rgb(guicolor_T color)
  */
 char_u *(term_strings[(int)KS_LAST + 1]);
 
-static int	need_gather = FALSE;	    // need to fill termleader[]
-static char_u	termleader[256 + 1];	    // for check_termcode()
+static __thread int	need_gather = FALSE;	    // need to fill termleader[]
+static __thread char_u	termleader[256 + 1];	    // for check_termcode()
 #ifdef FEAT_TERMRESPONSE
-static int	check_for_codes = FALSE;    // check for key code response
+static __thread int	check_for_codes = FALSE;    // check for key code response
 #endif
 
 /*
@@ -1508,7 +1508,7 @@ typedef struct {
 // table size
 #define TPR_COUNT		    5
 
-static termprop_T term_props[TPR_COUNT];
+static __thread termprop_T term_props[TPR_COUNT];
 
 /*
  * Initialize the term_props table.
@@ -1737,7 +1737,7 @@ may_adjust_color_count(int val)
 }
 
 #ifdef HAVE_TGETENT
-static char *(key_names[]) =
+static __thread char *(key_names[]) =
 {
 # ifdef FEAT_TERMRESPONSE
     // Do those ones first, both may cause a screen redraw.
@@ -2777,9 +2777,9 @@ termcapinit(char_u *name)
 #define OUT_SIZE	2047
 
 // add one to allow mch_write() in os_win32.c to append a NUL
-static char_u		out_buf[OUT_SIZE + 1];
+static __thread char_u		out_buf[OUT_SIZE + 1];
 
-static int		out_pos = 0;	// number of chars in out_buf
+static __thread int		out_pos = 0;	// number of chars in out_buf
 
 // Since the maximum number of SGR parameters shown as a normal value range is
 // 16, the escape sequence length can be 4 * 16 + lead + tail.
@@ -3122,9 +3122,9 @@ termrequest_any_pending(void)
     return FALSE;
 }
 
-static int winpos_x = -1;
-static int winpos_y = -1;
-static int did_request_winpos = 0;
+static __thread int winpos_x = -1;
+static __thread int winpos_y = -1;
+static __thread int did_request_winpos = 0;
 
 #  if defined(FEAT_EVAL) || defined(FEAT_TERMINAL)
 /*
@@ -3884,7 +3884,7 @@ out_str_t_TE(void)
 	kitty_protocol_state = KKPS_AFTER_T_TE;
 }
 
-static int send_t_RK = FALSE;
+static __thread int send_t_RK = FALSE;
 
 /*
  * Output T_TI and setup for what follows.
@@ -4309,10 +4309,10 @@ scroll_start(void)
 }
 
 // True if cursor is not visible
-static int cursor_is_off = FALSE;
+static __thread int cursor_is_off = FALSE;
 
 // True if cursor is not visible due to an ongoing cursor-less sleep
-static int cursor_is_asleep = FALSE;
+static __thread int cursor_is_asleep = FALSE;
 
 /*
  * Enable the cursor without checking if it's already enabled.
@@ -4526,7 +4526,7 @@ scroll_region_reset(void)
  * List of terminal codes that are currently recognized.
  */
 
-static struct termcode
+static __thread struct termcode
 {
     char_u  name[2];	    // termcap name of entry
     char_u  *code;	    // terminal code (in allocated memory)
@@ -4534,8 +4534,8 @@ static struct termcode
     int	    modlen;	    // length of part before ";*~".
 } *termcodes = NULL;
 
-static int  tc_max_len = 0; // number of entries that termcodes[] can hold
-static int  tc_len = 0;	    // current number of entries in termcodes[]
+static __thread int  tc_max_len = 0; // number of entries that termcodes[] can hold
+static __thread int  tc_len = 0;	    // current number of entries in termcodes[]
 
 static int termcode_star(char_u *code, int len);
 
@@ -4879,9 +4879,9 @@ switch_to_8bit(void)
 }
 
 #ifdef CHECK_DOUBLE_CLICK
-static linenr_T orig_topline = 0;
+static __thread linenr_T orig_topline = 0;
 # ifdef FEAT_DIFF
-static int orig_topfill = 0;
+static __thread int orig_topfill = 0;
 # endif
 #endif
 #if defined(CHECK_DOUBLE_CLICK)
@@ -7283,8 +7283,8 @@ show_one_termcode(char_u *name, char_u *code, int printit)
  * termcap codes from the terminal itself.
  * We get them one by one to avoid a very long response string.
  */
-static int xt_index_in = 0;
-static int xt_index_out = 0;
+static __thread int xt_index_in = 0;
+static __thread int xt_index_out = 0;
 
     static void
 req_codes_from_term(void)
@@ -7489,9 +7489,9 @@ check_for_codes_from_term(void)
 #endif
 
 #if defined(MSWIN) && (!defined(FEAT_GUI) || defined(VIMDLL))
-static char ksme_str[20];
-static char ksmr_str[20];
-static char ksmd_str[20];
+static __thread char ksme_str[20];
+static __thread char ksmr_str[20];
+static __thread char ksmd_str[20];
 
 /*
  * For Win32 console: update termcap codes for existing console attributes.
@@ -7537,7 +7537,7 @@ struct ks_tbl_S
     char buf[CMODE_LAST][KSSIZE];	// real buffer
 };
 
-static struct ks_tbl_S ks_tbl[] =
+static __thread struct ks_tbl_S ks_tbl[] =
 {
     {(int)KS_ME,  "\033|0m",  "\033|0m", {""}},   // normal
     {(int)KS_MR,  "\033|7m",  "\033|7m", {""}},   // reverse
@@ -7641,16 +7641,16 @@ swap_tcap(void)
 
 
 #if (defined(MSWIN) && (!defined(FEAT_GUI_MSWIN) || defined(VIMDLL))) || defined(FEAT_TERMINAL)
-static int cube_value[] = {
+static __thread int cube_value[] = {
     0x00, 0x5F, 0x87, 0xAF, 0xD7, 0xFF
 };
 
-static int grey_ramp[] = {
+static __thread int grey_ramp[] = {
     0x08, 0x12, 0x1C, 0x26, 0x30, 0x3A, 0x44, 0x4E, 0x58, 0x62, 0x6C, 0x76,
     0x80, 0x8A, 0x94, 0x9E, 0xA8, 0xB2, 0xBC, 0xC6, 0xD0, 0xDA, 0xE4, 0xEE
 };
 
-static const char_u ansi_table[16][3] = {
+static __thread const char_u ansi_table[16][3] = {
 //   R    G    B
   {  0,   0,   0}, // black
   {224,   0,   0}, // dark red
@@ -7673,7 +7673,7 @@ static const char_u ansi_table[16][3] = {
 
 # if defined(MSWIN)
 // Mapping between cterm indices < 16 and their counterpart in the ANSI palette.
-static const char_u cterm_ansi_idx[] = {
+static __thread const char_u cterm_ansi_idx[] = {
     0, 4, 2, 6, 1, 5, 3, 7, 8, 12, 10, 14, 9, 13, 11, 15
 };
 # endif

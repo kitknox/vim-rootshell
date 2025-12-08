@@ -79,17 +79,17 @@ static linenr_T invalid_bot = (linenr_T)0;
  * previous line is stored here when available.  prev_lnum is zero when the
  * level is not available.
  */
-static linenr_T prev_lnum = 0;
-static int prev_lnum_lvl = -1;
+static __thread linenr_T prev_lnum = 0;
+static __thread int prev_lnum_lvl = -1;
 
 // Flags used for "done" argument of setManualFold.
 #define DONE_NOTHING	0
 #define DONE_ACTION	1	// did close or open a fold
 #define DONE_FOLD	2	// did find a fold
 
-static int foldstartmarkerlen;
-static char_u *foldendmarker;
-static int foldendmarkerlen;
+static __thread int foldstartmarkerlen = 0;
+static __thread char_u *foldendmarker = NULL;
+static __thread int foldendmarkerlen = 0;
 
 // Exported folding functions. {{{1
 // copyFoldingState() {{{2
@@ -2137,7 +2137,7 @@ typedef struct
 } fline_T;
 
 // Flag is set when redrawing is needed.
-static int fold_changed;
+static __thread int fold_changed = 0;
 
 // Function declarations. {{{2
 static linenr_T foldUpdateIEMSRecurse(garray_T *gap, int level, linenr_T startlnum, fline_T *flp, void (*getlevel)(fline_T *), linenr_T bot, int topflags);

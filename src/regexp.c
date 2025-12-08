@@ -21,8 +21,8 @@
 #endif
 
 #ifdef FEAT_RELTIME
-static sig_atomic_t dummy_timeout_flag = 0;
-static volatile sig_atomic_t *timeout_flag = &dummy_timeout_flag;
+static __thread sig_atomic_t dummy_timeout_flag = 0;
+static __thread volatile sig_atomic_t *timeout_flag = NULL;
 #endif
 
 /*
@@ -51,7 +51,7 @@ toggle_Magic(int x)
 }
 
 #if defined(FEAT_RELTIME)
-static int timeout_nesting = 0;
+static __thread int timeout_nesting = 0;
 
 /*
  * Start a timer that will cause the regexp to abort after "msec".
@@ -82,7 +82,7 @@ disable_regexp_timeout(void)
 
 #if defined(FEAT_EVAL)
 # ifdef FEAT_RELTIME
-static sig_atomic_t *saved_timeout_flag;
+static __thread sig_atomic_t *saved_timeout_flag = NULL;
 # endif
 
 /*
@@ -160,8 +160,8 @@ re_multi_type(int c)
     return NOT_MULTI;
 }
 
-static char_u		*reg_prev_sub = NULL;
-static size_t		reg_prev_sublen = 0;
+static __thread char_u		*reg_prev_sub = NULL;
+static __thread size_t		reg_prev_sublen = 0;
 
 /*
  * REGEXP_INRANGE contains all characters which are always special in a []
@@ -179,8 +179,8 @@ static size_t		reg_prev_sublen = 0;
  *  \u	- Multibyte character code, eg \u20ac
  *  \U	- Long multibyte character code, eg \U12345678
  */
-static char_u REGEXP_INRANGE[] = "]^-n\\";
-static char_u REGEXP_ABBR[] = "nrtebdoxuU";
+static __thread char_u REGEXP_INRANGE[] = "]^-n\\";
+static __thread char_u REGEXP_ABBR[] = "nrtebdoxuU";
 
 /*
  * Translate '\x' to its control character, except "\n", which is Magic.
@@ -288,7 +288,7 @@ get_char_class(char_u **pp)
  * Specific version of character class functions.
  * Using a table to keep this fast.
  */
-static short	class_tab[256];
+static __thread short	class_tab[256];
 
 #define	    RI_DIGIT	0x01
 #define	    RI_HEX	0x02
@@ -304,7 +304,7 @@ static short	class_tab[256];
 init_class_tab(void)
 {
     int		i;
-    static int	done = FALSE;
+    static __thread int	done = FALSE;
 
     if (done)
 	return;
@@ -354,30 +354,30 @@ init_class_tab(void)
  * Global work variables for vim_regcomp().
  */
 
-static char_u	*regparse;	// Input-scan pointer.
-static int	regnpar;	// () count.
-static int	wants_nfa;	// regex should use NFA engine
+static __thread char_u	*regparse = NULL;	// Input-scan pointer.
+static __thread int	regnpar = 0;	// () count.
+static __thread int	wants_nfa = 0;	// regex should use NFA engine
 #ifdef FEAT_SYN_HL
-static int	regnzpar;	// \z() count.
-static int	re_has_z;	// \z item detected
+static __thread int	regnzpar = 0;	// \z() count.
+static __thread int	re_has_z = 0;	// \z item detected
 #endif
-static unsigned	regflags;	// RF_ flags for prog
+static __thread unsigned	regflags = 0;	// RF_ flags for prog
 #if defined(FEAT_SYN_HL)
-static int	had_eol;	// TRUE when EOL found by vim_regcomp()
+static __thread int	had_eol = FALSE;	// TRUE when EOL found by vim_regcomp()
 #endif
 
-static magic_T	reg_magic;	// magicness of the pattern
+static __thread magic_T	reg_magic = 0;	// magicness of the pattern
 
-static int	reg_string;	// matching with a string instead of a buffer
+static __thread int	reg_string = 0;	// matching with a string instead of a buffer
 				// line
-static int	reg_strict;	// "[abc" is illegal
+static __thread int	reg_strict = 0;	// "[abc" is illegal
 
 /*
  * META contains all characters that may be magic, except '^' and '$'.
  */
 
 // META[] is used often enough to justify turning it into a table.
-static char_u META_flags[] = {
+static __thread char_u META_flags[] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 //		   %  &     (  )  *  +	      .
@@ -394,13 +394,13 @@ static char_u META_flags[] = {
     1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1
 };
 
-static int	curchr;		// currently parsed character
+static __thread int	curchr = 0;		// currently parsed character
 // Previous character.  Note: prevchr is sometimes -1 when we are not at the
 // start, eg in /[ ^I]^ the pattern was never found even if it existed,
 // because ^ was taken to be magic -- webb
-static int	prevchr;
-static int	prevprevchr;	// previous-previous character
-static int	nextchr;	// used for ungetchr()
+static __thread int	prevchr = 0;
+static __thread int	prevprevchr = 0;	// previous-previous character
+static __thread int	nextchr = 0;	// used for ungetchr()
 
 // arguments for reg()
 #define REG_NOPAREN	0	// toplevel reg()
@@ -440,8 +440,8 @@ static int	reg_iswordc(int);
 static void report_re_switch(char_u *pat);
 #endif
 
-static regengine_T bt_regengine;
-static regengine_T nfa_regengine;
+static __thread regengine_T bt_regengine;
+static __thread regengine_T nfa_regengine;
 
 /*
  * Return TRUE if compiled regular expression "prog" can match a line break.
@@ -678,9 +678,9 @@ skip_regexp_ex(
 /*
  * Functions for getting characters from the regexp input.
  */
-static int	prevchr_len;	// byte length of previous char
-static int	at_start;	// True when on the first character
-static int	prev_at_start;  // True when on the second character
+static __thread int	prevchr_len = 0;	// byte length of previous char
+static __thread int	at_start = 0;	// True when on the first character
+static __thread int	prev_at_start = 0;  // True when on the second character
 
 /*
  * Start parsing at "str".
@@ -1129,8 +1129,8 @@ static int	match_with_backref(linenr_T start_lnum, colnr_T start_col, linenr_T e
  * slow, we keep one allocated piece of memory and only re-allocate it when
  * it's too small.  It's freed in bt_regexec_both() when finished.
  */
-static char_u	*reg_tofree = NULL;
-static unsigned	reg_tofreelen;
+static __thread char_u	*reg_tofree = NULL;
+static __thread unsigned	reg_tofreelen = 0;
 
 /*
  * Structure used to store the execution state of the regex engine.
@@ -1205,8 +1205,8 @@ typedef struct {
 #endif
 } regexec_T;
 
-static regexec_T	rex;
-static int		rex_in_use = FALSE;
+static __thread regexec_T	rex;
+static __thread int		rex_in_use = FALSE;
 
 /*
  * Return TRUE if character 'c' is included in 'iskeyword' option for
@@ -1219,7 +1219,7 @@ reg_iswordc(int c)
 }
 
 #ifdef FEAT_EVAL
-static int can_f_submatch = FALSE;	// TRUE when submatch() can be used
+static __thread int can_f_submatch = FALSE;	// TRUE when submatch() can be used
 
 // This struct is used for reg_submatch(). Needed for when the
 // substitution string is an expression that contains a call to substitute()
@@ -1232,7 +1232,7 @@ typedef struct {
     int		sm_line_lbr;
 } regsubmatch_T;
 
-static regsubmatch_T rsm;  // can only be used when can_f_submatch is TRUE
+static __thread regsubmatch_T rsm;  // can only be used when can_f_submatch is TRUE
 #endif
 
 typedef enum
@@ -1333,10 +1333,10 @@ reg_getline_len(linenr_T lnum)
 }
 
 #ifdef FEAT_SYN_HL
-static char_u	*reg_startzp[NSUBEXP];	// Workspace to mark beginning
-static char_u	*reg_endzp[NSUBEXP];	//   and end of \z(...\) matches
-static lpos_T	reg_startzpos[NSUBEXP];	// idem, beginning pos
-static lpos_T	reg_endzpos[NSUBEXP];	// idem, end pos
+static __thread char_u	*reg_startzp[NSUBEXP];	// Workspace to mark beginning
+static __thread char_u	*reg_endzp[NSUBEXP];	//   and end of \z(...\) matches
+static __thread lpos_T	reg_startzpos[NSUBEXP];	// idem, beginning pos
+static __thread lpos_T	reg_endzpos[NSUBEXP];	// idem, end pos
 #endif
 
 // TRUE if using multi-line regexp.
@@ -1662,7 +1662,7 @@ typedef struct
 
 
 // 0xfb20 - 0xfb4f
-static decomp_T decomp_table[0xfb4f-0xfb20+1] =
+static __thread decomp_T decomp_table[0xfb4f-0xfb20+1] =
 {
     {0x5e2,0,0},		// 0xfb20	alt ayin
     {0x5d0,0,0},		// 0xfb21	alt alef
@@ -2147,7 +2147,7 @@ vim_regsub_multi(
 #if defined(FEAT_EVAL)
 // When nesting more than a couple levels it's probably a mistake.
 # define MAX_REGSUB_NESTING 4
-static char_u   *eval_result[MAX_REGSUB_NESTING] = {NULL, NULL, NULL, NULL};
+static __thread char_u   *eval_result[MAX_REGSUB_NESTING] = {NULL, NULL, NULL, NULL};
 
 # if defined(EXITFREE)
     void
@@ -2879,7 +2879,7 @@ init_regexec_multi(
 
 #include "regexp_bt.c"
 
-static regengine_T bt_regengine =
+static __thread regengine_T bt_regengine =
 {
     bt_regcomp,
     bt_regfree,
@@ -2892,7 +2892,7 @@ static regengine_T bt_regengine =
 
 #include "regexp_nfa.c"
 
-static regengine_T nfa_regengine =
+static __thread regengine_T nfa_regengine =
 {
     nfa_regcomp,
     nfa_regfree,
@@ -2905,10 +2905,10 @@ static regengine_T nfa_regengine =
 
 // Which regexp engine to use? Needed for vim_regcomp().
 // Must match with 'regexpengine'.
-static int regexp_engine = 0;
+static __thread int regexp_engine = 0;
 
 #ifdef DEBUG
-static char_u regname[][30] = {
+static __thread char_u regname[][30] = {
 		    "AUTOMATIC Regexp Engine",
 		    "BACKTRACKING Regexp Engine",
 		    "NFA Regexp Engine"

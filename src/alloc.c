@@ -215,10 +215,10 @@ lalloc_clear(size_t size, int message)
 lalloc(size_t size, int message)
 {
     void	*p;		    // pointer to new storage space
-    static int	releasing = FALSE;  // don't do mf_release_all() recursive
+    static __thread int	releasing = FALSE;  // don't do mf_release_all() recursive
     int		try_again;
 #if defined(HAVE_AVAIL_MEM)
-    static size_t allocated = 0;    // allocated since last avail check
+    static __thread size_t allocated = 0;    // allocated since last avail check
 #endif
 
     // Safety check for allocating zero bytes

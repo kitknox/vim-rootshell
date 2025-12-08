@@ -20,7 +20,7 @@
 
 // Set when doing something for completion that may call edit() recursively,
 // which is not allowed.
-static int	compl_busy = FALSE;
+static __thread int	compl_busy = FALSE;
 
 
 static void ins_ctrl_v(void);
@@ -74,30 +74,30 @@ static int  ins_ctrl_ey(int tc);
 static char_u *do_insert_char_pre(int c);
 #endif
 
-static colnr_T	Insstart_textlen;	// length of line when insert started
-static colnr_T	Insstart_blank_vcol;	// vcol for first inserted blank
-static int	update_Insstart_orig = TRUE; // set Insstart_orig to Insstart
+static __thread colnr_T	Insstart_textlen = 0;	// length of line when insert started
+static __thread colnr_T	Insstart_blank_vcol = 0;	// vcol for first inserted blank
+static __thread int	update_Insstart_orig = TRUE; // set Insstart_orig to Insstart
 
-static string_T	last_insert = {NULL, 0};    // the text of the previous insert,
+static __thread string_T	last_insert = {NULL, 0};    // the text of the previous insert,
 					    // K_SPECIAL and CSI are escaped
-static int	last_insert_skip; // nr of chars in front of previous insert
-static int	new_insert_skip;  // nr of chars in front of current insert
-static int	did_restart_edit;	// "restart_edit" when calling edit()
+static __thread int	last_insert_skip = 0; // nr of chars in front of previous insert
+static __thread int	new_insert_skip = 0;  // nr of chars in front of current insert
+static __thread int	did_restart_edit = 0;	// "restart_edit" when calling edit()
 
-static int	can_cindent;		// may do cindenting on this line
+static __thread int	can_cindent = 0;		// may do cindenting on this line
 
 #ifdef FEAT_RIGHTLEFT
-static int	revins_on;		// reverse insert mode on
-static int	revins_chars;		// how much to skip after edit
-static int	revins_legal;		// was the last char 'legal'?
-static int	revins_scol;		// start column of revins session
+static __thread int	revins_on = 0;		// reverse insert mode on
+static __thread int	revins_chars = 0;		// how much to skip after edit
+static __thread int	revins_legal = 0;		// was the last char 'legal'?
+static __thread int	revins_scol = 0;		// start column of revins session
 #endif
 
-static int	ins_need_undo;		// call u_save() before inserting a
+static __thread int	ins_need_undo = 0;		// call u_save() before inserting a
 					// char.  Set when edit() is called.
 					// after that arrow_used is used.
 
-static int	dont_sync_undo = FALSE;	// CTRL-G U prevents syncing undo for
+static __thread int	dont_sync_undo = FALSE;	// CTRL-G U prevents syncing undo for
 					// the next left/right cursor key
 
 #define TRIGGER_AUTOCOMPLETE()			\
@@ -1743,15 +1743,15 @@ decodeModifyOtherKeys(int c)
  * Put a character directly onto the screen.  It's not stored in a buffer.
  * Used while handling CTRL-K, CTRL-V, etc. in Insert mode.
  */
-static int  pc_status;
+static __thread int  pc_status = 0;
 #define PC_STATUS_UNSET	0	// pc_bytes was not set
 #define PC_STATUS_RIGHT	1	// right half of double-wide char
 #define PC_STATUS_LEFT	2	// left half of double-wide char
 #define PC_STATUS_SET	3	// pc_bytes was filled
-static char_u pc_bytes[MB_MAXBYTES + 1]; // saved bytes
-static int  pc_attr;
-static int  pc_row;
-static int  pc_col;
+static __thread char_u pc_bytes[MB_MAXBYTES + 1]; // saved bytes
+static __thread int  pc_attr = 0;
+static __thread int  pc_row = 0;
+static __thread int  pc_col = 0;
 
     void
 edit_putchar(int c, int highlight)
@@ -3147,9 +3147,9 @@ echeck_abbr(int c)
  * characters will be left on the stack above the newly inserted character.
  */
 
-static char_u	*replace_stack = NULL;
-static long	replace_stack_nr = 0;	    // next entry in replace stack
-static long	replace_stack_len = 0;	    // max. number of entries
+static __thread char_u	*replace_stack = NULL;
+static __thread long	replace_stack_nr = 0;	    // next entry in replace stack
+static __thread long	replace_stack_len = 0;	    // max. number of entries
 
     void
 replace_push(

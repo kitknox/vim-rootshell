@@ -69,9 +69,9 @@ ui_write(char_u *s, int len, int console UNUSED)
  * are not consumed by it.  Give them back to ui_inchar() and they are stored
  * here for the next call.
  */
-static char_u *ta_str = NULL;
-static int ta_off;	// offset for next char to use when ta_str != NULL
-static int ta_len;	// length of ta_str when it's not NULL
+static __thread char_u *ta_str = NULL;
+static __thread int ta_off = 0;	// offset for next char to use when ta_str != NULL
+static __thread int ta_len = 0;	// length of ta_str when it's not NULL
 
     void
 ui_inchar_undo(char_u *s, int len)
@@ -756,8 +756,8 @@ ui_breakcheck_force(int force)
 # define INBUFLEN 250
 #endif
 
-static char_u	inbuf[INBUFLEN + MAX_KEY_CODE_LEN];
-static int	inbufcount = 0;	    // number of chars in inbuf[]
+static __thread char_u	inbuf[INBUFLEN + MAX_KEY_CODE_LEN];
+static __thread int	inbufcount = 0;	    // number of chars in inbuf[]
 
 /*
  * vim_is_input_buf_full(), vim_is_input_buf_empty(), add_to_input_buf(), and

@@ -15,15 +15,15 @@
 
 #if defined(FEAT_EVAL)
 
-static dictitem_T	globvars_var;		// variable used for g:
-static dict_T		globvardict;		// Dictionary with g: variables
+static __thread dictitem_T	globvars_var;		// variable used for g:
+static __thread dict_T		globvardict;		// Dictionary with g: variables
 #define globvarht globvardict.dv_hashtab
 
 /*
  * Old Vim variables such as "v:version" are also available without the "v:".
  * Also in functions.  We need a special hashtable for them.
  */
-static hashtab_T	compat_hashtab;
+static __thread hashtab_T	compat_hashtab;
 
 /*
  * Array to hold the value of v: variables.
@@ -41,7 +41,7 @@ static hashtab_T	compat_hashtab;
 
 typedef struct vimvar vimvar_T;
 
-static struct vimvar
+static __thread struct vimvar
 {
     char	*vv_name;	// name of variable, without v:
     dictitem16_T vv_di;		// value and name for key (max 16 chars!)
@@ -180,8 +180,8 @@ static struct vimvar
 #define vv_blob		vv_di.di_tv.vval.v_blob
 #define vv_tv		vv_di.di_tv
 
-static dictitem_T	vimvars_var;		// variable used for v:
-static dict_T		vimvardict;		// Dictionary with v: variables
+static __thread dictitem_T	vimvars_var;		// variable used for v:
+static __thread dict_T		vimvardict;		// Dictionary with v: variables
 #define vimvarht  vimvardict.dv_hashtab
 
 // for VIM_VERSION_ defines
@@ -2554,8 +2554,8 @@ del_menutrans_vars(void)
  * get_user_var_name().
  */
 
-static char_u	*varnamebuf = NULL;
-static int	varnamebuflen = 0;
+static __thread char_u	*varnamebuf = NULL;
+static __thread int	varnamebuflen = 0;
 
 /*
  * Function to concatenate a prefix and a variable name.
@@ -4810,11 +4810,11 @@ var_exists(char_u *var)
     return n;
 }
 
-static lval_T	*redir_lval = NULL;
+static __thread lval_T	*redir_lval = NULL;
 #define EVALCMD_BUSY (redir_lval == (lval_T *)&redir_lval)
-static garray_T redir_ga;	// only valid when redir_lval is not NULL
-static char_u	*redir_endp = NULL;
-static char_u	*redir_varname = NULL;
+static __thread garray_T redir_ga;	// only valid when redir_lval is not NULL
+static __thread char_u	*redir_endp = NULL;
+static __thread char_u	*redir_varname = NULL;
 
     int
 alloc_redir_lval(void)

@@ -43,7 +43,7 @@
 # define CTRL_X_MSG(i) ctrl_x_msgs[(i) & ~CTRL_X_WANT_IDENT]
 
 // Message for CTRL-X mode, index is ctrl_x_mode.
-static char *ctrl_x_msgs[] =
+static __thread char *ctrl_x_msgs[] =
 {
     N_(" Keyword completion (^N^P)"), // CTRL_X_NORMAL, ^P/^N compl.
     N_(" ^X mode (^]^D^E^F^I^K^L^N^O^P^Rs^U^V^Y)"),
@@ -67,7 +67,7 @@ static char *ctrl_x_msgs[] =
 };
 
 #if defined(FEAT_COMPL_FUNC) || defined(FEAT_EVAL)
-static char *ctrl_x_mode_names[] = {
+static __thread char *ctrl_x_mode_names[] = {
     "keyword",
     "ctrl_x",
     "scroll",
@@ -131,69 +131,69 @@ struct compl_S
  * ins_compl_get_exp(), when new matches are added to the list.
  * "compl_old_match" points to previous "compl_curr_match".
  */
-static compl_T    *compl_first_match = NULL;
-static compl_T    *compl_curr_match = NULL;
-static compl_T    *compl_shown_match = NULL;
-static compl_T    *compl_old_match = NULL;
+static __thread compl_T    *compl_first_match = NULL;
+static __thread compl_T    *compl_curr_match = NULL;
+static __thread compl_T    *compl_shown_match = NULL;
+static __thread compl_T    *compl_old_match = NULL;
 
 // list used to store the compl_T which have the max score
-static compl_T	  **compl_best_matches = NULL;
-static int	  compl_num_bests = 0;
+static __thread compl_T	  **compl_best_matches = NULL;
+static __thread int	  compl_num_bests = 0;
 
 // After using a cursor key <Enter> selects a match in the popup menu,
 // otherwise it inserts a line break.
-static int	  compl_enter_selects = FALSE;
+static __thread int	  compl_enter_selects = FALSE;
 
 // When "compl_leader" is not NULL only matches that start with this string
 // are used.
-static string_T	  compl_leader = {NULL, 0};
+static __thread string_T	  compl_leader = {NULL, 0};
 
-static int	  compl_get_longest = FALSE;	// put longest common string
+static __thread int	  compl_get_longest = FALSE;	// put longest common string
 						// in compl_leader
 
 // This flag is FALSE when no match is selected (by ^N/^P) or the match was
 // edited or using the longest common string.
-static int	  compl_used_match;
+static __thread int	  compl_used_match;
 
 // didn't finish finding completions.
-static int	  compl_was_interrupted = FALSE;
+static __thread int	  compl_was_interrupted = FALSE;
 
 // Set when character typed while looking for matches and it means we should
 // stop looking for matches.
-static int	  compl_interrupted = FALSE;
+static __thread int	  compl_interrupted = FALSE;
 
-static int	  compl_restarting = FALSE;	// don't insert match
+static __thread int	  compl_restarting = FALSE;	// don't insert match
 
 // When the first completion is done "compl_started" is set.  When it's
 // FALSE the word to be completed must be located.
-static int	  compl_started = FALSE;
+static __thread int	  compl_started = FALSE;
 
 // Which Ctrl-X mode are we in?
-static int	  ctrl_x_mode = CTRL_X_NORMAL;
+static __thread int	  ctrl_x_mode = CTRL_X_NORMAL;
 
-static int	  compl_matches = 0;	    // number of completion matches
-static string_T	  compl_pattern = {NULL, 0};	 // search pattern for matching items
+static __thread int	  compl_matches = 0;	    // number of completion matches
+static __thread string_T	  compl_pattern = {NULL, 0};	 // search pattern for matching items
 #ifdef FEAT_COMPL_FUNC
-static string_T	  cpt_compl_pattern = {NULL, 0}; // pattern returned by func in 'cpt'
+static __thread string_T	  cpt_compl_pattern = {NULL, 0}; // pattern returned by func in 'cpt'
 #endif
-static int	  compl_direction = FORWARD;
-static int	  compl_shows_dir = FORWARD;
-static int	  compl_pending = 0;	    // > 1 for postponed CTRL-N
-static pos_T	  compl_startpos;
+static __thread int	  compl_direction = FORWARD;
+static __thread int	  compl_shows_dir = FORWARD;
+static __thread int	  compl_pending = 0;	    // > 1 for postponed CTRL-N
+static __thread pos_T	  compl_startpos;
 // Length in bytes of the text being completed (this is deleted to be replaced
 // by the match.)
-static int	  compl_length = 0;
-static linenr_T	  compl_lnum = 0;           // lnum where the completion start
-static colnr_T	  compl_col = 0;	    // column where the text starts
+static __thread int	  compl_length = 0;
+static __thread linenr_T	  compl_lnum = 0;           // lnum where the completion start
+static __thread colnr_T	  compl_col = 0;	    // column where the text starts
 					    // that is being completed
-static colnr_T	  compl_ins_end_col = 0;
-static string_T	  compl_orig_text = {NULL, 0};  // text as it was before
+static __thread colnr_T	  compl_ins_end_col = 0;
+static __thread string_T	  compl_orig_text = {NULL, 0};  // text as it was before
 					    // completion started
-static int	  compl_cont_mode = 0;
-static expand_T	  compl_xp;
+static __thread int	  compl_cont_mode = 0;
+static __thread expand_T	  compl_xp;
 
-static win_T	  *compl_curr_win = NULL;  // win where completion is active
-static buf_T	  *compl_curr_buf = NULL;  // buf where completion is active
+static __thread win_T	  *compl_curr_win = NULL;  // win where completion is active
+static __thread buf_T	  *compl_curr_buf = NULL;  // buf where completion is active
 
 #define COMPL_INITIAL_TIMEOUT_MS    80
 // Autocomplete uses a decaying timeout: starting from COMPL_INITIAL_TIMEOUT_MS,
@@ -203,11 +203,11 @@ static buf_T	  *compl_curr_buf = NULL;  // buf where completion is active
 // Special case: when 'complete' contains "F" or "o" (function sources), a
 // longer fixed timeout is used (COMPL_FUNC_TIMEOUT_MS or
 // COMPL_FUNC_TIMEOUT_NON_KW_MS). - girish
-static int	  compl_autocomplete = FALSE;	    // whether autocompletion is active
-static int	  compl_timeout_ms = COMPL_INITIAL_TIMEOUT_MS;
-static int	  compl_time_slice_expired = FALSE; // time budget exceeded for current source
-static int	  compl_from_nonkeyword = FALSE;    // completion started from non-keyword
-static int	  compl_hi_on_autocompl_longest = FALSE;    // apply "PreInsert" highlight
+static __thread int	  compl_autocomplete = FALSE;	    // whether autocompletion is active
+static __thread int	  compl_timeout_ms = COMPL_INITIAL_TIMEOUT_MS;
+static __thread int	  compl_time_slice_expired = FALSE; // time budget exceeded for current source
+static __thread int	  compl_from_nonkeyword = FALSE;    // completion started from non-keyword
+static __thread int	  compl_hi_on_autocompl_longest = FALSE;    // apply "PreInsert" highlight
 
 // Halve the current completion timeout, simulating exponential decay.
 #define COMPL_MIN_TIMEOUT_MS	5
@@ -222,7 +222,7 @@ static int	  compl_hi_on_autocompl_longest = FALSE;    // apply "PreInsert" high
 #define COMPL_FUNC_TIMEOUT_NON_KW_MS	1000
 
 // List of flags for method of completion.
-static int	  compl_cont_status = 0;
+static __thread int	  compl_cont_status = 0;
 # define CONT_ADDING	1	// "normal" or "adding" expansion
 # define CONT_INTRPT	(2 + 4)	// a ^X interrupted the current expansion
 				// it's set only iff N_ADDS is set
@@ -234,12 +234,12 @@ static int	  compl_cont_status = 0;
 # define CONT_LOCAL	32	// for ctrl_x_mode 0, ^X^P/^X^N do a local
 				// expansion, (eg use complete=.)
 
-static int	  compl_opt_refresh_always = FALSE;
-static int	  compl_opt_suppress_empty = FALSE;
+static __thread int	  compl_opt_refresh_always = FALSE;
+static __thread int	  compl_opt_suppress_empty = FALSE;
 
-static int	  compl_selected_item = -1;
+static __thread int	  compl_selected_item = -1;
 
-static int	  *compl_fuzzy_scores;
+static __thread int	  *compl_fuzzy_scores;
 
 // Define the structure for completion source (in 'cpt' option) information
 typedef struct cpt_source_T
@@ -253,14 +253,14 @@ typedef struct cpt_source_T
     char_u  cs_flag;	    // flag indicating the type of source
 } cpt_source_T;
 
-static cpt_source_T *cpt_sources_array; // Pointer to the array of completion sources
-static int	    cpt_sources_count;  // Total number of completion sources specified in the 'cpt' option
-static int	    cpt_sources_index = -1;  // Index of the current completion source being expanded
+static __thread cpt_source_T *cpt_sources_array; // Pointer to the array of completion sources
+static __thread int	    cpt_sources_count;  // Total number of completion sources specified in the 'cpt' option
+static __thread int	    cpt_sources_index = -1;  // Index of the current completion source being expanded
 
 // "compl_match_array" points the currently displayed list of entries in the
 // popup menu.  It is NULL when there is no popup menu.
-static pumitem_T *compl_match_array = NULL;
-static int compl_match_arraysize;
+static __thread pumitem_T *compl_match_array = NULL;
+static __thread int compl_match_arraysize;
 
 static int ins_compl_add(char_u *str, int len, char_u *fname, char_u **cptext, typval_T *user_data, int cdir, int flags, int adup, int *user_hl, int score);
 static void ins_compl_longest_match(compl_T *match);
@@ -297,7 +297,7 @@ static int ins_compl_make_cyclic(void);
 
 #ifdef FEAT_SPELL
 static void spell_back_to_badword(void);
-static int  spell_bad_len = 0;	// length of located bad word
+static __thread int  spell_bad_len = 0;	// length of located bad word
 #endif
 
 /*
@@ -1408,7 +1408,7 @@ trigger_complete_changed_event(int cur)
 {
     dict_T	    *v_event;
     dict_T	    *item;
-    static int	    recursive = FALSE;
+    static __thread int	    recursive = FALSE;
     save_v_event_T  save_v_event;
 
     if (recursive)
@@ -3218,7 +3218,7 @@ ins_compl_fixRedoBufForLeader(char_u *ptr_arg)
     static buf_T *
 ins_compl_next_buf(buf_T *buf, int flag)
 {
-    static win_T    *wp = NULL;
+    static __thread win_T    *wp = NULL;
     int		    skip_buffer;
 
     if (flag == 'w')		// just windows
@@ -3294,11 +3294,11 @@ get_cpt_sources_count(void)
 #ifdef FEAT_COMPL_FUNC
 
 # ifdef FEAT_EVAL
-static callback_T cfu_cb;	    // 'completefunc' callback function
-static callback_T ofu_cb;	    // 'omnifunc' callback function
-static callback_T tsrfu_cb;	    // 'thesaurusfunc' callback function
-static callback_T *cpt_cb;	    // Callback functions associated with F{func}
-static int	  cpt_cb_count;	    // Number of cpt callbacks
+static __thread callback_T cfu_cb;	    // 'completefunc' callback function
+static __thread callback_T ofu_cb;	    // 'omnifunc' callback function
+static __thread callback_T tsrfu_cb;	    // 'thesaurusfunc' callback function
+static __thread callback_T *cpt_cb;	    // Callback functions associated with F{func}
+static __thread int	  cpt_cb_count;	    // Number of cpt callbacks
 # endif
 
 /*

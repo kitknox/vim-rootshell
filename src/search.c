@@ -76,32 +76,32 @@ static void update_search_stat(int dirc, pos_T *pos, pos_T *cursor_pos, searchst
  * one for other searches.  last_idx points to the one that was used the last
  * time.
  */
-static spat_T spats[2] =
+static __thread spat_T spats[2] =
 {
     {NULL, 0, TRUE, FALSE, {'/', 0, 0, 0L}},	// last used search pat
     {NULL, 0, TRUE, FALSE, {'/', 0, 0, 0L}}	// last used substitute pat
 };
 
-static int last_idx = 0;	// index in spats[] for RE_LAST
+static __thread int last_idx = 0;	// index in spats[] for RE_LAST
 
-static char_u lastc[2] = {NUL, NUL};	// last character searched for
-static int lastcdir = FORWARD;		// last direction of character search
-static int last_t_cmd = TRUE;		// last search t_cmd
-static char_u	lastc_bytes[MB_MAXBYTES + 1];
-static int	lastc_bytelen = 1;	// >1 for multi-byte char
+static __thread char_u lastc[2] = {NUL, NUL};	// last character searched for
+static __thread int lastcdir = FORWARD;		// last direction of character search
+static __thread int last_t_cmd = TRUE;		// last search t_cmd
+static __thread char_u	lastc_bytes[MB_MAXBYTES + 1];
+static __thread int	lastc_bytelen = 1;	// >1 for multi-byte char
 
 // copy of spats[], for keeping the search patterns while executing autocmds
-static spat_T	    saved_spats[ARRAY_LENGTH(spats)];
-static char_u	    *saved_mr_pattern = NULL;
-static size_t	    saved_mr_patternlen = 0;
+static __thread spat_T	    saved_spats[ARRAY_LENGTH(spats)];
+static __thread char_u	    *saved_mr_pattern = NULL;
+static __thread size_t	    saved_mr_patternlen = 0;
 # ifdef FEAT_SEARCH_EXTRA
-static int	    saved_spats_last_idx = 0;
-static int	    saved_spats_no_hlsearch = 0;
+static __thread int	    saved_spats_last_idx = 0;
+static __thread int	    saved_spats_no_hlsearch = 0;
 # endif
 
 // allocated copy of pattern used by search_regcomp()
-static char_u	    *mr_pattern = NULL;
-static size_t	    mr_patternlen = 0;
+static __thread char_u	    *mr_pattern = NULL;
+static __thread size_t	    mr_patternlen = 0;
 
 #ifdef FEAT_FIND_ID
 /*
@@ -248,7 +248,7 @@ save_re_pat(int idx, char_u *pat, size_t patlen, int magic)
  * Save the search patterns, so they can be restored later.
  * Used before/after executing autocommands and user functions.
  */
-static int save_level = 0;
+static __thread int save_level = 0;
 
     void
 save_search_patterns(void)
@@ -328,12 +328,12 @@ free_search_patterns(void)
 #ifdef FEAT_SEARCH_EXTRA
 // copy of spats[RE_SEARCH], for keeping the search patterns while incremental
 // searching
-static spat_T	    saved_last_search_spat;
-static int	    did_save_last_search_spat = 0;
-static int	    saved_last_idx = 0;
-static int	    saved_no_hlsearch = 0;
-static int	    saved_search_match_endcol;
-static int	    saved_search_match_lines;
+static __thread spat_T	    saved_last_search_spat;
+static __thread int	    did_save_last_search_spat = 0;
+static __thread int	    saved_last_idx = 0;
+static __thread int	    saved_no_hlsearch = 0;
+static __thread int	    saved_search_match_endcol = 0;
+static __thread int	    saved_search_match_lines = 0;
 
 /*
  * Save and restore the search pattern for incremental highlight search
@@ -2134,7 +2134,7 @@ findmatchlimit(
     int		flags,
     int		maxtravel)
 {
-    static pos_T pos;			// current search position
+    static __thread pos_T pos;			// current search position
     int		findc = 0;		// matching brace
     int		c;
     int		count = 0;		// cumulative number of braces
@@ -3255,16 +3255,16 @@ update_search_stat(
     int		    save_ws = p_ws;
     int		    wraparound = FALSE;
     pos_T	    p = (*pos);
-    static pos_T    lastpos = {0, 0, 0};
-    static int	    cur = 0;
-    static int	    cnt = 0;
-    static int	    exact_match = FALSE;
-    static int	    incomplete = 0;
-    static int	    last_maxcount = 0;
-    static int	    chgtick = 0;
-    static char_u   *lastpat = NULL;
-    static size_t   lastpatlen = 0;
-    static buf_T    *lbuf = NULL;
+    static __thread pos_T    lastpos = {0, 0, 0};
+    static __thread int	    cur = 0;
+    static __thread int	    cnt = 0;
+    static __thread int	    exact_match = FALSE;
+    static __thread int	    incomplete = 0;
+    static __thread int	    last_maxcount = 0;
+    static __thread int	    chgtick = 0;
+    static __thread char_u   *lastpat = NULL;
+    static __thread size_t   lastpatlen = 0;
+    static __thread buf_T    *lbuf = NULL;
 #ifdef FEAT_RELTIME
     proftime_T  start;
 #endif

@@ -118,9 +118,9 @@ struct qf_info_S
     int		qf_bufnr;	    // quickfix window buffer number
 };
 
-static qf_info_T ql_info_actual; // global quickfix list
-static qf_info_T *ql_info;	// points to ql_info_actual if memory allocation is successful.
-static int_u last_qf_id = 0;	// Last used quickfix list id
+static __thread qf_info_T ql_info_actual; // global quickfix list
+static __thread qf_info_T *ql_info = NULL;	// points to ql_info_actual if memory allocation is successful.
+static __thread int_u last_qf_id = 0;	// Last used quickfix list id
 
 #define FMT_PATTERNS 14		// maximum number of % recognized
 
@@ -160,16 +160,16 @@ typedef struct qf_delq_S
     struct qf_delq_S	*next;
     qf_info_T		*qi;
 } qf_delq_T;
-static qf_delq_T *qf_delq_head = NULL;
+static __thread qf_delq_T *qf_delq_head = NULL;
 
 // Counter to prevent autocmds from freeing up location lists when they are
 // still being used.
-static int	quickfix_busy = 0;
+static __thread int	quickfix_busy = 0;
 
-static efm_T	*fmt_start = NULL; // cached across qf_parse_line() calls
+static __thread efm_T	*fmt_start = NULL; // cached across qf_parse_line() calls
 
 // callback function for 'quickfixtextfunc'
-static callback_T qftf_cb;
+static __thread callback_T qftf_cb;
 
 static void     qf_pop_stack(qf_info_T *qi, int adjust);
 static void	qf_new_list(qf_info_T *qi, char_u *qf_title);
@@ -228,10 +228,10 @@ static int	entry_is_closer_to_target(qfline_T *entry, qfline_T *other_entry, int
  * Looking up a buffer can be slow if there are many.  Remember the last one
  * to make this a lot faster if there are multiple matches in the same file.
  */
-static char_u   *qf_last_bufname = NULL;
-static bufref_T  qf_last_bufref = {NULL, 0, 0};
+static __thread char_u   *qf_last_bufname = NULL;
+static __thread bufref_T  qf_last_bufref = {NULL, 0, 0};
 
-static garray_T qfga;
+static __thread garray_T qfga;
 
 /*
  * Get a growarray to buffer text in.  Shared between various commands to avoid
@@ -240,7 +240,7 @@ static garray_T qfga;
     static garray_T *
 qfga_get(void)
 {
-    static int initialized = FALSE;
+    static __thread int initialized = FALSE;
 
     if (!initialized)
     {
@@ -278,7 +278,7 @@ qfga_clear(void)
 /*
  * Patterns used.  Keep in sync with qf_parse_fmt[].
  */
-static struct fmtpattern
+static __thread struct fmtpattern
 {
     char_u	convchar;
     char	*pattern;
@@ -3929,9 +3929,9 @@ theend:
 }
 
 // Highlight attributes used for displaying entries from the quickfix list.
-static int	qfFileAttr;
-static int	qfSepAttr;
-static int	qfLineAttr;
+static __thread int	qfFileAttr = 0;
+static __thread int	qfSepAttr = 0;
+static __thread int	qfLineAttr = 0;
 
 /*
  * Display information about a single entry from the quickfix/location list.

@@ -12,45 +12,45 @@
  */
 #include "vim.h"
 
-static pumitem_T *pum_array = NULL;	// items of displayed pum
-static int pum_size;			// nr of items in "pum_array"
-static int pum_selected;		// index of selected item or -1
-static int pum_first = 0;		// index of top item
+static __thread pumitem_T *pum_array = NULL;	// items of displayed pum
+static __thread int pum_size = 0;			// nr of items in "pum_array"
+static __thread int pum_selected = 0;		// index of selected item or -1
+static __thread int pum_first = 0;		// index of top item
 
-static int call_update_screen = FALSE;
-static int pum_in_cmdline = FALSE;
+static __thread int call_update_screen = FALSE;
+static __thread int pum_in_cmdline = FALSE;
 
-static int pum_height;			// nr of displayed pum items
-static int pum_width;			// width of displayed pum items
-static int pum_base_width;		// width of pum items base
-static int pum_kind_width;		// width of pum items kind column
-static int pum_extra_width;		// width of extra stuff
-static int pum_scrollbar;		// TRUE when scrollbar present
+static __thread int pum_height = 0;			// nr of displayed pum items
+static __thread int pum_width = 0;			// width of displayed pum items
+static __thread int pum_base_width = 0;		// width of pum items base
+static __thread int pum_kind_width = 0;		// width of pum items kind column
+static __thread int pum_extra_width = 0;		// width of extra stuff
+static __thread int pum_scrollbar = 0;		// TRUE when scrollbar present
 #ifdef FEAT_RIGHTLEFT
-static int pum_rl;			// TRUE when pum is drawn 'rightleft'
+static __thread int pum_rl = 0;			// TRUE when pum is drawn 'rightleft'
 #endif
 
-static int pum_row;			// top row of pum
-static int pum_col;			// left column of pum
+static __thread int pum_row = 0;			// top row of pum
+static __thread int pum_col = 0;			// left column of pum
 
-static win_T *pum_window = NULL;
-static int pum_win_row;
-static int pum_win_height;
-static int pum_win_col;
-static int pum_win_wcol;
-static int pum_win_width;
+static __thread win_T *pum_window = NULL;
+static __thread int pum_win_row = 0;
+static __thread int pum_win_height = 0;
+static __thread int pum_win_col = 0;
+static __thread int pum_win_wcol = 0;
+static __thread int pum_win_width = 0;
 
 // Some parts are not updated when a popup menu is visible.  Setting this flag
 // makes pum_visible() return FALSE even when there is a popup menu.
-static int pum_pretend_not_visible = FALSE;
+static __thread int pum_pretend_not_visible = FALSE;
 
 // Border support
-static int pum_border = 0;
-static int pum_margin = 0;	// margin of 1 cell on left and right
-static int pum_shadow = 0;
+static __thread int pum_border = 0;
+static __thread int pum_margin = 0;	// margin of 1 cell on left and right
+static __thread int pum_shadow = 0;
 
 // Border characters
-static struct {
+static __thread struct {
     int top;
     int right;
     int bottom;
@@ -1617,8 +1617,8 @@ pum_position_at_mouse(int min_width)
 #endif
 
 #if defined(FEAT_BEVAL_TERM)
-static pumitem_T *balloon_array = NULL;
-static int balloon_arraysize;
+static __thread pumitem_T *balloon_array = NULL;
+static __thread int balloon_arraysize = 0;
 
 # define BALLOON_MIN_WIDTH 50
 # define BALLOON_MIN_HEIGHT 10

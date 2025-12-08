@@ -97,7 +97,7 @@ enum {
 };
 
 // must be sorted by the 'value' field because it is used by bsearch()!
-static keyvalue_T color_name_tab[] = {
+static __thread keyvalue_T color_name_tab[] = {
     KEYVALUE_ENTRY(BLACK, "Black"),
     KEYVALUE_ENTRY(BLUE, "Blue"),
     KEYVALUE_ENTRY(BROWN, "Brown"),
@@ -182,7 +182,7 @@ typedef struct
 } hl_group_T;
 
 // highlight groups for 'highlight' option
-static garray_T highlight_ga;
+static __thread garray_T highlight_ga;
 #define HL_TABLE()	((hl_group_T *)((highlight_ga.ga_data)))
 
 /*
@@ -628,7 +628,7 @@ load_colors(char_u *name)
     return retval;
 }
 
-static int color_numbers_16[28] = {0, 1, 2, 3,
+static __thread int color_numbers_16[28] = {0, 1, 2, 3,
 				 4, 5, 6, 6,
 				 7, 7, 7, 7,
 				 8, 8,
@@ -636,7 +636,7 @@ static int color_numbers_16[28] = {0, 1, 2, 3,
 				 11, 11, 12, 12, 13,
 				 13, 14, 14, 15, -1};
 // for xterm with 88 colors...
-static int color_numbers_88[28] = {0, 4, 2, 6,
+static __thread int color_numbers_88[28] = {0, 4, 2, 6,
 				 1, 5, 32, 72,
 				 84, 84, 7, 7,
 				 82, 82,
@@ -644,7 +644,7 @@ static int color_numbers_88[28] = {0, 4, 2, 6,
 				 14, 63, 9, 74, 13,
 				 75, 11, 78, 15, -1};
 // for xterm with 256 colors...
-static int color_numbers_256[28] = {0, 4, 2, 6,
+static __thread int color_numbers_256[28] = {0, 4, 2, 6,
 				 1, 5, 130, 3,
 				 248, 248, 7, 7,
 				 242, 242,
@@ -652,7 +652,7 @@ static int color_numbers_256[28] = {0, 4, 2, 6,
 				 14, 159, 9, 224, 13,
 				 225, 11, 229, 15, -1};
 // for terminals with less than 16 colors...
-static int color_numbers_8[28] = {0, 4, 2, 6,
+static __thread int color_numbers_8[28] = {0, 4, 2, 6,
 				 1, 5, 3, 3,
 				 7, 7, 7, 7,
 				 0+8, 0+8,
@@ -2681,16 +2681,16 @@ gui_get_rgb_color_cmn(int r, int g, int b)
  * Note that this table is used by ALL buffers.  This is required because the
  * GUI can redraw at any time for any buffer.
  */
-static garray_T	term_attr_table = {0, 0, 0, 0, NULL};
+static __thread garray_T	term_attr_table = {0, 0, 0, 0, NULL};
 
 #define TERM_ATTR_ENTRY(idx) ((attrentry_T *)term_attr_table.ga_data)[idx]
 
-static garray_T	cterm_attr_table = {0, 0, 0, 0, NULL};
+static __thread garray_T	cterm_attr_table = {0, 0, 0, 0, NULL};
 
 #define CTERM_ATTR_ENTRY(idx) ((attrentry_T *)cterm_attr_table.ga_data)[idx]
 
 #ifdef FEAT_GUI
-static garray_T	gui_attr_table = {0, 0, 0, 0, NULL};
+static __thread garray_T	gui_attr_table = {0, 0, 0, 0, NULL};
 
 #define GUI_ATTR_ENTRY(idx) ((attrentry_T *)gui_attr_table.ga_data)[idx]
 #endif
@@ -4187,12 +4187,12 @@ static void highlight_list(void);
 static void highlight_list_two(int cnt, int attr);
 
 // context for :highlight <group> <arg> expansion
-static int expand_hi_synid = 0;	    // ID for highlight group being completed
-static int expand_hi_equal_col = 0; // column where the '=' is
-static int expand_hi_include_orig = 0;	    // whether to fill the existing current value or not
-static char_u *expand_hi_curvalue = NULL;   // the existing current value
+static __thread int expand_hi_synid = 0;	    // ID for highlight group being completed
+static __thread int expand_hi_equal_col = 0; // column where the '=' is
+static __thread int expand_hi_include_orig = 0;	    // whether to fill the existing current value or not
+static __thread char_u *expand_hi_curvalue = NULL;   // the existing current value
 #if defined(FEAT_EVAL) && (defined(FEAT_GUI) || defined(FEAT_TERMGUICOLORS))
-static dict_iterator_T expand_colornames_iter;	// iterator for looping through v:colornames
+static __thread dict_iterator_T expand_colornames_iter;	// iterator for looping through v:colornames
 #endif
 
 /*
@@ -4983,7 +4983,7 @@ hldict_attr_to_str(
 // IObuff cannot be used for this as the error messages produced by hlset()
 // internally use IObuff.
 #define	HLSETBUFSZ  512
-static char_u hlsetBuf[HLSETBUFSZ + 1];
+static __thread char_u hlsetBuf[HLSETBUFSZ + 1];
 
 /*
  * Add the highlight attribute "attr" of length "attrlen" and "value" at

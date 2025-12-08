@@ -17,8 +17,8 @@
  * Horiziontal and vertical steps used when scrolling.
  * When negative scroll by a whole page.
  */
-static long mouse_hor_step = 6;
-static long mouse_vert_step = 3;
+static __thread long mouse_hor_step = 6;
+static __thread long mouse_vert_step = 3;
 
     void
 mouse_set_vert_scroll_step(long step)
@@ -1333,7 +1333,7 @@ is_mouse_key(int c)
 	|| c == K_X2RELEASE;
 }
 
-static struct mousetable
+static __thread struct mousetable
 {
     int	    pseudo_code;	// Code for pseudo mouse event
     int	    button;		// Which mouse button is it?
@@ -1436,7 +1436,7 @@ get_pseudo_mouse_code(
 # define HMT_GPM	64
 # define HMT_SGR	128
 # define HMT_SGR_REL	256
-static int has_mouse_termcode = 0;
+static __thread int has_mouse_termcode = 0;
 
     void
 set_mouse_termcode(
@@ -1619,7 +1619,7 @@ mouse_model_popup(void)
     return (p_mousem[0] == 'p');
 }
 
-static win_T *dragwin = NULL;	// window being dragged
+static __thread win_T *dragwin = NULL;	// window being dragged
 
 /*
  * Reset the window being dragged.  To be called when switching tab page.
@@ -2254,7 +2254,7 @@ nv_mouse(cmdarg_T *cap)
     (void)do_mouse(cap->oap, cap->cmdchar, BACKWARD, cap->count1, 0);
 }
 
-static int	held_button = MOUSE_RELEASE;
+static __thread int	held_button = MOUSE_RELEASE;
 
     void
 reset_held_button(void)

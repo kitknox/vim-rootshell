@@ -312,7 +312,7 @@ static void sig_winch SIGPROTOARG;
 static void sig_tstp SIGPROTOARG;
 // volatile because it is used in signal handler sig_tstp() and
 // sigcont_handler().
-static volatile sig_atomic_t in_mch_suspend = FALSE;
+static __thread volatile sig_atomic_t in_mch_suspend = FALSE;
 #endif
 #if defined(SIGINT)
 static void catch_sigint SIGPROTOARG;
@@ -327,7 +327,7 @@ static void catch_sigpwr SIGPROTOARG;
 # define SET_SIG_ALARM
 static void sig_alarm SIGPROTOARG;
 // volatile because it is used in signal handler sig_alarm().
-static volatile sig_atomic_t sig_alarm_called;
+static __thread volatile sig_atomic_t sig_alarm_called;
 #endif
 static void deathtrap SIGPROTOARG;
 
@@ -356,22 +356,22 @@ static int save_patterns(int num_pat, char_u **pat, int *num_file, char_u ***fil
 #endif
 
 // volatile because it is used in signal handler sig_winch().
-static volatile sig_atomic_t do_resize = FALSE;
+static __thread volatile sig_atomic_t do_resize = FALSE;
 // volatile because it is used in signal handler sig_tstp().
-static volatile sig_atomic_t got_tstp = FALSE;
-static char_u	*extra_shell_arg = NULL;
-static int	show_shell_mess = TRUE;
+static __thread volatile sig_atomic_t got_tstp = FALSE;
+static __thread char_u	*extra_shell_arg = NULL;
+static __thread int	show_shell_mess = TRUE;
 // volatile because it is used in signal handler deathtrap().
-static volatile sig_atomic_t deadly_signal = 0;	   // The signal we caught
+static __thread volatile sig_atomic_t deadly_signal = 0;	   // The signal we caught
 // volatile because it is used in signal handler deathtrap().
-static volatile sig_atomic_t in_mch_delay = FALSE; // sleeping in mch_delay()
+static __thread volatile sig_atomic_t in_mch_delay = FALSE; // sleeping in mch_delay()
 
 #if defined(FEAT_JOB_CHANNEL) && !defined(USE_SYSTEM)
-static int dont_check_job_ended = 0;
+static __thread int dont_check_job_ended = 0;
 #endif
 
 // Current terminal mode from mch_settmode().  Can differ from cur_tmode.
-static tmode_T mch_cur_tmode = TMODE_COOK;
+static __thread tmode_T mch_cur_tmode = TMODE_COOK;
 
 #ifdef USE_XSMP
 typedef struct
@@ -383,7 +383,7 @@ typedef struct
     Bool shutdown;	    // If we're in shutdown mode
 } xsmp_config_T;
 
-static xsmp_config_T xsmp;
+static __thread xsmp_config_T xsmp;
 #endif
 
 #ifdef SYS_SIGLIST_DECLARED
@@ -398,7 +398,7 @@ static xsmp_config_T xsmp;
  */
 #endif
 
-static struct signalinfo
+static __thread struct signalinfo
 {
     int	    sig;	// Signal number, eg. SIGSEGV etc
     char    *name;	// Signal name (not char_u!).
@@ -894,7 +894,7 @@ mch_delay(long msec, int flags)
  * Return a pointer to an item on the stack.  Used to find out if the stack
  * grows up or down.
  */
-static int stack_grows_downwards;
+static __thread int stack_grows_downwards;
 
 /*
  * Find out if the stack grows upwards or downwards.
@@ -910,7 +910,7 @@ check_stack_growth(char *p)
 #endif
 
 #if defined(HAVE_STACK_LIMIT)
-static char *stack_limit = NULL;
+static __thread char *stack_limit = NULL;
 
 #if defined(_THREAD_SAFE) && defined(HAVE_PTHREAD_NP_H)
 # include <pthread.h>
@@ -1002,9 +1002,9 @@ mch_stackcheck(char *p)
  */
 
 # ifdef HAVE_SIGALTSTACK
-static stack_t sigstk;			// for sigaltstack()
+static __thread stack_t sigstk;			// for sigaltstack()
 # else
-static struct sigstack sigstk;		// for sigstack()
+static __thread struct sigstack sigstk;		// for sigstack()
 # endif
 
 /*
@@ -1031,7 +1031,7 @@ static long int get_signal_stack_size(void)
     return 8000;
 }
 
-static char *signal_stack;
+static __thread char *signal_stack;
 
     static void
 init_signal_stack(void)
@@ -1147,17 +1147,17 @@ sig_alarm SIGDEFARG(sigarg)
 # define USING_SETJMP 1
 
 // argument to SETJMP()
-static JMP_BUF lc_jump_env;
+static __thread JMP_BUF lc_jump_env;
 
 # ifdef SIGHASARG
 // Caught signal number, 0 when no signal was caught; used for mch_libcall().
 // Volatile because it is used in signal handlers.
-static volatile sig_atomic_t lc_signal;
+static __thread volatile sig_atomic_t lc_signal;
 # endif
 
 // TRUE when lc_jump_env is valid.
 // Volatile because it is used in signal handler deathtrap().
-static volatile sig_atomic_t lc_active = FALSE;
+static __thread volatile sig_atomic_t lc_active = FALSE;
 
 /*
  * A simplistic version of setjmp() that only allows one level of using.
@@ -1406,7 +1406,7 @@ static void sigcont_handler SIGPROTOARG;
  *
  * volatile because it is used in signal handler sigcont_handler().
  */
-static volatile sig_atomic_t sigcont_received;
+static __thread volatile sig_atomic_t sigcont_received;
 static void sigcont_handler SIGPROTOARG;
 
 /*
@@ -1842,7 +1842,7 @@ xopen_message(long elapsed_msec)
  * A few functions shared by X11 title and clipboard code.
  */
 
-static int	got_x_error = FALSE;
+static __thread int	got_x_error = FALSE;
 
 /*
  * X Error handler, otherwise X just exits!  (very rude) -- webb
@@ -1927,7 +1927,7 @@ x_IOerror_check(Display *dpy UNUSED)
 /*
  * An X IO Error handler, used to catch terminal errors.
  */
-static int xterm_dpy_retry_count = 0;
+static __thread int xterm_dpy_retry_count = 0;
 
     static int
 x_IOerror_handler(Display *dpy UNUSED)
@@ -4104,7 +4104,7 @@ get_tty_info(int fd, ttyinfo_T *info)
 
 #endif // VMS
 
-static int	mouse_ison = FALSE;
+static __thread int	mouse_ison = FALSE;
 
 /*
  * Set mouse clicks on or off and possible enable mouse movement events.
@@ -8274,8 +8274,8 @@ mch_libcall(
 #endif
 
 #if defined(FEAT_X11) && defined(FEAT_XCLIPBOARD)
-static int	xterm_trace = -1;	// default: disabled
-static int	xterm_button;
+static __thread int	xterm_trace = -1;	// default: disabled
+static __thread int	xterm_button;
 
 /*
  * Setup a dummy window for X selections in a terminal.
@@ -8776,7 +8776,7 @@ xsmp_handle_requests(void)
 	return OK;
 }
 
-static int dummy;
+static __thread int dummy;
 
 // Set up X Session Management Protocol
     void

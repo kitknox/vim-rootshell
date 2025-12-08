@@ -13,140 +13,140 @@
 
 #include "vim.h"
 
-static char_u shm_buf[SHM_LEN];
-static int set_shm_recursive = 0;
+static __thread char_u shm_buf[SHM_LEN];
+static __thread int set_shm_recursive = 0;
 
-static char *(p_ambw_values[]) = {"single", "double", NULL};
-static char *(p_bg_values[]) = {"light", "dark", NULL};
-static char *(p_bkc_values[]) = {"yes", "auto", "no", "breaksymlink", "breakhardlink", NULL};
-static char *(p_bo_values[]) = {"all", "backspace", "cursor", "complete",
+static __thread char *(p_ambw_values[]) = {"single", "double", NULL};
+static __thread char *(p_bg_values[]) = {"light", "dark", NULL};
+static __thread char *(p_bkc_values[]) = {"yes", "auto", "no", "breaksymlink", "breakhardlink", NULL};
+static __thread char *(p_bo_values[]) = {"all", "backspace", "cursor", "complete",
 				 "copy", "ctrlg", "error", "esc", "ex",
 				 "hangul", "insertmode", "lang", "mess",
 				 "showmatch", "operator", "register", "shell",
 				 "spell", "term", "wildmode", NULL};
 #if defined(FEAT_LINEBREAK)
 // Note: Keep this in sync with briopt_check()
-static char *(p_briopt_values[]) = {"shift:", "min:", "sbr", "list:", "column:", NULL};
+static __thread char *(p_briopt_values[]) = {"shift:", "min:", "sbr", "list:", "column:", NULL};
 #endif
 #if defined(FEAT_TABPANEL)
 // Note: Keep this in sync with tabpanelopt_changed()
-static char *(p_tplo_values[]) = {"align:", "columns:", "vert", NULL};
-static char *(p_tplo_align_values[]) = {"left", "right", NULL};
+static __thread char *(p_tplo_values[]) = {"align:", "columns:", "vert", NULL};
+static __thread char *(p_tplo_align_values[]) = {"left", "right", NULL};
 #endif
 #if defined(FEAT_DIFF)
 // Note: Keep this in sync with diffopt_changed()
-static char *(p_dip_values[]) = {"filler", "anchor", "context:", "iblank", "icase", "iwhite", "iwhiteall", "iwhiteeol", "horizontal", "vertical", "closeoff", "hiddenoff", "foldcolumn:", "followwrap", "internal", "indent-heuristic", "algorithm:", "inline:", "linematch:", NULL};
-static char *(p_dip_algorithm_values[]) = {"myers", "minimal", "patience", "histogram", NULL};
-static char *(p_dip_inline_values[]) = {"none", "simple", "char", "word", NULL};
+static __thread char *(p_dip_values[]) = {"filler", "anchor", "context:", "iblank", "icase", "iwhite", "iwhiteall", "iwhiteeol", "horizontal", "vertical", "closeoff", "hiddenoff", "foldcolumn:", "followwrap", "internal", "indent-heuristic", "algorithm:", "inline:", "linematch:", NULL};
+static __thread char *(p_dip_algorithm_values[]) = {"myers", "minimal", "patience", "histogram", NULL};
+static __thread char *(p_dip_inline_values[]) = {"none", "simple", "char", "word", NULL};
 #endif
-static char *(p_nf_values[]) = {"bin", "octal", "hex", "alpha", "unsigned", "blank", NULL};
-static char *(p_ff_values[]) = {FF_UNIX, FF_DOS, FF_MAC, NULL};
+static __thread char *(p_nf_values[]) = {"bin", "octal", "hex", "alpha", "unsigned", "blank", NULL};
+static __thread char *(p_ff_values[]) = {FF_UNIX, FF_DOS, FF_MAC, NULL};
 #ifdef FEAT_CLIPBOARD
 // Note: Keep this in sync with did_set_clipboard()
-static char *(p_cb_values[]) = {"unnamed", "unnamedplus", "autoselect", "autoselectplus", "autoselectml", "html", "exclude:", NULL};
+static __thread char *(p_cb_values[]) = {"unnamed", "unnamedplus", "autoselect", "autoselectplus", "autoselectml", "html", "exclude:", NULL};
 // Note: Keep this in sync with get_clipmethod()
-static char *(p_cpm_values[]) = {"wayland", "x11", NULL};
+static __thread char *(p_cpm_values[]) = {"wayland", "x11", NULL};
 #endif
 #ifdef FEAT_CRYPT
-static char *(p_cm_values[]) = {"zip", "blowfish", "blowfish2",
+static __thread char *(p_cm_values[]) = {"zip", "blowfish", "blowfish2",
  # ifdef FEAT_SODIUM
     "xchacha20", "xchacha20v2",
  # endif
     NULL};
 #endif
-static char *(p_cmp_values[]) = {"internal", "keepascii", NULL};
+static __thread char *(p_cmp_values[]) = {"internal", "keepascii", NULL};
 #ifdef FEAT_SYN_HL
 // Note: Keep this in sync with fill_culopt_flags()
-static char *(p_culopt_values[]) = {"line", "screenline", "number", "both", NULL};
+static __thread char *(p_culopt_values[]) = {"line", "screenline", "number", "both", NULL};
 #endif
-static char *(p_dy_values[]) = {"lastline", "truncate", "uhex", NULL};
-static char *(p_jop_values[]) = {"stack", NULL};
+static __thread char *(p_dy_values[]) = {"lastline", "truncate", "uhex", NULL};
+static __thread char *(p_jop_values[]) = {"stack", NULL};
 #ifdef FEAT_FOLDING
-static char *(p_fdo_values[]) = {"all", "block", "hor", "mark", "percent",
+static __thread char *(p_fdo_values[]) = {"all", "block", "hor", "mark", "percent",
 				 "quickfix", "search", "tag", "insert",
 				 "undo", "jump", NULL};
 #endif
 // Note: Keep this in sync with match_keyprotocol()
-static char *(p_kpc_protocol_values[]) = {"none", "mok2", "kitty", NULL};
+static __thread char *(p_kpc_protocol_values[]) = {"none", "mok2", "kitty", NULL};
 #ifdef FEAT_PROP_POPUP
 // Note: Keep this in sync with parse_popup_option()
-static char *(p_popup_cpp_option_values[]) = {"align:", "border:",
+static __thread char *(p_popup_cpp_option_values[]) = {"align:", "border:",
     "borderhighlight:", "close:", "height:", "highlight:", "resize:",
     "shadow:", "width:", NULL};
-static char *(p_popup_pvp_option_values[]) = {"height:", "highlight:",
+static __thread char *(p_popup_pvp_option_values[]) = {"height:", "highlight:",
     "width:", NULL};
-static char *(p_popup_option_on_off_values[]) = {"on", "off", NULL};
-static char *(p_popup_cpp_border_values[]) = {"single", "double", "round",
+static __thread char *(p_popup_option_on_off_values[]) = {"on", "off", NULL};
+static __thread char *(p_popup_cpp_border_values[]) = {"single", "double", "round",
     "ascii", "on", "off", "custom:", NULL};
-static char *(p_popup_option_align_values[]) = {"item", "menu", NULL};
+static __thread char *(p_popup_option_align_values[]) = {"item", "menu", NULL};
 #endif
 #if defined(FEAT_SPELL)
 // Note: Keep this in sync with spell_check_sps()
-static char *(p_sps_values[]) = {"best", "fast", "double", "expr:", "file:", "timeout:", NULL};
+static __thread char *(p_sps_values[]) = {"best", "fast", "double", "expr:", "file:", "timeout:", NULL};
 #endif
 #ifdef FEAT_SESSION
 // Also used for 'viewoptions'!  Keep in sync with SSOP_ flags.
-static char *(p_ssop_values[]) = {"buffers", "winpos", "resize", "winsize",
+static __thread char *(p_ssop_values[]) = {"buffers", "winpos", "resize", "winsize",
     "localoptions", "options", "help", "blank", "globals", "slash", "unix",
     "sesdir", "curdir", "folds", "cursor", "tabpages", "terminal", "skiprtp",
     NULL};
 #endif
 // Keep in sync with SWB_ flags in option.h
-static char *(p_swb_values[]) = {"useopen", "usetab", "split", "newtab", "vsplit", "uselast", NULL};
-static char *(p_spk_values[]) = {"cursor", "screen", "topline", NULL};
-static char *(p_tc_values[]) = {"followic", "ignore", "match", "followscs", "smart", NULL};
+static __thread char *(p_swb_values[]) = {"useopen", "usetab", "split", "newtab", "vsplit", "uselast", NULL};
+static __thread char *(p_spk_values[]) = {"cursor", "screen", "topline", NULL};
+static __thread char *(p_tc_values[]) = {"followic", "ignore", "match", "followscs", "smart", NULL};
 // Keep in sync with TCL_ flags in option.h
-static char *(p_tcl_values[]) = {"left", "uselast", NULL};
+static __thread char *(p_tcl_values[]) = {"left", "uselast", NULL};
 #if defined(FEAT_TOOLBAR) && !defined(FEAT_GUI_MSWIN)
-static char *(p_toolbar_values[]) = {"text", "icons", "tooltips", "horiz", NULL};
+static __thread char *(p_toolbar_values[]) = {"text", "icons", "tooltips", "horiz", NULL};
 #endif
 #if defined(FEAT_TOOLBAR) && defined(FEAT_GUI_GTK)
-static char *(p_tbis_values[]) = {"tiny", "small", "medium", "large", "huge", "giant", NULL};
+static __thread char *(p_tbis_values[]) = {"tiny", "small", "medium", "large", "huge", "giant", NULL};
 #endif
 #if defined(UNIX) || defined(VMS)
-static char *(p_ttym_values[]) = {"xterm", "xterm2", "dec", "netterm", "jsbterm", "pterm", "urxvt", "sgr", NULL};
+static __thread char *(p_ttym_values[]) = {"xterm", "xterm2", "dec", "netterm", "jsbterm", "pterm", "urxvt", "sgr", NULL};
 #endif
-static char *(p_ve_values[]) = {"block", "insert", "all", "onemore", "none", "NONE", NULL};
+static __thread char *(p_ve_values[]) = {"block", "insert", "all", "onemore", "none", "NONE", NULL};
 // Note: Keep this in sync with check_opt_wim()
-static char *(p_wim_values[]) = {"full", "longest", "list", "lastused", "noselect", NULL};
-static char *(p_wop_values[]) = {"fuzzy", "tagfile", "pum", "exacttext", NULL};
+static __thread char *(p_wim_values[]) = {"full", "longest", "list", "lastused", "noselect", NULL};
+static __thread char *(p_wop_values[]) = {"fuzzy", "tagfile", "pum", "exacttext", NULL};
 #ifdef FEAT_WAK
-static char *(p_wak_values[]) = {"yes", "menu", "no", NULL};
+static __thread char *(p_wak_values[]) = {"yes", "menu", "no", NULL};
 #endif
-static char *(p_mousem_values[]) = {"extend", "popup", "popup_setpos", "mac", NULL};
-static char *(p_sel_values[]) = {"inclusive", "exclusive", "old", NULL};
-static char *(p_slm_values[]) = {"mouse", "key", "cmd", NULL};
-static char *(p_km_values[]) = {"startsel", "stopsel", NULL};
+static __thread char *(p_mousem_values[]) = {"extend", "popup", "popup_setpos", "mac", NULL};
+static __thread char *(p_sel_values[]) = {"inclusive", "exclusive", "old", NULL};
+static __thread char *(p_slm_values[]) = {"mouse", "key", "cmd", NULL};
+static __thread char *(p_km_values[]) = {"startsel", "stopsel", NULL};
 #ifdef FEAT_BROWSE
-static char *(p_bsdir_values[]) = {"current", "last", "buffer", NULL};
+static __thread char *(p_bsdir_values[]) = {"current", "last", "buffer", NULL};
 #endif
-static char *(p_scbopt_values[]) = {"ver", "hor", "jump", NULL};
-static char *(p_debug_values[]) = {"msg", "throw", "beep", NULL};
-static char *(p_ead_values[]) = {"both", "ver", "hor", NULL};
-static char *(p_buftype_values[]) = {"nofile", "nowrite", "quickfix", "help", "terminal", "acwrite", "prompt", "popup", NULL};
-static char *(p_bufhidden_values[]) = {"hide", "unload", "delete", "wipe", NULL};
-static char *(p_bs_values[]) = {"indent", "eol", "start", "nostop", NULL};
+static __thread char *(p_scbopt_values[]) = {"ver", "hor", "jump", NULL};
+static __thread char *(p_debug_values[]) = {"msg", "throw", "beep", NULL};
+static __thread char *(p_ead_values[]) = {"both", "ver", "hor", NULL};
+static __thread char *(p_buftype_values[]) = {"nofile", "nowrite", "quickfix", "help", "terminal", "acwrite", "prompt", "popup", NULL};
+static __thread char *(p_bufhidden_values[]) = {"hide", "unload", "delete", "wipe", NULL};
+static __thread char *(p_bs_values[]) = {"indent", "eol", "start", "nostop", NULL};
 #ifdef FEAT_FOLDING
-static char *(p_fdm_values[]) = {"manual", "expr", "marker", "indent", "syntax",
+static __thread char *(p_fdm_values[]) = {"manual", "expr", "marker", "indent", "syntax",
 # ifdef FEAT_DIFF
 				"diff",
 # endif
 				NULL};
-static char *(p_fcl_values[]) = {"all", NULL};
+static __thread char *(p_fcl_values[]) = {"all", NULL};
 #endif
-static char *(p_cfc_values[]) = {"keyword", "files", "whole_line", NULL};
-static char *(p_cot_values[]) = {"menu", "menuone", "longest", "preview", "popup", "popuphidden", "noinsert", "noselect", "fuzzy", "nosort", "preinsert", "nearest", NULL};
+static __thread char *(p_cfc_values[]) = {"keyword", "files", "whole_line", NULL};
+static __thread char *(p_cot_values[]) = {"menu", "menuone", "longest", "preview", "popup", "popuphidden", "noinsert", "noselect", "fuzzy", "nosort", "preinsert", "nearest", NULL};
 #ifdef BACKSLASH_IN_FILENAME
-static char *(p_csl_values[]) = {"slash", "backslash", NULL};
+static __thread char *(p_csl_values[]) = {"slash", "backslash", NULL};
 #endif
 #ifdef FEAT_SIGNS
-static char *(p_scl_values[]) = {"yes", "no", "auto", "number", NULL};
+static __thread char *(p_scl_values[]) = {"yes", "no", "auto", "number", NULL};
 #endif
 #if defined(MSWIN) && defined(FEAT_TERMINAL)
-static char *(p_twt_values[]) = {"winpty", "conpty", "", NULL};
+static __thread char *(p_twt_values[]) = {"winpty", "conpty", "", NULL};
 #endif
-static char *(p_sloc_values[]) = {"last", "statusline", "tabline", NULL};
-static char *(p_sws_values[]) = {"fsync", "sync", NULL};
+static __thread char *(p_sloc_values[]) = {"last", "statusline", "tabline", NULL};
+static __thread char *(p_sws_values[]) = {"fsync", "sync", NULL};
 
 static int check_opt_strings(char_u *val, char **values, int list);
 static int opt_strings_flags(char_u *val, char **values, unsigned *flagp, int list);
@@ -836,8 +836,8 @@ expand_set_opt_string(
     return OK;
 }
 
-static char_u *set_opt_callback_orig_option = NULL;
-static char_u *((*set_opt_callback_func)(expand_T *, int));
+static __thread char_u *set_opt_callback_orig_option = NULL;
+static __thread char_u *((*set_opt_callback_func)(expand_T *, int));
 
 /*
  * Callback used by expand_set_opt_generic to also include the original value
@@ -1673,7 +1673,7 @@ did_set_complete(optset_T *args)
     int
 expand_set_complete(optexpand_T *args, int *numMatches, char_u ***matches)
 {
-    static char *(p_cpt_values[]) = {
+    static __thread char *(p_cpt_values[]) = {
 	".", "w", "b", "u", "k", "kspell", "s", "i", "d", "]", "t", "U", "F", "o",
 	NULL};
     return expand_set_opt_string(
@@ -2284,7 +2284,7 @@ did_set_eventignore(optset_T *args)
     return NULL;
 }
 
-static int expand_eiw = FALSE;
+static __thread int expand_eiw = FALSE;
 
     static char_u *
 get_eventignore_name(expand_T *xp, int idx)
@@ -3120,7 +3120,7 @@ did_set_lispoptions(optset_T *args)
     int
 expand_set_lispoptions(optexpand_T *args, int *numMatches, char_u ***matches)
 {
-    static char *(p_lop_values[]) = {"expr:0", "expr:1", NULL};
+    static __thread char *(p_lop_values[]) = {"expr:0", "expr:1", NULL};
     return expand_set_opt_string(
 	    args,
 	    p_lop_values,
@@ -3189,7 +3189,7 @@ did_set_messagesopt(optset_T *args UNUSED)
     int
 expand_set_messagesopt(optexpand_T *args, int *numMatches, char_u ***matches)
 {
-    static char *(p_mopt_values[]) = {"hit-enter", "wait:", "history:", NULL};
+    static __thread char *(p_mopt_values[]) = {"hit-enter", "wait:", "history:", NULL};
     return expand_set_opt_string(
 	    args,
 	    p_mopt_values,
@@ -3592,7 +3592,7 @@ did_set_rightleftcmd(optset_T *args)
     int
 expand_set_rightleftcmd(optexpand_T *args, int *numMatches, char_u ***matches)
 {
-    static char *(p_rlc_values[]) = {"search", NULL};
+    static __thread char *(p_rlc_values[]) = {"search", NULL};
     return expand_set_opt_string(
 	    args,
 	    p_rlc_values,
@@ -3730,7 +3730,7 @@ error:
     int
 expand_set_pumborder(optexpand_T *args, int *numMatches, char_u ***matches)
 {
-    static char *(p_rlc_values[]) = {"single", "double", "round", "ascii",
+    static __thread char *(p_rlc_values[]) = {"single", "double", "round", "ascii",
 	"custom", "shadow", "margin", NULL};
     return expand_set_opt_string(
 	    args,
@@ -4066,7 +4066,7 @@ did_set_spelloptions(optset_T *args)
     int
 expand_set_spelloptions(optexpand_T *args, int *numMatches, char_u ***matches)
 {
-    static char *(p_spo_values[]) = {"camel", NULL};
+    static __thread char *(p_spo_values[]) = {"camel", NULL};
     return expand_set_opt_string(
 	    args,
 	    p_spo_values,

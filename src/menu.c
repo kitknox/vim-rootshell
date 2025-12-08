@@ -40,7 +40,7 @@ static char_u *menu_text(char_u *text, int *mnemonic, char_u **actext);
 static void gui_create_tearoffs_recurse(vimmenu_T *menu, const char_u *pname, int *pri_tab, int pri_idx);
 static void gui_add_tearoff(char_u *tearpath, int *pri_tab, int pri_idx);
 static void gui_destroy_tearoffs_recurse(vimmenu_T *menu);
-static int s_tearoffs = FALSE;
+static __thread int s_tearoffs = FALSE;
 #endif
 
 static int menu_is_hidden(char_u *name);
@@ -48,7 +48,7 @@ static int menu_is_tearoff(char_u *name);
 
 // When non-zero no menu must be added or cleared.  Prevents the list of menus
 // changing while listing them.
-static int menus_locked = 0;
+static __thread int menus_locked = 0;
 
 #if defined(FEAT_MULTI_LANG) || defined(FEAT_TOOLBAR)
 static char_u *menu_skip_part(char_u *p);
@@ -61,10 +61,10 @@ static void menu_unescape_name(char_u	*p);
 static char_u *menu_translate_tab_and_shift(char_u *arg_start);
 
 // The character for each menu mode
-static char *menu_mode_chars[] = {"n", "v", "s", "o", "i", "c", "tl", "t"};
+static __thread char *menu_mode_chars[] = {"n", "v", "s", "o", "i", "c", "tl", "t"};
 
 #ifdef FEAT_TOOLBAR
-static const char *toolbar_names[] =
+static __thread const char *toolbar_names[] =
 {
     /*  0 */ "New", "Open", "Save", "Undo", "Redo",
     /*  5 */ "Cut", "Copy", "Paste", "Print", "Help",
@@ -1263,10 +1263,10 @@ show_menus_recursive(vimmenu_T *menu, int modes, int depth)
 /*
  * Used when expanding menu names.
  */
-static vimmenu_T	*expand_menu = NULL;
-static vimmenu_T	*expand_menu_alt = NULL;
-static int		expand_modes = 0x0;
-static int		expand_emenu;	// TRUE for ":emenu" command
+static __thread vimmenu_T	*expand_menu = NULL;
+static __thread vimmenu_T	*expand_menu_alt = NULL;
+static __thread int		expand_modes = 0x0;
+static __thread int		expand_emenu = 0;	// TRUE for ":emenu" command
 
 /*
  * Work out what to complete when doing command line completion of menu names.
@@ -2667,7 +2667,7 @@ typedef struct
     char_u	*to;		// translated name
 } menutrans_T;
 
-static garray_T menutrans_ga = {0, 0, 0, 0, NULL};
+static __thread garray_T menutrans_ga = {0, 0, 0, 0, NULL};
 #endif
 
 /*

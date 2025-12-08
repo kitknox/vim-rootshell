@@ -36,24 +36,24 @@
 
 #define MINIMAL_SIZE 20			// minimal size for b_str
 
-static buffheader_T redobuff = {{NULL, 0, {NUL}}, NULL, 0, 0, FALSE};
-static buffheader_T old_redobuff = {{NULL, 0, {NUL}}, NULL, 0, 0, FALSE};
-static buffheader_T recordbuff = {{NULL, 0, {NUL}}, NULL, 0, 0, FALSE};
+static __thread buffheader_T redobuff = {{NULL, 0, {NUL}}, NULL, 0, 0, FALSE};
+static __thread buffheader_T old_redobuff = {{NULL, 0, {NUL}}, NULL, 0, 0, FALSE};
+static __thread buffheader_T recordbuff = {{NULL, 0, {NUL}}, NULL, 0, 0, FALSE};
 
-static int typeahead_char = 0;		// typeahead char that's not flushed
+static __thread int typeahead_char = 0;		// typeahead char that's not flushed
 
 #ifdef FEAT_EVAL
-static char_u typedchars[MAXMAPLEN + 1] = { NUL };  // typed chars before map
-static int typedchars_pos = 0;
+static __thread char_u typedchars[MAXMAPLEN + 1] = { NUL };  // typed chars before map
+static __thread int typedchars_pos = 0;
 #endif
 
 /*
  * When block_redo is TRUE the redo buffer will not be changed.
  * Used by edit() to repeat insertions.
  */
-static int	block_redo = FALSE;
+static __thread int	block_redo = FALSE;
 
-static int	KeyNoremap = 0;	    // remapping flags
+static __thread int	KeyNoremap = 0;	    // remapping flags
 
 /*
  * Variables used by vgetorpeek() and flush_buffers().
@@ -89,10 +89,10 @@ static int	KeyNoremap = 0;	    // remapping flags
 #else // Tiny version
 #define TYPELEN_INIT	(5 * (MAXMAPLEN + 3))
 #endif
-static char_u	typebuf_init[TYPELEN_INIT];	// initial typebuf.tb_buf
-static char_u	noremapbuf_init[TYPELEN_INIT];	// initial typebuf.tb_noremap
+static __thread char_u	typebuf_init[TYPELEN_INIT];	// initial typebuf.tb_buf
+static __thread char_u	noremapbuf_init[TYPELEN_INIT];	// initial typebuf.tb_noremap
 
-static size_t	last_recorded_len = 0;	// number of last recorded chars
+static __thread size_t	last_recorded_len = 0;	// number of last recorded chars
 
 #ifdef FEAT_EVAL
 mapblock_T	*last_used_map = NULL;
@@ -362,10 +362,10 @@ add_char_buff(buffheader_T *buf, int c)
 }
 
 // First read ahead buffer. Used for translated commands.
-static buffheader_T readbuf1 = {{NULL, 0, {NUL}}, NULL, 0, 0, FALSE};
+static __thread buffheader_T readbuf1 = {{NULL, 0, {NUL}}, NULL, 0, 0, FALSE};
 
 // Second read ahead buffer. Used for redo.
-static buffheader_T readbuf2 = {{NULL, 0, {NUL}}, NULL, 0, 0, FALSE};
+static __thread buffheader_T readbuf2 = {{NULL, 0, {NUL}}, NULL, 0, 0, FALSE};
 
 /*
  * Get one byte from the read buffers.  Use readbuf1 one first, use readbuf2
@@ -1527,7 +1527,7 @@ free_typebuf(void)
  * When doing ":so! file", the current typeahead needs to be saved, and
  * restored when "file" has been read completely.
  */
-static typebuf_T saved_typebuf[NSCRIPT];
+static __thread typebuf_T saved_typebuf[NSCRIPT];
 
     int
 save_typebuf(void)
@@ -1543,11 +1543,11 @@ save_typebuf(void)
     return OK;
 }
 
-static int old_char = -1;	// character put back by vungetc()
-static int old_mod_mask;	// mod_mask for ungotten character
-static int old_mouse_row;	// mouse_row related to old_char
-static int old_mouse_col;	// mouse_col related to old_char
-static int old_KeyStuffed;	// whether old_char was stuffed
+static __thread int old_char = -1;	// character put back by vungetc()
+static __thread int old_mod_mask = 0;	// mod_mask for ungotten character
+static __thread int old_mouse_row = 0;	// mouse_row related to old_char
+static __thread int old_mouse_col = 0;	// mouse_col related to old_char
+static __thread int old_KeyStuffed = 0;	// whether old_char was stuffed
 
 static int can_get_old_char(void)
 {

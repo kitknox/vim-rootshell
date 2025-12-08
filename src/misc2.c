@@ -796,7 +796,7 @@ vim_isspace(int x)
  * Some useful tables.
  */
 
-static struct modmasktable
+static __thread struct modmasktable
 {
     short	mod_mask;	// Bit-mask for particular key modifier
     short	mod_flag;	// Bit(s) for particular key modifier
@@ -825,7 +825,7 @@ static struct modmasktable
  */
 #define MOD_KEYS_ENTRY_SIZE 5
 
-static char_u modifier_keys_table[] =
+static __thread char_u modifier_keys_table[] =
 {
 //  mod mask	    with modifier		without modifier
     MOD_MASK_SHIFT, '&', '9',			'@', '1',	// begin
@@ -917,7 +917,7 @@ static char_u modifier_keys_table[] =
 
 #define STRING_INIT(s) \
     {(char_u *)(s), STRLEN_LITERAL(s)}
-static struct key_name_entry
+static __thread struct key_name_entry
 {
     int		enabled;	    // is this entry available (TRUE/FALSE)?
     int		key;		    // special key code or ascii value
@@ -2150,7 +2150,7 @@ cursorentry_T shape_table[SHAPE_IDX_COUNT] =
  */
 #define STRING_INIT(s) \
     {(char_u *)(s), STRLEN_LITERAL(s)}
-static string_T mshape_names[] =
+static __thread string_T mshape_names[] =
 {
     STRING_INIT("arrow"),	// default, must be the first one
     STRING_INIT("blank"),	// hidden
@@ -2475,7 +2475,7 @@ get_shape_idx(int mouse)
 #endif
 
 # if defined(FEAT_MOUSESHAPE)
-static int current_mouse_shape = 0;
+static __thread int current_mouse_shape = 0;
 
 /*
  * Set the mouse shape:
@@ -2675,7 +2675,7 @@ qsort(
 
 #define EXTRASIZE 5		// increment to add to env. size
 
-static int  envsize = -1;	// current size of environment
+static __thread int  envsize = -1;	// current size of environment
 extern char **environ;		// the global which is your env.
 
 static int  findenv(char *name); // look for a name in the env.

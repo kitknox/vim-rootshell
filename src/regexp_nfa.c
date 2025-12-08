@@ -244,24 +244,24 @@ static int nfa_classcodes[] = {
 };
 
 // Variables only used in nfa_regcomp() and descendants.
-static int nfa_re_flags; // re_flags passed to nfa_regcomp()
-static int *post_start;  // holds the postfix form of r.e.
-static int *post_end;
-static int *post_ptr;
+static __thread int nfa_re_flags = 0; // re_flags passed to nfa_regcomp()
+static __thread int *post_start = NULL;  // holds the postfix form of r.e.
+static __thread int *post_end = NULL;
+static __thread int *post_ptr = NULL;
 
 // Set when the pattern should use the NFA engine.
 // E.g. [[:upper:]] only allows 8bit characters for BT engine,
 // while NFA engine handles multibyte characters correctly.
-static int wants_nfa;
+// NOTE: wants_nfa is defined in regexp.c (which #includes this file)
 
-static int nstate;	// Number of states in the NFA.
-static int istate;	// Index in the state vector, used in alloc_state()
+static __thread int nstate = 0;	// Number of states in the NFA.
+static __thread int istate = 0;	// Index in the state vector, used in alloc_state()
 
 // If not NULL match must end at this position
-static save_se_T *nfa_endp = NULL;
+static __thread save_se_T *nfa_endp = NULL;
 
 // 0 for first call to nfa_regmatch(), 1 for recursive call.
-static int nfa_ll_index = 0;
+static __thread int nfa_ll_index = 0;
 
 static int realloc_post_list(void);
 static int nfa_reg(int paren);
@@ -2568,7 +2568,7 @@ nfa_reg(
 }
 
 #ifdef DEBUG
-static char_u code[50];
+static __thread char_u code[50];
 
     static void
 nfa_set_code(int c)
@@ -2804,7 +2804,7 @@ nfa_set_code(int c)
 }
 
 #ifdef ENABLE_LOG
-static FILE *log_fd;
+static __thread FILE *log_fd = NULL;
 static char_u e_log_open_failed[] = N_("Could not open temporary log file for writing, displaying on stderr... ");
 
 /*
@@ -2958,7 +2958,7 @@ re2post(void)
  * If c < 256, labeled arrow with character c to out.
  */
 
-static nfa_state_T	*state_ptr; // points to nfa_prog->state
+static __thread nfa_state_T	*state_ptr = NULL; // points to nfa_prog->state
 
 /*
  * Allocate and initialize nfa_state_T.
@@ -3070,7 +3070,7 @@ append(Ptrlist *l1, Ptrlist *l2)
 /*
  * Stack used for transforming postfix form into NFA.
  */
-static Frag_T empty;
+static __thread Frag_T empty;
 
     static void
 st_error(int *postfix UNUSED, int *end UNUSED, int *p UNUSED)
@@ -4538,11 +4538,11 @@ addstate(
     int			i;
     regsub_T		*sub;
     regsubs_T		*subs = subs_arg;
-    static regsubs_T	temp_subs;
+    static __thread regsubs_T	temp_subs;
 #ifdef ENABLE_LOG
     int			did_print = FALSE;
 #endif
-    static int		depth = 0;
+    static __thread int		depth = 0;
 
 #ifdef FEAT_RELTIME
     if (nfa_did_time_out())

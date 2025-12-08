@@ -33,13 +33,13 @@ static int  msg_check_screen(void);
 static void redir_write(char_u *s, int maxlen);
 #ifdef FEAT_CON_DIALOG
 static char_u *msg_show_console_dialog(char_u *message, char_u *buttons, int dfltbutton);
-static int	confirm_msg_used = FALSE;	// displaying confirm_msg
-static char_u	*confirm_msg = NULL;		// ":confirm" message
-static char_u	*confirm_msg_tail;		// tail of confirm_msg
+static __thread int	confirm_msg_used = FALSE;	// displaying confirm_msg
+static __thread char_u	*confirm_msg = NULL;		// ":confirm" message
+static __thread char_u	*confirm_msg_tail = NULL;		// tail of confirm_msg
 static void display_confirm_msg(void);
 #endif
 #ifdef FEAT_EVAL
-static int emsg_to_channel_log = FALSE;
+static __thread int emsg_to_channel_log = FALSE;
 #endif
 
 struct msg_hist
@@ -49,10 +49,10 @@ struct msg_hist
     int			attr;
 };
 
-static struct msg_hist *first_msg_hist = NULL;
-static struct msg_hist *last_msg_hist = NULL;
-static int msg_hist_len = 0;
-static int msg_hist_max = 500;		// The default max value is 500
+static __thread struct msg_hist *first_msg_hist = NULL;
+static __thread struct msg_hist *last_msg_hist = NULL;
+static __thread int msg_hist_len = 0;
+static __thread int msg_hist_max = 500;		// The default max value is 500
 
 // flags obtained from the 'messagesopt' option
 #define MESSAGES_HIT_ENTER	0x001
@@ -65,11 +65,11 @@ static int msg_hist_max = 500;		// The default max value is 500
 #define MESSAGES_OPT_HISTORY "history:"
 
 // The default is "hit-enter,history:500"
-static int msg_flags = MESSAGES_HIT_ENTER | MESSAGES_HISTORY;
-static int msg_wait = 0;
+static __thread int msg_flags = MESSAGES_HIT_ENTER | MESSAGES_HISTORY;
+static __thread int msg_wait = 0;
 
-static FILE *verbose_fd = NULL;
-static int  verbose_did_open = FALSE;
+static __thread FILE *verbose_fd = NULL;
+static __thread int  verbose_did_open = FALSE;
 
 /*
  * When writing messages to the screen, there are many different situations.
@@ -442,8 +442,8 @@ smsg_attr_keep(int attr, const char *s, ...)
  * Remember the last sourcing name/lnum used in an error message, so that it
  * isn't printed each time when it didn't change.
  */
-static int	last_sourcing_lnum = 0;
-static char_u   *last_sourcing_name = NULL;
+static __thread int	last_sourcing_lnum = 0;
+static __thread char_u   *last_sourcing_name = NULL;
 
 /*
  * Reset the last used sourcing name/lnum.  Makes sure it is displayed again
@@ -593,7 +593,7 @@ emsg_not_now(void)
 }
 
 #if defined(FEAT_EVAL)
-static garray_T ignore_error_list = GA_EMPTY;
+static __thread garray_T ignore_error_list = GA_EMPTY;
 
     void
 ignore_error_for_testing(char_u *error)
@@ -2867,7 +2867,7 @@ struct msgchunk_S
     char_u	sb_text[1];	// text to be displayed, actually longer
 };
 
-static msgchunk_T *last_msgchunk = NULL; // last displayed text
+static __thread msgchunk_T *last_msgchunk = NULL; // last displayed text
 
 static msgchunk_T *msg_sb_start(msgchunk_T *mps);
 
@@ -2879,7 +2879,7 @@ typedef enum {
 } sb_clear_T;
 
 // When to clear text on next msg.
-static sb_clear_T do_clear_sb_text = SB_CLEAR_NONE;
+static __thread sb_clear_T do_clear_sb_text = SB_CLEAR_NONE;
 
 /*
  * Store part of a printed message for displaying when scrolling back.

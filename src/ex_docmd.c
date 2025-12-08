@@ -13,8 +13,8 @@
 
 #include "vim.h"
 
-static int	quitmore = 0;
-static int	ex_pressedreturn = FALSE;
+static __thread int	quitmore = 0;
+static __thread int	ex_pressedreturn = FALSE;
 #ifndef FEAT_PRINTER
 # define ex_hardcopy	ex_ni
 #endif
@@ -23,7 +23,7 @@ static int	ex_pressedreturn = FALSE;
 static char_u	*do_one_cmd(char_u **, int, cstack_T *, char_u *(*fgetline)(int, void *, int, getline_opt_T), void *cookie);
 #else
 static char_u	*do_one_cmd(char_u **, int, char_u *(*fgetline)(int, void *, int, getline_opt_T), void *cookie);
-static int	if_level = 0;		// depth in :if
+static __thread int	if_level = 0;		// depth in :if
 #endif
 static void	append_command(char_u *cmd);
 
@@ -389,7 +389,7 @@ static void	ex_folddo(exarg_T *eap);
 #include "ex_cmds.h"
 #include "ex_cmdidxs.h"
 
-static char_u dollar_command[2] = {'$', 0};
+static __thread char_u dollar_command[2] = {'$', 0};
 
 
 #ifdef FEAT_EVAL
@@ -6799,12 +6799,12 @@ ex_shell(exarg_T *eap UNUSED)
 
 #if defined(HAVE_DROP_FILE)
 
-static int drop_busy = FALSE;
-static int drop_filec;
-static char_u **drop_filev = NULL;
-static int drop_split;
-static void (*drop_callback)(void *);
-static void *drop_cookie;
+static __thread int drop_busy = FALSE;
+static __thread int drop_filec = 0;
+static __thread char_u **drop_filev = NULL;
+static __thread int drop_split = 0;
+static __thread void (*drop_callback)(void *) = NULL;
+static __thread void *drop_cookie = NULL;
 
     static void
 handle_drop_internal(void)
@@ -10222,9 +10222,9 @@ ex_behave(exarg_T *eap)
 	semsg(_(e_invalid_argument_str), eap->arg);
 }
 
-static int filetype_detect = FALSE;
-static int filetype_plugin = FALSE;
-static int filetype_indent = FALSE;
+static __thread int filetype_detect = FALSE;
+static __thread int filetype_plugin = FALSE;
+static __thread int filetype_indent = FALSE;
 
 /*
  * ":filetype [plugin] [indent] {on,off,detect}"
