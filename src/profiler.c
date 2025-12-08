@@ -204,7 +204,7 @@ profile_divide(proftime_T *tm, int count, proftime_T *tm2)
 /*
  * Functions for profiling.
  */
-static proftime_T prof_wait_time;
+static __thread proftime_T prof_wait_time;
 
 /*
  * Add the time "tm2" to "tm".
@@ -297,8 +297,8 @@ profile_cmp(const proftime_T *tm1, const proftime_T *tm2)
 # endif
 }
 
-static char_u	*profile_fname = NULL;
-static proftime_T pause_time;
+static __thread char_u	*profile_fname = NULL;
+static __thread proftime_T pause_time;
 
 /*
  * Reset all profiling information.
@@ -498,7 +498,7 @@ set_context_in_profile_cmd(expand_T *xp, char_u *arg)
     xp->xp_context = EXPAND_NOTHING;
 }
 
-static proftime_T inchar_time;
+static __thread proftime_T inchar_time;
 
 /*
  * Called when starting to wait for the user to type a character.

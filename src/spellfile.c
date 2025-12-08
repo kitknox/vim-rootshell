@@ -2028,9 +2028,9 @@ static void init_spellfile(void);
  * Tunable parameters for when the tree is compressed.  Filled from the
  * 'mkspellmem' option.
  */
-static long compress_start = 30000;	// memory / SBLOCKSIZE
-static long compress_inc = 100;		// memory / SBLOCKSIZE
-static long compress_added = 500000;	// word count
+static __thread long compress_start = 30000;	// memory / SBLOCKSIZE
+static __thread long compress_inc = 100;		// memory / SBLOCKSIZE
+static __thread long compress_added = 500000;	// word count
 
 /*
  * Check the 'mkspellmem' option.  Return FAIL if it's wrong.
@@ -2085,9 +2085,9 @@ spell_check_msm(void)
 #define PRINTSOME(l, depth, fmt, a1, a2) vim_snprintf(l + depth * PRINTWIDTH, \
 	    PRINTLINESIZE - PRINTWIDTH * depth, fmt, a1, a2)
 
-static char line1[PRINTLINESIZE];
-static char line2[PRINTLINESIZE];
-static char line3[PRINTLINESIZE];
+static __thread char line1[PRINTLINESIZE];
+static __thread char line2[PRINTLINESIZE];
+static __thread char line3[PRINTLINESIZE];
 
     static void
 spell_clear_flags(wordnode_T *node)

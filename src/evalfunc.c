@@ -4610,7 +4610,7 @@ f_eventhandler(typval_T *argvars UNUSED, typval_T *rettv)
     rettv->vval.v_number = vgetc_busy || input_busy;
 }
 
-static garray_T	redir_execute_ga;
+static __thread garray_T	redir_execute_ga;
 
 /*
  * Append "value[value_len]" to the execute() output.
@@ -8406,7 +8406,7 @@ f_indexof(typval_T *argvars, typval_T *rettv)
     did_emsg |= save_did_emsg;
 }
 
-static int inputsecret_flag = 0;
+static __thread int inputsecret_flag = 0;
 
 /*
  * "input()" function
@@ -8514,7 +8514,7 @@ f_inputlist(typval_T *argvars, typval_T *rettv)
     rettv->vval.v_number = selected;
 }
 
-static garray_T	    ga_userinput = {0, 0, sizeof(tasave_T), 4, NULL};
+static __thread garray_T	    ga_userinput = {0, 0, sizeof(tasave_T), 4, NULL};
 
 /*
  * "inputrestore()" function

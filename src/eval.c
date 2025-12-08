@@ -6798,7 +6798,7 @@ var2fpos(
     int		charcol)	// return character column
 {
     char_u		*name;
-    static pos_T	pos;
+    static __thread pos_T	pos;
     pos_T		*pp;
 
     // Argument can be [lnum, col, coladd].

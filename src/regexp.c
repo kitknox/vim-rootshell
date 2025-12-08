@@ -737,7 +737,7 @@ restore_parse_state(parse_state_T *ps)
     static int
 peekchr(void)
 {
-    static int	after_slash = FALSE;
+    static __thread int	after_slash = FALSE;
 
     if (curchr != -1)
 	return curchr;
@@ -2180,7 +2180,7 @@ vim_regsub_both(
     linenr_T	clnum = 0;	// init for GCC
     int		len = 0;	// init for GCC
 #ifdef FEAT_EVAL
-    static int  nesting = 0;
+    static __thread int  nesting = 0;
     int		nested;
 #endif
     int		copy = flags & REGSUB_COPY;

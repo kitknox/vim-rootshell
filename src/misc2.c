@@ -1208,7 +1208,7 @@ handle_x_keys(int key)
     char_u *
 get_special_key_name(int c, int modifiers)
 {
-    static char_u string[MAX_KEY_NAME_LEN + 1];
+    static __thread char_u string[MAX_KEY_NAME_LEN + 1];
     int	    i, idx, len;
     int	    table_idx;
 

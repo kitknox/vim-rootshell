@@ -26,7 +26,7 @@
 #define URL_BACKSLASH	2		// path_is_url() has found ":\\"
 
 // All user names (for ~user completion as done by shell).
-static garray_T	ga_users;
+static __thread garray_T	ga_users;
 
 /*
  * get_leader_len() returns the length in bytes of the prefix of the given
@@ -2348,7 +2348,7 @@ preserve_exit(void)
 # define BREAKCHECK_SKIP 1000
 #endif
 
-static int	breakcheck_count = 0;
+static __thread int	breakcheck_count = 0;
 
     void
 line_breakcheck(void)

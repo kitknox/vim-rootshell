@@ -1217,7 +1217,7 @@ mch_didjmp(void)
     static void
 deathtrap SIGDEFARG(sigarg)
 {
-    static int	entered = 0;	    // count the number of times we got here.
+    static __thread int	entered = 0;	    // count the number of times we got here.
 				    // Note: when memory has been corrupted
 				    // this may get an arbitrary value!
 #ifdef SIGHASARG
@@ -1772,8 +1772,8 @@ unblock_signals(sigset_t *set)
     int
 vim_handle_signal(int sig)
 {
-    static int got_signal = 0;
-    static int blocked = TRUE;
+    static __thread int got_signal = 0;
+    static __thread int blocked = TRUE;
 
     switch (sig)
     {
@@ -2037,13 +2037,13 @@ static int get_x11_thing(int get_title, int test_only);
 get_x11_windis(void)
 {
     char	    *winid;
-    static int	    result = -1;
+    static __thread int	    result = -1;
 #define XD_NONE	 0	// x11_display not set here
 #define XD_HERE	 1	// x11_display opened here
 #define XD_GUI	 2	// x11_display used from gui.dpy
 #define XD_XTERM 3	// x11_display used from xterm_dpy
-    static int	    x11_display_from = XD_NONE;
-    static int	    did_set_error_handler = FALSE;
+    static __thread int	    x11_display_from = XD_NONE;
+    static __thread int	    did_set_error_handler = FALSE;
 
     if (!did_set_error_handler)
     {
@@ -2445,7 +2445,7 @@ mch_can_restore_icon(void)
 mch_settitle(char_u *title, char_u *icon)
 {
     int		type = 0;
-    static int	recursive = 0;
+    static __thread int	recursive = 0;
 
     if (T_NAME == NULL)	    // no terminal name (yet)
 	return;
@@ -2765,7 +2765,7 @@ strerror(int err)
 {
     extern int	    sys_nerr;
     extern char	    *sys_errlist[];
-    static char	    er[20];
+    static __thread char	    er[20];
 
     if (err > 0 && err < sys_nerr)
 	return (sys_errlist[err]);
@@ -2809,7 +2809,7 @@ mch_FullName(
     int		buflen = 0;
 #ifdef HAVE_FCHDIR
     int		fd = -1;
-    static int	dont_fchdir = FALSE;	// TRUE when fchdir() doesn't work
+    static __thread int	dont_fchdir = FALSE;	// TRUE when fchdir() doesn't work
 #endif
     char_u	olddir[MAXPATHL];
     char_u	*p;
@@ -3931,14 +3931,14 @@ mch_tcgetattr(int fd, void *term)
     void
 mch_settmode(tmode_T tmode)
 {
-    static int first = TRUE;
+    static __thread int first = TRUE;
 
 #ifdef NEW_TTY_SYSTEM
 # ifdef HAVE_TERMIOS_H
-    static struct termios told;
+    static __thread struct termios told;
 	   struct termios tnew;
 # else
-    static struct termio told;
+    static __thread struct termio told;
 	   struct termio tnew;
 # endif
 
@@ -4113,7 +4113,7 @@ static __thread int	mouse_ison = FALSE;
 mch_setmouse(int on)
 {
 #ifdef FEAT_BEVAL_TERM
-    static int	bevalterm_ison = FALSE;
+    static __thread int	bevalterm_ison = FALSE;
 #endif
     int		xterm_mouse_vers;
 
@@ -4704,16 +4704,16 @@ set_child_environment(
 # ifdef HAVE_SETENV
     char	envbuf[50];
 # else
-    static char	envbuf_Term[30];
-    static char	envbuf_Rows[20];
-    static char	envbuf_Lines[20];
-    static char	envbuf_Columns[20];
-    static char	envbuf_Colors[20];
+    static __thread char	envbuf_Term[30];
+    static __thread char	envbuf_Rows[20];
+    static __thread char	envbuf_Lines[20];
+    static __thread char	envbuf_Columns[20];
+    static __thread char	envbuf_Colors[20];
 #  ifdef FEAT_TERMINAL
-    static char	envbuf_Version[20];
+    static __thread char	envbuf_Version[20];
 #  endif
 #  ifdef FEAT_CLIENTSERVER
-    static char	envbuf_Servername[60];
+    static __thread char	envbuf_Servername[60];
 #  endif
 # endif
 
@@ -6643,7 +6643,7 @@ RealWaitForChar(int fd, long msec, int *check_for_gpm UNUSED, int *interrupted)
     int		ret;
     int		result;
 #if defined(FEAT_XCLIPBOARD) || defined(USE_XSMP) || defined(FEAT_MZSCHEME)
-    static int	busy = FALSE;
+    static __thread int	busy = FALSE;
 
     // May retry getting characters after an event was handled.
 # define MAY_LOOP
@@ -7151,7 +7151,7 @@ mch_expand_wildcards(
 				// globbing functionality using globstar, needs bash > 4)
     int		shell_style = STYLE_ECHO;
     int		check_spaces;
-    static int	did_find_nul = FALSE;
+    static __thread int	did_find_nul = FALSE;
     int		ampersand = FALSE;
 #define STRING_INIT(s) \
 		{(char_u *)(s), STRLEN_LITERAL(s)}
@@ -8018,7 +8018,7 @@ sig_sysmouse SIGDEFARG(sigarg)
     int			row, col;
     int			button;
     int			buttons;
-    static int		oldbuttons = 0;
+    static __thread int		oldbuttons = 0;
 
 #ifdef FEAT_GUI
     // Don't put events in the input queue now.
@@ -8079,7 +8079,7 @@ sig_sysmouse SIGDEFARG(sigarg)
     int
 mch_get_random(char_u *buf, int len)
 {
-    static int dev_urandom_state = NOTDONE;
+    static __thread int dev_urandom_state = NOTDONE;
 
     if (dev_urandom_state == FAIL)
 	return FAIL;
@@ -8425,11 +8425,11 @@ do_xterm_trace(void)
     char_u		buf[50];
     char_u		*strp;
     long		got_hints;
-    static char_u	*mouse_code = NULL;
-    static size_t	mouse_codelen = 0;
+    static __thread char_u	*mouse_code = NULL;
+    static __thread size_t	mouse_codelen = 0;
     static char_u	mouse_name[2] = {KS_MOUSE, KE_FILLER};
-    static int		prev_row = 0, prev_col = 0;
-    static XSizeHints	xterm_hints;
+    static __thread int		prev_row = 0, prev_col = 0;
+    static __thread XSizeHints	xterm_hints;
 
     if (xterm_trace <= 0)
 	return FALSE;

@@ -1215,7 +1215,7 @@ ui_find_longest_lnum(void)
 ui_focus_change(
     int		in_focus)	// TRUE if focus gained.
 {
-    static time_t	last_time = (time_t)0;
+    static __thread time_t	last_time = (time_t)0;
     int			need_redraw = FALSE;
 
     // When activated: Check if any file was modified outside of Vim.

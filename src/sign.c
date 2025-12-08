@@ -37,8 +37,8 @@ struct sign
     int sn_priority; // default priority of this sign, -1 means SIGN_DEF_PRIO
 };
 
-static sign_T *first_sign = NULL;
-static int next_sign_typenr = 1;
+static __thread sign_T *first_sign = NULL;
+static __thread int next_sign_typenr = 1;
 
 static void sign_list_defined(sign_T *sp);
 static void sign_undefine(sign_T *sp, sign_T *sp_prev);
@@ -62,8 +62,8 @@ static char *cmds[] = { "define",
 # define FOR_ALL_SIGNS(sp) \
      for ((sp) = first_sign; (sp) != NULL; (sp) = (sp)->sn_next)
 
-static hashtab_T sg_table; // sign group (signgroup_T) hashtable
-static int next_sign_id = 1; // next sign id in the global group
+static __thread hashtab_T sg_table; // sign group (signgroup_T) hashtable
+static __thread int next_sign_id = 1; // next sign id in the global group
 
 /*
  * Initialize data needed for managing signs

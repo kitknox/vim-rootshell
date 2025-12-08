@@ -1786,9 +1786,9 @@ qf_init_ext(
     qffields_T	    fields;
     qfline_T	    *old_last = NULL;
     int		    adding = FALSE;
-    static efm_T    *fmt_first = NULL;
+    static __thread efm_T    *fmt_first = NULL;
     char_u	    *efm;
-    static char_u   *last_efm = NULL;
+    static __thread char_u   *last_efm = NULL;
     int		    retval = -1;	// default: return error flag
     int		    status;
 
@@ -1949,7 +1949,7 @@ qf_store_title(qf_list_T *qfl, char_u *title)
     static char_u *
 qf_cmdtitle(char_u *cmd)
 {
-    static char_u qftitle_str[IOSIZE];
+    static __thread char_u qftitle_str[IOSIZE];
 
     vim_snprintf((char *)qftitle_str, IOSIZE, ":%s", (char *)cmd);
     return qftitle_str;
@@ -4408,8 +4408,8 @@ qf_mark_adjust(
     static char_u *
 qf_types(int c, int nr)
 {
-    static char_u	buf[20];
-    static char_u	cc[3];
+    static __thread char_u	buf[20];
+    static __thread char_u	cc[3];
     char_u		*p;
 
     if (c == 'W' || c == 'w')
@@ -5063,7 +5063,7 @@ call_qftf_func(qf_list_T *qfl, int qf_winid, long start_idx, long end_idx)
 {
     callback_T	*cb = &qftf_cb;
     list_T	*qftf_list = NULL;
-    static int	recursive = FALSE;
+    static __thread int	recursive = FALSE;
 
     if (recursive)
 	return NULL;  // this doesn't work properly recursively
@@ -5358,8 +5358,8 @@ get_mef_name(void)
 {
     char_u	*p;
     char_u	*name;
-    static int	start = -1;
-    static int	off = 0;
+    static __thread int	start = -1;
+    static __thread int	off = 0;
 #ifdef HAVE_LSTAT
     stat_T	sb;
 #endif
@@ -7679,7 +7679,7 @@ qf_add_entry_from_dict(
 	int		first_entry,
 	int		*valid_entry)
 {
-    static int	did_bufnr_emsg;
+    static __thread int	did_bufnr_emsg;
     char_u	*filename, *module, *pattern, *text, *type;
     int		bufnum, valid, status, col, end_col, vcol, nr;
     long	lnum, end_lnum;
@@ -9083,7 +9083,7 @@ set_qf_ll_list(
 # ifdef FEAT_QUICKFIX
     char_u	*act;
     int		action = 0;
-    static int	recursive = 0;
+    static __thread int	recursive = 0;
 # endif
 
     rettv->vval.v_number = -1;

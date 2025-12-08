@@ -1750,7 +1750,7 @@ syn_current_attr(
     int		cchar;
     short	*next_list;
     int		found_match;		    // found usable match
-    static int	try_next_column = FALSE;    // must try in next col
+    static __thread int	try_next_column = FALSE;    // must try in next col
     int		do_keywords;
     regmmatch_T	regmatch;
     lpos_T	pos;
@@ -6128,7 +6128,7 @@ in_id_list(
     short	*scl_list;
     short	item;
     short	id = ssp->id;
-    static int	depth = 0;
+    static __thread int	depth = 0;
     int		r;
     int		toplevel;
 
