@@ -3175,7 +3175,7 @@ regstack_pop(char_u **scan)
     static int
 bt_did_time_out(int *timed_out)
 {
-    if (*timeout_flag)
+    if (*get_timeout_flag())
     {
 	if (timed_out != NULL)
 	{

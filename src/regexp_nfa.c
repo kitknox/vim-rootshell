@@ -4285,7 +4285,7 @@ sub_equal(regsub_T *sub1, regsub_T *sub2)
     static int
 nfa_did_time_out(void)
 {
-    if (*timeout_flag)
+    if (*get_timeout_flag())
     {
 	if (nfa_timed_out != NULL)
 	{

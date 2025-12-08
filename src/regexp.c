@@ -23,6 +23,16 @@
 #ifdef FEAT_RELTIME
 static __thread sig_atomic_t dummy_timeout_flag = 0;
 static __thread volatile sig_atomic_t *timeout_flag = NULL;
+
+// Get the timeout flag pointer, initializing if needed
+// (TLS variables can't reference other TLS variables in static initializers on iOS)
+    static volatile sig_atomic_t *
+get_timeout_flag(void)
+{
+    if (timeout_flag == NULL)
+	timeout_flag = &dummy_timeout_flag;
+    return timeout_flag;
+}
 #endif
 
 /*
