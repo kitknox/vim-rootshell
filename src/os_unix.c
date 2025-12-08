@@ -564,6 +564,12 @@ mch_chdir(char *path)
 mch_write(char_u *s, int len)
 {
     vim_ignored = (int)write(1, (char *)s, len);
+#if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_OS_MACCATALYST)
+    // On iOS, write() is redirected to ios_write() which buffers output.
+    // Flush thread_stdout to ensure terminal escape sequences are delivered immediately.
+    if (thread_stdout != NULL)
+	fflush(thread_stdout);
+#endif
     if (p_wd)		// Unix is too fast, slow down a bit more
 	RealWaitForChar(read_cmd_fd, p_wd, NULL, NULL);
 }
