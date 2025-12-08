@@ -3546,6 +3546,10 @@ static __thread char_u	*arshape_buf = NULL;
 free_arshape_buf(void)
 {
     vim_free(arshape_buf);
+#if TARGET_OS_IPHONE
+    // iOS: Reset for next vim invocation
+    arshape_buf = NULL;
+#endif
 }
 # endif
 #endif

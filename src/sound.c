@@ -15,7 +15,7 @@
 
 #if defined(FEAT_SOUND)
 
-static long sound_id = 0;
+static __thread long sound_id = 0;
 
 // soundcb_T is typedef'ed in vim.h
 
@@ -29,7 +29,7 @@ struct soundcb_S
     soundcb_T *snd_next;
 };
 
-static soundcb_T *first_callback = NULL;
+static __thread soundcb_T *first_callback = NULL;
 
 /*
  * Return TRUE when a sound callback has been created, it may be invoked when

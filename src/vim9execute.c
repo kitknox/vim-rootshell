@@ -730,7 +730,7 @@ call_dfunc(
 }
 
 // Double linked list of funcstack_T in use.
-static funcstack_T *first_funcstack = NULL;
+static __thread funcstack_T *first_funcstack = NULL;
 
     static void
 add_funcstack_to_list(funcstack_T *funcstack)
@@ -970,7 +970,7 @@ set_ref_in_funcstacks(int copyID)
 
 // Ugly static to avoid passing the execution context around through many
 // layers.
-static ectx_T *current_ectx = NULL;
+static __thread ectx_T *current_ectx = NULL;
 
 /*
  * Return TRUE if currently executing a :def function.
@@ -3002,7 +3002,7 @@ execute_for(isn_T *iptr, ectx_T *ectx)
  */
 
 // Double linked list of loopvars_T in use.
-static loopvars_T *first_loopvars = NULL;
+static __thread loopvars_T *first_loopvars = NULL;
 
     static void
 add_loopvars_to_list(loopvars_T *loopvars)

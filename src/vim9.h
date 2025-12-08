@@ -633,7 +633,7 @@ struct dfunc_S {
 #define STACK_FRAME_SIZE 6
 
 
-extern garray_T def_functions;
+extern __thread garray_T def_functions;
 
 // Used for "lnum" when a range is to be taken from the stack.
 #define LNUM_VARIABLE_RANGE (-999)

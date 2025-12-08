@@ -16,8 +16,8 @@
 
 #if defined(FEAT_EVAL)
 
-static class_T *first_class = NULL;
-static class_T *next_nonref_class = NULL;
+static __thread class_T *first_class = NULL;
+static __thread class_T *next_nonref_class = NULL;
 
 /*
  * Call this function when a class has been created.  It will be added to the
@@ -3834,7 +3834,7 @@ set_ref_in_classes(int copyID)
     return FALSE;
 }
 
-static object_T *first_object = NULL;
+static __thread object_T *first_object = NULL;
 
 /*
  * Call this function when an object has been created.  It will be added to the

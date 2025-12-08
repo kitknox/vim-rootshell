@@ -19,7 +19,7 @@
 // Functions defined with :def are stored in this growarray.
 // They are never removed, so that they can be found by index.
 // Deleted functions have the df_deleted flag set.
-garray_T def_functions = {0, 0, sizeof(dfunc_T), 50, NULL};
+__thread garray_T def_functions = {0, 0, sizeof(dfunc_T), 50, NULL};
 
 static void delete_def_function_contents(dfunc_T *dfunc, int mark_deleted);
 
