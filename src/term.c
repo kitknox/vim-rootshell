@@ -529,12 +529,8 @@ static tcap_entry_T builtin_xterm[] = {
     {(int)KS_CXM,	"\033[?1006;1000%?%p1%{1}%=%th%el%;"},
     {(int)KS_RFG,	"\033]10;?\007"},
     {(int)KS_RBG,	"\033]11;?\007"},
-#if TARGET_OS_IPHONE || TARGET_OS_MACCATALYST
-    // Disable cursor position query on iOS - causes hangs waiting for response
-    {(int)KS_U7,	""},
-#else
+    // Cursor position query - ghostty-ios properly forwards terminal responses
     {(int)KS_U7,	"\033[6n"},
-#endif
     {(int)KS_CAU,	"\033[58;5;%dm"},
     {(int)KS_CBE,	"\033[?2004h"},
     {(int)KS_CBD,	"\033[?2004l"},
