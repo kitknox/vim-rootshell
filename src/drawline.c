@@ -53,12 +53,12 @@ advance_color_col(int vcol, int **color_cols)
 margin_columns_win(win_T *wp, int *left_col, int *right_col)
 {
     // cache previous calculations depending on w_virtcol
-    static int saved_w_virtcol;
-    static win_T *prev_wp;
-    static int prev_width1;
-    static int prev_width2;
-    static int prev_left_col;
-    static int prev_right_col;
+    static __thread int saved_w_virtcol;
+    static __thread win_T *prev_wp;
+    static __thread int prev_width1;
+    static __thread int prev_width2;
+    static __thread int prev_left_col;
+    static __thread int prev_right_col;
 
     int cur_col_off = win_col_off(wp);
     int	width1;

@@ -16,13 +16,13 @@
 /*
  * List used for abbreviations.
  */
-static mapblock_T	*first_abbr = NULL; // first entry in abbrlist
+static __thread mapblock_T	*first_abbr = NULL; // first entry in abbrlist
 
 /*
  * Each mapping is put in one of the 256 hash lists, to speed up finding it.
  */
-static mapblock_T	*(maphash[256]);
-static int		maphash_valid = FALSE;
+static __thread mapblock_T	*(maphash[256]);
+static __thread int		maphash_valid = FALSE;
 
 // When non-zero then no mappings can be added or removed.  Prevents mappings
 // to change while listing them.
@@ -1214,9 +1214,9 @@ map_to_exists_mode(char_u *rhs, int mode, int abbr)
 /*
  * Used below when expanding mapping/abbreviation names.
  */
-static int	expand_mapmodes = 0;
-static int	expand_isabbrev = 0;
-static int	expand_buffer = FALSE;
+static __thread int	expand_mapmodes = 0;
+static __thread int	expand_isabbrev = 0;
+static __thread int	expand_buffer = FALSE;
 
 /*
  * Translate an internal mapping/abbreviation representation into the
@@ -3002,7 +3002,7 @@ typedef struct
     int     to;
 } langmap_entry_T;
 
-static garray_T langmap_mapga;
+static __thread garray_T langmap_mapga;
 
 /*
  * Search for an entry in "langmap_mapga" for "from".  If found set the "to"

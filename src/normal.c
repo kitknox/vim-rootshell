@@ -1103,7 +1103,7 @@ set_vcount_ca(cmdarg_T *cap, int *set_prevcount)
     void
 check_visual_highlight(void)
 {
-    static int	    did_check = FALSE;
+    static __thread int	    did_check = FALSE;
 
     if (full_screen)
     {
@@ -1876,13 +1876,13 @@ display_showcmd(void)
     void
 do_check_scrollbind(int check)
 {
-    static win_T	*old_curwin = NULL;
-    static linenr_T	old_topline = 0;
+    static __thread win_T	*old_curwin = NULL;
+    static __thread linenr_T	old_topline = 0;
 #ifdef FEAT_DIFF
-    static int		old_topfill = 0;
+    static __thread int		old_topfill = 0;
 #endif
-    static buf_T	*old_buf = NULL;
-    static colnr_T	old_leftcol = 0;
+    static __thread buf_T	*old_buf = NULL;
+    static __thread colnr_T	old_leftcol = 0;
 
     if (check && curwin->w_p_scb)
     {

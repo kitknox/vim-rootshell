@@ -3979,13 +3979,13 @@ did_set_osctimeoutlen(optset_T *args)
     char *
 did_set_paste(optset_T *args UNUSED)
 {
-    static int	old_p_paste = FALSE;
-    static int	save_sm = 0;
-    static int	save_sta = 0;
-    static int	save_ru = 0;
+    static __thread int	old_p_paste = FALSE;
+    static __thread int	save_sm = 0;
+    static __thread int	save_sta = 0;
+    static __thread int	save_ru = 0;
 #ifdef FEAT_RIGHTLEFT
-    static int	save_ri = 0;
-    static int	save_hkmap = 0;
+    static __thread int	save_ri = 0;
+    static __thread int	save_hkmap = 0;
 #endif
     buf_T	*buf;
 
@@ -5258,7 +5258,7 @@ findoption(char_u *arg)
 {
     int		    opt_idx;
     char	    *s, *p;
-    static short    quick_tab[27] = {0, 0};	// quick access table
+    static __thread short    quick_tab[27] = {0, 0};	// quick access table
     int		    is_term_opt;
 
     // For first call: Initialize the quick-access table.
@@ -7290,7 +7290,7 @@ clear_winopt(winopt_T *wop UNUSED)
 
 #ifdef FEAT_EVAL
 // Index into the options table for a buffer-local option enum.
-static int buf_opt_idx[BV_COUNT];
+static __thread int buf_opt_idx[BV_COUNT];
 # define COPY_OPT_SCTX(buf, bv) buf->b_p_script_ctx[bv] = options[buf_opt_idx[bv]].script_ctx
 
 /*
@@ -7299,7 +7299,7 @@ static int buf_opt_idx[BV_COUNT];
     static void
 init_buf_opt_idx(void)
 {
-    static int did_init_buf_opt_idx = FALSE;
+    static __thread int did_init_buf_opt_idx = FALSE;
     int i;
 
     if (did_init_buf_opt_idx)
@@ -7692,11 +7692,11 @@ set_imsearch_global(void)
     p_imsearch = curbuf->b_p_imsearch;
 }
 
-static int expand_option_idx = -1;
-static int expand_option_start_col = 0;
-static char_u expand_option_name[5] = {'t', '_', NUL, NUL, NUL};
-static int expand_option_flags = 0;
-static int expand_option_append = FALSE;
+static __thread int expand_option_idx = -1;
+static __thread int expand_option_start_col = 0;
+static __thread char_u expand_option_name[5] = {'t', '_', NUL, NUL, NUL};
+static __thread int expand_option_flags = 0;
+static __thread int expand_option_append = FALSE;
 
     void
 set_context_in_set_cmd(

@@ -17,17 +17,17 @@
 /*
  * All user-defined functions are found in this hashtable.
  */
-static hashtab_T	func_hashtab;
+static __thread hashtab_T	func_hashtab;
 
 // Used by get_func_tv()
-static garray_T funcargs = GA_EMPTY;
+static __thread garray_T funcargs = GA_EMPTY;
 
 // pointer to funccal for currently active function
-static funccall_T *current_funccal = NULL;
+static __thread funccall_T *current_funccal = NULL;
 
 // Pointer to list of previously used funccal, still around because some
 // item in it is still being used.
-static funccall_T *previous_funccal = NULL;
+static __thread funccall_T *previous_funccal = NULL;
 
 static void funccal_unref(funccall_T *fc, ufunc_T *fp, int force);
 static void func_clear(ufunc_T *fp, int force);
@@ -3495,7 +3495,7 @@ call_user_func_check(
     return error;
 }
 
-static funccal_entry_T *funccal_stack = NULL;
+static __thread funccal_entry_T *funccal_stack = NULL;
 
 /*
  * Save the current function call pointer, and set it to NULL.
@@ -3772,7 +3772,7 @@ done:
     return r;
 }
 
-static int callback_depth = 0;
+static __thread int callback_depth = 0;
 
     int
 get_callback_depth(void)

@@ -5179,7 +5179,7 @@ eval9(
     char_u	*name_start = NULL;
     char_u	*start_leader, *end_leader;
     int		ret = OK;
-    static int	recurse = 0;
+    static __thread int	recurse = 0;
     int		vim9script = in_vim9script();
 
     /*
@@ -6596,7 +6596,7 @@ echo_string_core(
     int		restore_copyID,
     int		composite_val)
 {
-    static int	recurse = 0;
+    static __thread int	recurse = 0;
     char_u	*r = NULL;
 
     if (recurse >= DICT_MAXNEST)
@@ -7553,7 +7553,7 @@ item_copy(
     int		top,
     int		copyID)
 {
-    static int	recurse = 0;
+    static __thread int	recurse = 0;
     int		ret = OK;
 
     if (recurse >= DICT_MAXNEST)

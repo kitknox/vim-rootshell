@@ -120,7 +120,7 @@ static char	*mt_names[MT_COUNT/2] =
 		{"FSC", "F C", "F  ", "FS ", " SC", "  C", "   ", " S "};
 
 #define NOTAGFILE	99		// return value for jumpto_tag
-static char_u	*nofile_fname = NULL;	// fname for NOTAGFILE error
+static __thread char_u	*nofile_fname = NULL;	// fname for NOTAGFILE error
 
 static void taglen_advance(int l);
 
@@ -145,18 +145,18 @@ static void print_tag_list(int new_tag, int use_tagstack, int num_matches, char_
 static int add_llist_tags(char_u *tag, int num_matches, char_u **matches);
 #endif
 
-static char_u	*tagmatchname = NULL;	// name of last used tag
+static __thread char_u	*tagmatchname = NULL;	// name of last used tag
 
 #if defined(FEAT_QUICKFIX)
 /*
  * Tag for preview window is remembered separately, to avoid messing up the
  * normal tagstack.
  */
-static taggy_T ptag_entry = {NULL, {{0, 0, 0}, 0}, 0, 0, NULL};
+static __thread taggy_T ptag_entry = {NULL, {{0, 0, 0}, 0}, 0, 0, NULL};
 #endif
 
 #ifdef FEAT_EVAL
-static int  tfu_in_use = FALSE;	    // disallow recursive call of tagfunc
+static __thread int  tfu_in_use = FALSE;	    // disallow recursive call of tagfunc
 static callback_T tfu_cb;	    // 'tagfunc' callback function
 #endif
 
@@ -3258,7 +3258,7 @@ findtag_end:
     return retval;
 }
 
-static garray_T tag_fnames = GA_EMPTY;
+static __thread garray_T tag_fnames = GA_EMPTY;
 
 /*
  * Callback function for finding all "tags" and "tags-??" files in
