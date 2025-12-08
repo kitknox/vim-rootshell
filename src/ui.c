@@ -152,7 +152,7 @@ ui_inchar(
     // this very often we probably got stuck, exit Vim.
     if (no_console_input())
     {
-	static int count = 0;
+	static __thread int count = 0;
 
 # ifndef NO_CONSOLE
 	retval = mch_inchar(buf, maxlen, wtime, tb_change_cnt);
@@ -699,7 +699,7 @@ ui_breakcheck(void)
     void
 ui_breakcheck_force(int force)
 {
-    static int	recursive = FALSE;
+    static __thread int	recursive = FALSE;
     int		save_updating_screen = updating_screen;
 
     // We could be called recursively if stderr is redirected, calling
@@ -918,9 +918,9 @@ fill_input_buf(int exit_on_error UNUSED)
 #if defined(UNIX) || defined(VMS) || defined(MACOS_X)
     int		len;
     int		try;
-    static int	did_read_something = FALSE;
-    static char_u *rest = NULL;	    // unconverted rest of previous read
-    static int	restlen = 0;
+    static __thread int	did_read_something = FALSE;
+    static __thread char_u *rest = NULL;	    // unconverted rest of previous read
+    static __thread int	restlen = 0;
     int		unconverted;
 #endif
 

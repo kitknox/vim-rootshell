@@ -221,8 +221,8 @@ do_mouse(
     long	count,
     int		fixindent)	// PUT_FIXINDENT if fixing indent necessary
 {
-    static int	do_always = FALSE;	// ignore 'mouse' setting next time
-    static int	got_click = FALSE;	// got a click some time back
+    static __thread int	do_always = FALSE;	// ignore 'mouse' setting next time
+    static __thread int	got_click = FALSE;	// got a click some time back
 
     int		which_button;	// MOUSE_LEFT, _MIDDLE or _RIGHT
     int		is_click = FALSE; // If FALSE it's a drag or release event
@@ -231,15 +231,15 @@ do_mouse(
     pos_T	start_visual;
     int		moved;		// Has cursor moved?
     int		in_status_line;	// mouse in status line
-    static int	in_tab_line = FALSE; // mouse clicked in tab line
-    static int	in_tabpanel = FALSE; // mouse clicked in tabpanel
+    static __thread int	in_tab_line = FALSE; // mouse clicked in tab line
+    static __thread int	in_tabpanel = FALSE; // mouse clicked in tabpanel
     int		in_sep_line;	// mouse in vertical separator line
     int		c1, c2;
 #if defined(FEAT_FOLDING)
     pos_T	save_cursor;
 #endif
     win_T	*old_curwin = curwin;
-    static pos_T orig_cursor;
+    static __thread pos_T orig_cursor;
     colnr_T	leftcol, rightcol;
     pos_T	end_visual;
     int		diff;
@@ -1662,18 +1662,18 @@ jump_to_mouse(
     int		*inclusive,	// used for inclusive operator, can be NULL
     int		which_button)	// MOUSE_LEFT, MOUSE_RIGHT, MOUSE_MIDDLE
 {
-    static int	on_status_line = 0;	// #lines below bottom of window
-    static int	on_sep_line = 0;	// on separator right of window
+    static __thread int	on_status_line = 0;	// #lines below bottom of window
+    static __thread int	on_sep_line = 0;	// on separator right of window
 #ifdef FEAT_MENU
-    static int  in_winbar = FALSE;
+    static __thread int  in_winbar = FALSE;
 #endif
 #ifdef FEAT_PROP_POPUP
-    static int   in_popup_win = FALSE;
-    static win_T *click_in_popup_win = NULL;
+    static __thread int   in_popup_win = FALSE;
+    static __thread win_T *click_in_popup_win = NULL;
 #endif
-    static int	prev_row = -1;
-    static int	prev_col = -1;
-    static int	did_drag = FALSE;	// drag was noticed
+    static __thread int	prev_row = -1;
+    static __thread int	prev_col = -1;
+    static __thread int	did_drag = FALSE;	// drag was noticed
 
     win_T	*wp, *old_curwin;
     pos_T	old_cursor;
@@ -2287,12 +2287,12 @@ check_termcode_mouse(
     int		is_release, release_is_ambiguous;
     int		wheel_code = 0;
     int		current_button;
-    static int	orig_num_clicks = 1;
-    static int	orig_mouse_code = 0x0;
+    static __thread int	orig_num_clicks = 1;
+    static __thread int	orig_mouse_code = 0x0;
 #ifdef CHECK_DOUBLE_CLICK
-    static int	orig_mouse_col = 0;
-    static int	orig_mouse_row = 0;
-    static struct timeval  orig_mouse_time = {0, 0};
+    static __thread int	orig_mouse_col = 0;
+    static __thread int	orig_mouse_row = 0;
+    static __thread struct timeval  orig_mouse_time = {0, 0};
     // time of previous mouse click
     struct timeval  mouse_time;		// time of current mouse click
     long	timediff;		// elapsed time in msec
