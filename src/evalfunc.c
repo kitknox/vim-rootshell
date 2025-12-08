@@ -10042,8 +10042,8 @@ f_pyxeval(typval_T *argvars, typval_T *rettv)
 }
 #endif
 
-static UINT32_T srand_seed_for_testing = 0;
-static int	srand_seed_for_testing_is_used = FALSE;
+static __thread UINT32_T srand_seed_for_testing = 0;
+static __thread int	srand_seed_for_testing_is_used = FALSE;
 
     static void
 f_test_srand_seed(typval_T *argvars, typval_T *rettv UNUSED)
