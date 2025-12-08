@@ -67,7 +67,8 @@ extern __thread FILE* thread_stderr;
 #define putenv ios_putenv
 #define fchdir ios_fchdir
 #define isatty ios_isatty
-#define ioctl ios_ioctl
+// Note: Don't #define ioctl - conflicts with system header variadic signature
+// Call ios_ioctl() directly where needed (e.g., for TIOCGWINSZ)
 
 extern int ios_executable(const char* cmd); // is this command part of the "shell" commands?
 extern int ios_system(const char* inputCmd); // execute this command (executable file or builtin command)
@@ -99,6 +100,7 @@ extern void ios_waitpid(pid_t pid);
 extern void ios_signal(int signal);
 
 extern int ios_fchdir(const int fd);
+extern int ios_ioctl(int fd, unsigned long request, void* arg);
 extern ssize_t ios_write(int fildes, const void *buf, size_t nbyte);
 extern size_t ios_fwrite(const void *ptr, size_t size, size_t nitems, FILE *stream);
 extern int ios_puts(const char *s);

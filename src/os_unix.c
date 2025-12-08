@@ -4454,7 +4454,12 @@ mch_get_shellsize(void)
 	// When stdout is not a tty, use stdin for the ioctl().
 	if (!isatty(fd) && isatty(read_cmd_fd))
 	    fd = read_cmd_fd;
+#  if TARGET_OS_IPHONE
+	// On iOS, use ios_ioctl which returns dynamic window size from ios_system
+	if (ios_ioctl(fd, TIOCGWINSZ, &ws) == 0)
+#  else
 	if (ioctl(fd, TIOCGWINSZ, &ws) == 0)
+#  endif
 	{
 	    columns = ws.ws_col;
 	    rows = ws.ws_row;
@@ -4472,7 +4477,11 @@ mch_get_shellsize(void)
 	// When stdout is not a tty, use stdin for the ioctl().
 	if (!isatty(fd) && isatty(read_cmd_fd))
 	    fd = read_cmd_fd;
+#   if TARGET_OS_IPHONE
+	if (ios_ioctl(fd, TIOCGSIZE, &ts) == 0)
+#   else
 	if (ioctl(fd, TIOCGSIZE, &ts) == 0)
+#   endif
 	{
 	    columns = ts.ts_cols;
 	    rows = ts.ts_lines;
