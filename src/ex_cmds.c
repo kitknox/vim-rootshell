@@ -3994,7 +3994,7 @@ ex_substitute(exarg_T *eap)
     linenr_T	lnum;
     long	i = 0;
     regmmatch_T regmatch;
-    static subflags_T subflags = {FALSE, FALSE, FALSE, TRUE, FALSE,
+    static __thread subflags_T subflags = {FALSE, FALSE, FALSE, TRUE, FALSE,
 							      FALSE, FALSE, 0};
 #ifdef FEAT_EVAL
     subflags_T	subflags_save;

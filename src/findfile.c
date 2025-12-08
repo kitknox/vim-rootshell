@@ -191,7 +191,7 @@ static void ff_free_stack_element(ff_stack_T *stack_ptr);
 static ff_stack_T *ff_create_stack_element(char_u *, size_t, char_u *, size_t, int, int);
 static int ff_path_in_stoplist(char_u *, int, string_T *);
 
-static string_T ff_expand_buffer = {NULL, 0};	    // used for expanding filenames
+static __thread string_T ff_expand_buffer = {NULL, 0};	    // used for expanding filenames
 
 #if 0
 /*

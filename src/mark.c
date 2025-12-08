@@ -24,7 +24,7 @@
  * There are marks 'A - 'Z (set by user) and '0 to '9 (set when writing
  * viminfo).
  */
-static xfmark_T namedfm[NMARKS + EXTRA_MARKS];		// marks with file nr
+static __thread xfmark_T namedfm[NMARKS + EXTRA_MARKS];		// marks with file nr
 
 static void fname2fnum(xfmark_T *fm);
 static void fmarks_check_one(xfmark_T *fm, char_u *name, buf_T *buf);
@@ -1095,7 +1095,7 @@ mark_adjust_internal(
     win_T	*win;
     tabpage_T	*tab;
     wininfo_T	*wip;
-    static pos_T initpos = {1, 0, 0};
+    static __thread pos_T initpos = {1, 0, 0};
 
     if (line2 < line1 && amount_after == 0L)	    // nothing to do
 	return;

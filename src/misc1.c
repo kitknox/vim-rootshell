@@ -2162,7 +2162,7 @@ add_user(char_u *user, int need_copy)
     static void
 init_users(void)
 {
-    static int	lazy_init_done = FALSE;
+    static __thread int	lazy_init_done = FALSE;
 
     if (lazy_init_done)
 	return;

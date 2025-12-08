@@ -30,10 +30,10 @@ typedef struct ucmd
 } ucmd_T;
 
 // List of all user commands.
-static garray_T ucmds = {0, 0, sizeof(ucmd_T), 4, NULL};
+static __thread garray_T ucmds = {0, 0, sizeof(ucmd_T), 4, NULL};
 
 // When non-zero it is not allowed to add or remove user commands
-static int ucmd_locked = 0;
+static __thread int ucmd_locked = 0;
 
 #define USER_CMD(i) (&((ucmd_T *)(ucmds.ga_data))[i])
 #define USER_CMD_GA(gap, i) (&((ucmd_T *)((gap)->ga_data))[i])
