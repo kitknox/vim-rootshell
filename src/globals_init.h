@@ -775,7 +775,7 @@ commWindow = None;
 clientWindow = None;
 commProperty = None;
 serverDelayedStartName = NULL;
-# else
+# elif defined(MSWIN)
 clientWindow = 0;
 # endif
 #endif
@@ -821,7 +821,7 @@ netbeansSuppressNoLines = 0;
 xsmp_icefd = -1;
 #endif
 
-starttime = 0;
+// starttime removed - doesn't exist in Vim 9.1
 
 #ifdef STARTUPTIME
 time_fd = NULL;
