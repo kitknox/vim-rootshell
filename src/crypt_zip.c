@@ -32,7 +32,7 @@ typedef struct {
 } zip_state_T;
 
 
-static u32_T crc_32_table[256];
+static __thread u32_T crc_32_table[256];
 
 /*
  * Fill the CRC table, if not done already.
