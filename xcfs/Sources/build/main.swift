@@ -194,8 +194,8 @@ func configureVim(platform: PlatformConfig, arch: String, sdkPath: String, frame
         catalystFlags = " -iframework \(sdkPath)/System/iOSSupport/System/Library/Frameworks -UHAVE_TERMCAP_H"
     }
 
-    let cflags = "-DEXITFREE -arch \(arch) -O2 \(versionFlag) -isysroot \(sdkPath)\(catalystFlags)"
-    let ldflags = "-shared -arch \(arch) -O2 \(versionFlag) -isysroot \(sdkPath)\(catalystFlags) -F\(frameworkPath) -framework ios_system"
+    let cflags = "-DEXITFREE -arch \(arch) -O2 -g \(versionFlag) -isysroot \(sdkPath)\(catalystFlags)"
+    let ldflags = "-shared -arch \(arch) -O2 -g \(versionFlag) -isysroot \(sdkPath)\(catalystFlags) -F\(frameworkPath) -framework ios_system"
 
     print("  Configuring for \(platform.name) \(arch)...")
 
@@ -377,6 +377,12 @@ func createXCFramework(name: String, frameworkPaths: [String], outputDir: String
     for path in frameworkPaths {
         args.append("-framework")
         args.append(path)
+        // Add dSYM if it exists alongside the framework
+        let dsymPath = "\(path).dSYM"
+        if FileManager.default.fileExists(atPath: dsymPath) {
+            args.append("-debug-symbols")
+            args.append(dsymPath)
+        }
     }
     args.append("-output")
     args.append("\(outputDir)/\(name).xcframework")
@@ -462,6 +468,18 @@ for platform in platforms {
     print("  Creating framework bundles...")
     try createFrameworkBundle(name: "vim", binaryPath: finalVimPath, platform: platform, outputDir: platformBuildDir)
     try createFrameworkBundle(name: "xxd", binaryPath: finalXxdPath, platform: platform, outputDir: platformBuildDir)
+
+    // Generate dSYM bundles for crash symbolication
+    print("  Generating dSYM bundles...")
+    let vimBinaryInFramework = platform.isCatalyst
+        ? "\(platformBuildDir)/vim.framework/Versions/A/vim"
+        : "\(platformBuildDir)/vim.framework/vim"
+    let xxdBinaryInFramework = platform.isCatalyst
+        ? "\(platformBuildDir)/xxd.framework/Versions/A/xxd"
+        : "\(platformBuildDir)/xxd.framework/xxd"
+
+    try sh("dsymutil \(vimBinaryInFramework) -o \(platformBuildDir)/vim.framework.dSYM")
+    try sh("dsymutil \(xxdBinaryInFramework) -o \(platformBuildDir)/xxd.framework.dSYM")
 
     vimFrameworkPaths.append("\(platformBuildDir)/vim.framework")
     xxdFrameworkPaths.append("\(platformBuildDir)/xxd.framework")
