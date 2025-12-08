@@ -983,6 +983,13 @@ vim_main2(void)
 
     TIME_MSG("before starting main loop");
 
+#if TARGET_OS_IPHONE
+    // On iOS, re-query shell size before entering main loop.
+    // The initial ui_get_shellsize() call happens before the host app's
+    // window size is fully set up via ios_setWindowSize().
+    shell_resized();
+#endif
+
     /*
      * Call the main command loop.  This never returns.
      */
