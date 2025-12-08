@@ -4103,8 +4103,9 @@ stoptermcap(void)
 # endif
 # ifdef TCIFLUSH
 	    // Discard data received but not read.
+	    // Use read_cmd_fd instead of stdin for thread-local I/O on iOS.
 	    if (exiting)
-		tcflush(fileno(stdin), TCIFLUSH);
+		tcflush(read_cmd_fd, TCIFLUSH);
 # endif
 	}
 	// Check for termcodes first, otherwise an external program may

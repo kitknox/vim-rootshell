@@ -329,6 +329,14 @@ static void sig_alarm SIGPROTOARG;
 // volatile because it is used in signal handler sig_alarm().
 static __thread volatile sig_atomic_t sig_alarm_called;
 #endif
+#if TARGET_OS_IPHONE
+// Reference counting for concurrent vim instances sharing signal handlers.
+// Signal handlers are process-wide, so we only reset them when the last
+// vim instance exits to avoid breaking other running instances.
+#include <stdatomic.h>
+static atomic_int vim_active_instances = 0;
+static __thread int this_instance_has_signals = FALSE;
+#endif
 static void deathtrap SIGPROTOARG;
 
 static void catch_int_signal(void);
@@ -1594,6 +1602,14 @@ mch_init(void)
     static void
 set_signals(void)
 {
+#if TARGET_OS_IPHONE
+    // Track this instance and check if signals are already set up by another.
+    int prev_count = atomic_fetch_add(&vim_active_instances, 1);
+    this_instance_has_signals = TRUE;
+    if (prev_count > 0)
+	return;  // Another instance already set up signal handlers
+#endif
+
 #if defined(SIGWINCH)
     /*
      * WINDOW CHANGE signal is handled with sig_winch().
@@ -1676,6 +1692,18 @@ catch_int_signal(void)
     void
 reset_signals(void)
 {
+#if TARGET_OS_IPHONE
+    // Only reset signals when the last vim instance exits.
+    // Other instances still need the signal handlers.
+    if (!this_instance_has_signals)
+	return;  // This instance never set up signals
+    this_instance_has_signals = FALSE;
+
+    int remaining = atomic_fetch_sub(&vim_active_instances, 1) - 1;
+    if (remaining > 0)
+	return;  // Other instances still running - keep signal handlers
+#endif
+
     catch_signals(SIG_DFL, SIG_DFL);
 #if defined(SIGCONT)
     // SIGCONT isn't in the list, because its default action is ignore
