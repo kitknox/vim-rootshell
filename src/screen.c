@@ -2836,6 +2836,11 @@ screenclear2(int doclear)
     if (doclear && can_clear(T_CL))
     {
 	out_str(T_CL);		// clear the display
+#if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_OS_MACCATALYST)
+	// On iOS, flush immediately after clear to ensure the terminal
+	// processes it before subsequent drawing commands arrive.
+	out_flush();
+#endif
 	did_clear = TRUE;
 	clear_cmdline = FALSE;
 	mode_displayed = FALSE;
@@ -3756,6 +3761,9 @@ screen_ins_lines(
     if (gui.in_use)
 	out_flush();	// always flush after a scroll
 #endif
+#if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_OS_MACCATALYST)
+    out_flush();	// iOS: flush after scroll to ensure terminal processes it
+#endif
     return OK;
 }
 
@@ -4011,6 +4019,9 @@ screen_del_lines(
     gui_can_update_cursor();
     if (gui.in_use)
 	out_flush();	// always flush after a scroll
+#endif
+#if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_OS_MACCATALYST)
+    out_flush();	// iOS: flush after scroll to ensure terminal processes it
 #endif
 
     return OK;

@@ -4558,6 +4558,9 @@ scroll_region_set(win_T *wp, int off)
     if (*T_CSV != NUL && wp->w_width != Columns)
 	OUT_STR(tgoto((char *)T_CSV, wp->w_wincol + wp->w_width - 1,
 							       wp->w_wincol));
+#if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_OS_MACCATALYST)
+    out_flush();	// iOS: ensure scroll region is set before content
+#endif
     screen_start();		    // don't know where cursor is now
 }
 
@@ -4570,6 +4573,9 @@ scroll_region_reset(void)
     OUT_STR(tgoto((char *)T_CS, (int)Rows - 1, 0));
     if (*T_CSV != NUL)
 	OUT_STR(tgoto((char *)T_CSV, (int)Columns - 1, 0));
+#if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_OS_MACCATALYST)
+    out_flush();	// iOS: ensure scroll region is reset before content
+#endif
     screen_start();		    // don't know where cursor is now
 }
 
