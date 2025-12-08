@@ -2071,7 +2071,7 @@ parse_spelllang(win_T *wp)
     int		nobreak = FALSE;
     int		i, j;
     langp_T	*lp, *lp2;
-    static int	recursive = FALSE;
+    static __thread int	recursive = FALSE;
     char	*ret_msg = NULL;
     char_u	*spl_copy;
     bufref_T	bufref;

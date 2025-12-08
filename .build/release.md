@@ -4,8 +4,8 @@
 
 | File                | SHA 256                                                          |
 | ------------------- | ---------------------------------------------------------------- |
-| vim.xcframework.zip | 54c91381d689b178ceb5c430f949fd468a752fef42503f8915f1165317afba59 |
-| xxd.xcframework.zip | f328cbd2be4862888d953b1aee5c7cfc618b72ec2f2f739f7b0e29baa2ab0cfd |
+| vim.xcframework.zip | b95073f9343d55b072c8cf8bb33548e876e9672d97e64e704745165197510f04 |
+| xxd.xcframework.zip | 156d97ec71496ab0e960ab94c6877d33a204bf89c8d4c7f4ac19a9e6b3ba17f6 |
 
 
 
