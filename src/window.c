@@ -2982,7 +2982,7 @@ trigger_winnewpre(void)
     static void
 trigger_winclosed(win_T *win)
 {
-    static int	recursive = FALSE;
+    static __thread int	recursive = FALSE;
     char_u	winid[NUMBUFLEN];
 
     if (recursive)
@@ -3000,8 +3000,8 @@ trigger_winclosed(win_T *win)
     void
 trigger_tabclosedpre(tabpage_T *tp, int directly)
 {
-    static int	recursive = FALSE;
-    static int	skip = FALSE;
+    static __thread int	recursive = FALSE;
+    static __thread int	skip = FALSE;
     tabpage_T	*ptp = curtab;
 
     // Quickly return when no TabClosedPre autocommands to be executed or
@@ -3275,7 +3275,7 @@ check_window_scroll_resize(
     void
 may_trigger_win_scrolled_resized(void)
 {
-    static int	    recursive = FALSE;
+    static __thread int	    recursive = FALSE;
     int		    do_resize = has_winresized();
     int		    do_scroll = has_winscrolled();
 

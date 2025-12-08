@@ -4195,7 +4195,7 @@ buf_check_timestamp(
 #ifdef FEAT_GUI
     int		save_mouse_correct = need_mouse_correct;
 #endif
-    static int	busy = FALSE;
+    static __thread int	busy = FALSE;
     int		n;
     bufref_T	bufref;
 

@@ -41,7 +41,7 @@ static u32_T crc_32_table[256];
 make_crc_tab(void)
 {
     u32_T	s, t, v;
-    static int	done = FALSE;
+    static __thread int	done = FALSE;
 
     if (done)
 	return;
