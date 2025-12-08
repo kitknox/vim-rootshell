@@ -77,7 +77,7 @@ profile_sub(proftime_T *tm, proftime_T *tm2)
     char *
 profile_msg(proftime_T *tm)
 {
-    static char buf[50];
+    static __thread char buf[50];
 
 # ifdef MSWIN
     LARGE_INTEGER   fr;
