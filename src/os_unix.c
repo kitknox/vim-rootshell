@@ -4451,22 +4451,32 @@ mch_get_shellsize(void)
 	struct winsize	ws;
 	int fd = 1;
 
-	// When stdout is not a tty, use stdin for the ioctl().
-	if (!isatty(fd) && isatty(read_cmd_fd))
-	    fd = read_cmd_fd;
 #  if TARGET_OS_IPHONE
-	// On iOS, use ios_ioctl which returns dynamic window size from ios_system
-	if (ios_ioctl(fd, TIOCGWINSZ, &ws) == 0)
-#  else
-	if (ioctl(fd, TIOCGWINSZ, &ws) == 0)
-#  endif
+	// On iOS, ios_ioctl returns the window size set by ios_setWindowSize().
+	// The fd parameter is ignored - it always returns the current session's size.
+	// Try fd=0 first as that's what ios_system typically uses.
+	if (ios_ioctl(0, TIOCGWINSZ, &ws) == 0
+		|| ios_ioctl(1, TIOCGWINSZ, &ws) == 0)
 	{
 	    columns = ws.ws_col;
 	    rows = ws.ws_row;
-#  ifdef FEAT_EVAL
-	    ch_log(NULL, "Got size with TIOCGWINSZ: %ld x %ld", columns, rows);
-#  endif
+#   ifdef FEAT_EVAL
+	    ch_log(NULL, "Got size with ios_ioctl TIOCGWINSZ: %ld x %ld", columns, rows);
+#   endif
 	}
+#  else
+	// When stdout is not a tty, use stdin for the ioctl().
+	if (!isatty(fd) && isatty(read_cmd_fd))
+	    fd = read_cmd_fd;
+	if (ioctl(fd, TIOCGWINSZ, &ws) == 0)
+	{
+	    columns = ws.ws_col;
+	    rows = ws.ws_row;
+#   ifdef FEAT_EVAL
+	    ch_log(NULL, "Got size with TIOCGWINSZ: %ld x %ld", columns, rows);
+#   endif
+	}
+#  endif
     }
 # else // TIOCGWINSZ
 #  ifdef TIOCGSIZE
