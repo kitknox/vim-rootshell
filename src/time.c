@@ -809,6 +809,11 @@ timer_free_all(void)
 	remove_timer(timer);
 	free_timer(timer);
     }
+#if TARGET_OS_IPHONE
+    // iOS: Reset timer state for next vim invocation
+    first_timer = NULL;
+    last_timer_id = 0;
+#endif
 }
 # endif
 

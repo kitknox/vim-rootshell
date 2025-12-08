@@ -4298,6 +4298,14 @@ free_titles(void)
 {
     vim_free(lasttitle);
     vim_free(lasticon);
+#if TARGET_OS_IPHONE
+    // iOS: Reset buffer state for next vim invocation
+    lasttitle = NULL;
+    lasticon = NULL;
+    top_file_num = 1;
+    buf_free_count = 0;
+    ga_clear(&buf_reuse);
+#endif
 }
 # endif
 

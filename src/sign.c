@@ -2062,6 +2062,12 @@ free_signs(void)
 {
     while (first_sign != NULL)
         sign_undefine(first_sign, NULL);
+#if TARGET_OS_IPHONE
+    // iOS: Reset sign state for next vim invocation
+    first_sign = NULL;
+    next_sign_typenr = 1;
+    next_sign_id = 1;
+#endif
 }
 
 static __thread enum

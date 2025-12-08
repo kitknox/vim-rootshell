@@ -3033,6 +3033,12 @@ free_regexp_stuff(void)
     ga_clear(&backpos);
     vim_free(reg_tofree);
     vim_free(reg_prev_sub);
+#if TARGET_OS_IPHONE
+    // iOS: Reset regexp state for next vim invocation
+    reg_tofree = NULL;
+    reg_tofreelen = 0;
+    reg_prev_sub = NULL;
+#endif
 }
 #endif
 

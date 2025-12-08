@@ -649,6 +649,15 @@ free_all_autocmds(void)
     ga_clear(&augroups);
 
     // aucmd_win[] is freed in win_free_all()
+
+#if TARGET_OS_IPHONE
+    // iOS: Reset autopat arrays for next vim invocation
+    for (int i = 0; i < NUM_EVENTS; i++)
+    {
+	first_autopat[i] = NULL;
+	last_autopat[i] = NULL;
+    }
+#endif
 }
 #endif
 

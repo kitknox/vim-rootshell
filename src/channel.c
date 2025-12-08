@@ -3481,6 +3481,11 @@ channel_free_all(void)
     ch_log(NULL, "channel_free_all()");
     FOR_ALL_CHANNELS(channel)
 	channel_clear(channel);
+#if TARGET_OS_IPHONE
+    // iOS: Reset channel state for next vim invocation
+    first_channel = NULL;
+    next_ch_id = 0;
+#endif
 }
 #endif
 

@@ -322,6 +322,15 @@ free_search_patterns(void)
     }
     VIM_CLEAR(mr_pattern);
     mr_patternlen = 0;
+#if TARGET_OS_IPHONE
+    // iOS: Reset search state for next vim invocation
+    last_idx = 0;
+    lastc[0] = NUL;
+    lastc[1] = NUL;
+    lastcdir = FORWARD;
+    last_t_cmd = TRUE;
+    lastc_bytelen = 1;
+#endif
 }
 #endif
 

@@ -849,6 +849,11 @@ job_free_all(void)
 # ifdef FEAT_TERMINAL
     free_unused_terminals();
 # endif
+#if TARGET_OS_IPHONE
+    // iOS: Reset job state for next vim invocation
+    jobs_to_free = NULL;
+    first_job = NULL;
+#endif
 }
 #endif
 

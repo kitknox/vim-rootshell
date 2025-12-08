@@ -3674,6 +3674,13 @@ free_all_functions(void)
 	hash_clear(&func_hashtab);
 
     free_def_functions();
+#if TARGET_OS_IPHONE
+    // iOS: Reset function call state for next vim invocation
+    current_funccal = NULL;
+    previous_funccal = NULL;
+    funccal_stack = NULL;
+    funcargs = (garray_T)GA_EMPTY;
+#endif
 }
 #endif
 

@@ -1044,6 +1044,10 @@ free_all_options(void)
 # if defined(FEAT_EVAL)
     free_findfunc_option();
 # endif
+#if TARGET_OS_IPHONE
+    // iOS: Reset option pointers for next vim invocation
+#include "options_init.h"
+#endif
 }
 #endif
 

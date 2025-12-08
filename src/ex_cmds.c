@@ -5584,6 +5584,11 @@ set_old_sub(char_u *val)
 free_old_sub(void)
 {
     vim_free(old_sub);
+#if TARGET_OS_IPHONE
+    // iOS: Reset substitute state for next vim invocation
+    old_sub = NULL;
+    global_need_beginline = 0;
+#endif
 }
 #endif
 
