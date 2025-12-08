@@ -2064,7 +2064,7 @@ free_signs(void)
         sign_undefine(first_sign, NULL);
 }
 
-static enum
+static __thread enum
 {
     EXP_SUBCMD, // expand :sign sub-commands
     EXP_DEFINE, // expand :sign define {name} args

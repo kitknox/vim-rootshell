@@ -4087,9 +4087,9 @@ pim_info(nfa_pim_T *pim)
 #endif
 
 // Used during execution: whether a match has been found.
-static int	    nfa_match;
+static __thread int	    nfa_match;
 #ifdef FEAT_RELTIME
-static int	   *nfa_timed_out;
+static __thread int	   *nfa_timed_out;
 #endif
 
 static void copy_sub(regsub_T *to, regsub_T *from);

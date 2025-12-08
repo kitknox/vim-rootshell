@@ -7986,7 +7986,7 @@ ex_read(exarg_T *eap)
     }
 }
 
-static char_u	*prev_dir = NULL;
+static __thread char_u	*prev_dir = NULL;
 
 #if defined(EXITFREE)
     void

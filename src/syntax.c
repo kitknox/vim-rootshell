@@ -306,7 +306,7 @@ static void pop_current_state(void);
 static void syn_clear_time(syn_time_T *tt);
 static void syntime_clear(void);
 static void syntime_report(void);
-static int syn_time_on = FALSE;
+static __thread int syn_time_on = FALSE;
 # define IF_SYN_TIME(p) (p)
 #else
 # define IF_SYN_TIME(p) NULL
@@ -3941,7 +3941,7 @@ syn_match_msg(void)
     }
 }
 
-static int  last_matchgroup;
+static __thread int  last_matchgroup;
 
 static void syn_list_flags(keyvalue_T *nlist, int nr_entries, int flags, int attr);
 
@@ -6352,7 +6352,7 @@ syntax_present(win_T *win)
 }
 
 
-static enum
+static __thread enum
 {
     EXP_SUBCMD,	    // expand ":syn" sub-commands
     EXP_CASE,	    // expand ":syn case" arguments

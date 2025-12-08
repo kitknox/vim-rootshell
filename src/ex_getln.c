@@ -3539,7 +3539,7 @@ realloc_cmdbuff(int len)
 }
 
 #if defined(FEAT_ARABIC)
-static char_u	*arshape_buf = NULL;
+static __thread char_u	*arshape_buf = NULL;
 
 # if defined(EXITFREE)
     void
@@ -3861,8 +3861,8 @@ put_on_cmdline(char_u *str, int len, int redraw)
     return retval;
 }
 
-static cmdline_info_T	prev_ccline;
-static int		prev_ccline_used = FALSE;
+static __thread cmdline_info_T	prev_ccline;
+static __thread int		prev_ccline_used = FALSE;
 
 /*
  * Save ccline, because obtaining the "=" register may execute "normal :cmd"

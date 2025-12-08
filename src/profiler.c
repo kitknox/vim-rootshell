@@ -431,7 +431,7 @@ ex_profile(exarg_T *eap)
 }
 
 // Command line expansion for :profile.
-static enum
+static __thread enum
 {
     PEXP_SUBCMD,	// expand :profile sub-commands
     PEXP_FUNC		// expand :profile func {funcname}
