@@ -2797,7 +2797,7 @@ do_addsub(
 {
     int		col;
     int		pre;		// 'X'/'x': hex; '0': octal; 'B'/'b': bin
-    static int	hexupper = FALSE;	// 0xABC
+    static __thread int	hexupper = FALSE;	// 0xABC
     uvarnumber_T	n;
     uvarnumber_T	oldn;
     char_u	*ptr;
@@ -3861,7 +3861,7 @@ do_pending_operator(cmdarg_T *cap, int old_col, int gui_yank)
 #endif
 
     // The visual area is remembered for redo
-    static redo_VIsual_T   redo_VIsual = {NUL, 0, 0, 0,0};
+    static __thread redo_VIsual_T   redo_VIsual = {NUL, 0, 0, 0,0};
 
     int		    include_line_break = FALSE;
 

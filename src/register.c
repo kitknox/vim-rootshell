@@ -23,11 +23,11 @@
  *     38 = Clipboard register '+'. Only if FEAT_CLIPBOARD and FEAT_X11
  *                                  or FEAT_WAYLAND_CLIPBOARD defined
  */
-static yankreg_T	y_regs[NUM_REGISTERS];
+static __thread yankreg_T	y_regs[NUM_REGISTERS];
 
-static yankreg_T	*y_current;	    // ptr to current yankreg
-static int		y_append;	    // TRUE when appending
-static yankreg_T	*y_previous = NULL; // ptr to last written yankreg
+static __thread yankreg_T	*y_current;	    // ptr to current yankreg
+static __thread int		y_append;	    // TRUE when appending
+static __thread yankreg_T	*y_previous = NULL; // ptr to last written yankreg
 
 static int	stuff_yank(int, char_u *);
 static void	put_reedit_in_typebuf(int silent);
@@ -89,7 +89,7 @@ reset_y_append(void)
 /*
  * Keep the last expression line here, for repeating.
  */
-static char_u	*expr_line = NULL;
+static __thread char_u	*expr_line = NULL;
 static exarg_T	*expr_eap = NULL;
 
 /*
@@ -134,7 +134,7 @@ get_expr_line(void)
 {
     char_u	*expr_copy;
     char_u	*rv;
-    static int	nested = 0;
+    static __thread int	nested = 0;
 
     if (expr_line == NULL)
 	return NULL;
@@ -1033,7 +1033,7 @@ shift_delete_registers(void)
     void
 yank_do_autocmd(oparg_T *oap, yankreg_T *reg)
 {
-    static int	    recursive = FALSE;
+    static __thread int	    recursive = FALSE;
     dict_T	    *v_event;
     list_T	    *list;
     int		    n;
