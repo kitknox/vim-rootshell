@@ -511,8 +511,8 @@ get_coll_element(char_u **pp)
     return 0;
 }
 
-static int reg_cpo_lit; // 'cpoptions' contains 'l' flag
-static int reg_cpo_bsl; // 'cpoptions' contains '\' flag
+static __thread int reg_cpo_lit; // 'cpoptions' contains 'l' flag
+static __thread int reg_cpo_bsl; // 'cpoptions' contains '\' flag
 
     static void
 get_cpo_flags(void)
