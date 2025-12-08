@@ -92,7 +92,7 @@ struct ectx_S {
 
 #ifdef FEAT_PROFILE
 // stack of profinfo_T used when profiling.
-static garray_T profile_info_ga = {0, 0, sizeof(profinfo_T), 20, NULL};
+static __thread garray_T profile_info_ga = {0, 0, sizeof(profinfo_T), 20, NULL};
 #endif
 
 // Get pointer to item in the stack.
@@ -331,7 +331,7 @@ update_has_breakpoint(ufunc_T *ufunc)
     ufunc->uf_has_breakpoint = breakpoint > 0;
 }
 
-static garray_T dict_stack = GA_EMPTY;
+static __thread garray_T dict_stack = GA_EMPTY;
 
 /*
  * Put a value on the dict stack.  This consumes "tv".
@@ -2181,8 +2181,8 @@ typedef struct subs_expr_S {
 } subs_expr_T;
 
 // Set when calling do_debug().
-static ectx_T	*debug_context = NULL;
-static int	debug_var_count;
+static __thread ectx_T	*debug_context = NULL;
+static __thread int	debug_var_count;
 
 /*
  * When debugging lookup "name" and return the typeval.

@@ -15,7 +15,7 @@
 
 #if defined(FEAT_SESSION)
 
-static int did_lcd;	// whether ":lcd" was produced for a session
+static __thread int did_lcd;	// whether ":lcd" was produced for a session
 
 /*
  * Write a file name to the session file.

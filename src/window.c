@@ -84,11 +84,11 @@ static char *m_onlyone = N_("Already only one window");
 
 // When non-zero splitting a window is forbidden.  Used to avoid that nasty
 // autocommands mess up the window structure.
-static int split_disallowed = 0;
+static __thread int split_disallowed = 0;
 
 // When non-zero closing a window is forbidden.  Used to avoid that nasty
 // autocommands mess up the window structure.
-static int close_disallowed = 0;
+static __thread int close_disallowed = 0;
 
 /*
  * Disallow changing the window layout (split window, close window, move
@@ -3057,7 +3057,7 @@ snapshot_windows_scroll_size(void)
     }
 }
 
-static int did_initial_scroll_size_snapshot = FALSE;
+static __thread int did_initial_scroll_size_snapshot = FALSE;
 
     void
 may_make_initial_scroll_size_snapshot(void)
@@ -3901,7 +3901,7 @@ frame_has_win(frame_T *frp, win_T *wp)
 
 // 'cmdheight' value explicitly set by the user: window commands are allowed to
 // resize the topframe to values higher than this minimum, but not lower.
-static int min_set_ch = 1;
+static __thread int min_set_ch = 1;
 
 /*
  * Set a new height for a frame.  Recursively sets the height for contained
@@ -4481,7 +4481,7 @@ unuse_tabpage(tabpage_T *tp)
 
 // When switching tabpage, handle other side-effects in command_height(), but
 // avoid setting frame sizes which are still correct.
-static int command_frame_height = TRUE;
+static __thread int command_frame_height = TRUE;
 
 /*
  * Set the relevant pointers to use tab page "tp".  May want to call
@@ -5794,7 +5794,7 @@ buf_jump_open_tab(buf_T *buf)
     return wp;
 }
 
-static int last_win_id = LOWEST_WIN_ID - 1;
+static __thread int last_win_id = LOWEST_WIN_ID - 1;
 
 /*
  * Allocate a window structure and link it in the window list when "hidden" is

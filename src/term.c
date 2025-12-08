@@ -5922,7 +5922,7 @@ check_for_color_response(char_u *resp, int len)
 	LOG_TR1("not enough characters for RB");
 }
 
-static oscstate_T osc_state;
+static __thread oscstate_T osc_state;
 
 /*
  * Handles any OSC sequence and places the result in "v:termosc". Note that the

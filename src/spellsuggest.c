@@ -197,7 +197,7 @@ typedef struct trystate_S
 #define PFD_PREFIXTREE	0xfe	// walking through the prefix tree
 #define PFD_NOTSPECIAL	0xfd	// highest value that's not special
 
-static long spell_suggest_timeout = 5000;
+static __thread long spell_suggest_timeout = 5000;
 
 static void spell_find_suggest(char_u *badptr, int badlen, suginfo_T *su, int maxcount, int banbadword, int need_cap, int interactive);
 #ifdef FEAT_EVAL

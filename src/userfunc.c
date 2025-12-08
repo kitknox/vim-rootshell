@@ -2898,7 +2898,7 @@ failed:
     return FAIL;
 }
 
-static int	funcdepth = 0;
+static __thread int	funcdepth = 0;
 
 /*
  * Increment the function call depth count.

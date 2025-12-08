@@ -436,7 +436,7 @@ get_textprop_id(buf_T *buf)
 
 // Flag that is set when a negative ID isused for a normal text property.
 // It is then impossible to use virtual text properties.
-static int did_use_negative_pop_id = FALSE;
+static __thread int did_use_negative_pop_id = FALSE;
 
 /*
  * Shared between prop_add() and popup_create().

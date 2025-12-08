@@ -157,7 +157,7 @@ static __thread taggy_T ptag_entry = {NULL, {{0, 0, 0}, 0}, 0, 0, NULL};
 
 #ifdef FEAT_EVAL
 static __thread int  tfu_in_use = FALSE;	    // disallow recursive call of tagfunc
-static callback_T tfu_cb;	    // 'tagfunc' callback function
+static __thread callback_T tfu_cb;	    // 'tagfunc' callback function
 #endif
 
 // Used instead of NUL to separate tag fields in the growarrays.
@@ -1867,7 +1867,7 @@ static struct
     FILE	*fp;
     char_u	*etag_fname;
 } incstack[INCSTACK_SIZE];
-static int incstack_idx = 0;	// index in incstack
+static __thread int incstack_idx = 0;	// index in incstack
 
 /*
  * Free the emacs include tags file stack.

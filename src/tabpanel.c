@@ -34,10 +34,10 @@ static void do_by_tplmode(int tplmode, int col_start, int col_end,
 #define ALIGN_RIGHT		1
 
 static char_u *opt_name = (char_u *)"tabpanel";
-static int opt_scope = OPT_LOCAL;
-static int tpl_align = ALIGN_LEFT;
-static int tpl_columns = 20;
-static int tpl_is_vert = FALSE;
+static __thread int opt_scope = OPT_LOCAL;
+static __thread int tpl_align = ALIGN_LEFT;
+static __thread int tpl_columns = 20;
+static __thread int tpl_is_vert = FALSE;
 
 typedef struct {
     win_T   *wp;

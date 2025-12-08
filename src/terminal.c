@@ -205,16 +205,16 @@ static void handle_postponed_scrollback(term_T *term);
 
 // The character that we know (or assume) that the terminal expects for the
 // backspace key.
-static int term_backspace_char = BS;
+static __thread int term_backspace_char = BS;
 
 // Store the last set and the desired cursor properties, so that we only update
 // them when needed.  Doing it unnecessary may result in flicker.
-static char_u	*last_set_cursor_color = NULL;
-static char_u	*desired_cursor_color = NULL;
-static int	last_set_cursor_shape = -1;
-static int	desired_cursor_shape = -1;
-static int	last_set_cursor_blink = -1;
-static int	desired_cursor_blink = -1;
+static __thread char_u	*last_set_cursor_color = NULL;
+static __thread char_u	*desired_cursor_color = NULL;
+static __thread int	last_set_cursor_shape = -1;
+static __thread int	desired_cursor_shape = -1;
+static __thread int	last_set_cursor_blink = -1;
+static __thread int	desired_cursor_blink = -1;
 
 
 ///////////////////////////////////////
@@ -1468,8 +1468,8 @@ term_send_mouse(VTerm *vterm, int button, int pressed)
     return TRUE;
 }
 
-static int enter_mouse_col = -1;
-static int enter_mouse_row = -1;
+static __thread int enter_mouse_col = -1;
+static __thread int enter_mouse_row = -1;
 
 /*
  * Handle a mouse click, drag or release.
@@ -2323,7 +2323,7 @@ typedef enum {
 		    // check_no_reduce_keys(), must be decremented.
 } reduce_key_state_T;
 
-static reduce_key_state_T  no_reduce_key_state = NRKS_NONE;
+static __thread reduce_key_state_T  no_reduce_key_state = NRKS_NONE;
 
 /*
  * Return TRUE if the term is using modifyOtherKeys level 2 or the kitty
@@ -2394,7 +2394,7 @@ term_vgetc(void)
     return c;
 }
 
-static int	mouse_was_outside = FALSE;
+static __thread int	mouse_was_outside = FALSE;
 
 /*
  * Send key "c" with modifiers "modmask" to terminal.

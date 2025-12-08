@@ -4397,7 +4397,7 @@ spell_word_start(int startcol)
  * Need to check for 'spellcapcheck' now, the word is removed before
  * expand_spelling() is called.  Therefore the ugly global variable.
  */
-static int spell_expand_need_cap;
+static __thread int spell_expand_need_cap;
 
     void
 spell_expand_check_cap(colnr_T col)

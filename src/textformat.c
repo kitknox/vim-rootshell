@@ -13,7 +13,7 @@
 
 #include "vim.h"
 
-static int	did_add_space = FALSE;	// auto_format() added an extra space
+static __thread int	did_add_space = FALSE;	// auto_format() added an extra space
 					// under the cursor
 
 #define WHITECHAR(cc) (VIM_ISWHITE(cc) && (!enc_utf8 || !utf_iscomposing(utf_ptr2char(ml_get_cursor() + 1))))

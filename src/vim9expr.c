@@ -17,7 +17,7 @@
 #if defined(FEAT_EVAL)
 
 // flag passed from compile_subscript() to compile_load_scriptvar()
-static int paren_follows_after_expr = 0;
+static __thread int paren_follows_after_expr = 0;
 
 /*
  * Generate code for any ppconst entries.
