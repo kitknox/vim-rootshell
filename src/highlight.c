@@ -497,7 +497,7 @@ init_highlight(
 {
     int		i;
     char	**pp;
-    static int	had_both = FALSE;
+    static __thread int	had_both = FALSE;
 #ifdef FEAT_EVAL
     char_u	*p;
 
@@ -561,7 +561,7 @@ init_highlight(
     // If syntax highlighting is enabled load the highlighting for it.
     if (get_var_value((char_u *)"g:syntax_on") != NULL)
     {
-	static int	recursive = 0;
+	static __thread int	recursive = 0;
 
 	if (recursive >= 5)
 	    emsg(_(e_recursive_loop_loading_syncolor_vim));
@@ -599,7 +599,7 @@ load_colors(char_u *name)
 {
     char_u	*buf;
     int		retval = FAIL;
-    static int	recursive = FALSE;
+    static __thread int	recursive = FALSE;
 
     // When being called recursively, this is probably because setting
     // 'background' caused the highlighting to be reloaded.  This means it is
@@ -2706,7 +2706,7 @@ get_attr_entry(garray_T *table, attrentry_T *aep)
 {
     int		i;
     attrentry_T	*taep;
-    static int	recursive = FALSE;
+    static __thread int	recursive = FALSE;
 
     // Init the table, in case it wasn't done yet.
     table->ga_itemsize = sizeof(attrentry_T);
@@ -3315,7 +3315,7 @@ highlight_color(
     char_u	*what,	// "font", "fg", "bg", "sp", "ul", "fg#", "bg#" or "sp#"
     int		modec)	// 'g' for GUI, 'c' for cterm, 't' for term
 {
-    static char_u	name[20];
+    static __thread char_u	name[20];
     int			n;
     int			fg = FALSE;
     int			sp = FALSE;
@@ -3350,7 +3350,7 @@ highlight_color(
 	{
 	    guicolor_T		color;
 	    long_u		rgb;
-	    static char_u	buf[10];
+	    static __thread char_u	buf[10];
 
 	    if (fg)
 		color = HL_TABLE()[id - 1].sg_gui_fg;

@@ -1648,7 +1648,7 @@ getcmdline_int(
     int		indent,		// indent for inside conditionals
     int		clear_ccline)	// clear ccline first
 {
-    static int	depth = 0;	    // call depth
+    static __thread int	depth = 0;	    // call depth
     int		c = 0;
     int		i;
     int		j;
@@ -3572,7 +3572,7 @@ draw_cmdline(int start, int len)
 #ifdef FEAT_ARABIC
 	if (p_arshape && !p_tbidi && cmdline_has_arabic(start, len))
     {
-	static int	buflen = 0;
+	static __thread int	buflen = 0;
 	char_u		*p;
 	int		j;
 	int		newlen = 0;

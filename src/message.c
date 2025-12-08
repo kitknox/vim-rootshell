@@ -145,7 +145,7 @@ msg_attr_keep(
     int		attr,
     int		keep)	    // TRUE: set keep_msg if it doesn't scroll
 {
-    static int	entered = 0;
+    static __thread int	entered = 0;
     int		retval;
     char_u	*buf = NULL;
 
@@ -538,7 +538,7 @@ get_emsg_lnum(void)
 msg_source(int attr)
 {
     char_u	*p;
-    static int	recursive = FALSE;
+    static __thread int	recursive = FALSE;
 
     // Bail out if something called here causes an error.
     if (recursive)
@@ -1928,7 +1928,7 @@ str2special(
     int		replace_lt)	// TRUE to replace "<" with "<lt>".
 {
     int			c;
-    static char_u	buf[7];
+    static __thread char_u	buf[7];
     char_u		*str = *sp;
     int			modifiers = 0;
     int			special = FALSE;
@@ -3251,7 +3251,7 @@ msg_puts_printf(char_u *str, int maxlen)
     static int
 do_more_prompt(int typed_char)
 {
-    static int	entered = FALSE;
+    static __thread int	entered = FALSE;
     int		used_typed_char = typed_char;
     int		oldState = State;
     int		c;
@@ -3940,7 +3940,7 @@ msg_check(void)
 redir_write(char_u *str, int maxlen)
 {
     char_u	*s = str;
-    static int	cur_col = 0;
+    static __thread int	cur_col = 0;
 
     // Don't do anything for displaying prompts and the like.
     if (redir_off)

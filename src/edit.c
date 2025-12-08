@@ -148,7 +148,7 @@ edit(
     char_u	*ptr;
     int		lastc = 0;
     int		mincol;
-    static linenr_T o_lnum = 0;
+    static __thread linenr_T o_lnum = 0;
     int		i;
     int		did_backspace = TRUE;	    // previous char was backspace
     int		line_is_white = FALSE;	    // line is empty before insert
@@ -3729,7 +3729,7 @@ ins_esc(
     int		nomove)	    // don't move cursor
 {
     int		temp;
-    static int	disabled_redraw = FALSE;
+    static __thread int	disabled_redraw = FALSE;
 #ifdef FEAT_CONCEAL
     // Remember if the cursor line was concealed before changing State.
     int		cursor_line_was_concealed = curwin->w_p_cole > 0

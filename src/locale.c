@@ -395,9 +395,9 @@ ex_language(exarg_T *eap)
     }
 }
 
-static char_u	**locales = NULL;	// Array of all available locales
+static __thread char_u	**locales = NULL;	// Array of all available locales
 
-static int	did_init_locales = FALSE;
+static __thread int	did_init_locales = FALSE;
 
 /*
  * Return an array of strings for all available locales + NULL for the

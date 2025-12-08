@@ -813,8 +813,8 @@ stuffescaped(char_u *arg, int literally)
     static int
 read_redo(int init, int old_redo)
 {
-    static buffblock_T	*bp;
-    static char_u	*p;
+    static __thread buffblock_T	*bp;
+    static __thread char_u	*p;
     int			c;
     int			n;
     char_u		buf[MB_MAXBYTES + 1];
@@ -1404,7 +1404,7 @@ gotchars(char_u *chars, int len)
     char_u		*s = chars;
     size_t		i;
     int			todo = len;
-    static gotchars_state_T state;
+    static __thread gotchars_state_T state;
 
     while (todo-- > 0)
     {
@@ -1742,7 +1742,7 @@ before_blocking(void)
     static void
 updatescript(int c)
 {
-    static int	    count = 0;
+    static __thread int	    count = 0;
 
     if (c && scriptout)
 	putc(c, scriptout);
@@ -1825,7 +1825,7 @@ merge_modifyOtherKeys(int c_arg, int *modifiers)
     static void
 add_byte_to_showcmd(char_u byte)
 {
-    static gotchars_state_T state;
+    static __thread gotchars_state_T state;
     char_u	*ptr;
     int		modifiers = 0;
     int		c = NUL;
@@ -1918,7 +1918,7 @@ vgetc(void)
     else
     {
 	// number of characters recorded from the last vgetc() call
-	static size_t	last_vgetc_recorded_len = 0;
+	static __thread size_t	last_vgetc_recorded_len = 0;
 
 	mod_mask = 0;
 	vgetc_mod_mask = 0;
@@ -2603,7 +2603,7 @@ parse_queued_messages(void)
     int	    old_curbuf_fnum;
     int	    i;
     int	    save_may_garbage_collect = may_garbage_collect;
-    static int entered = 0;
+    static __thread int entered = 0;
     int	    was_safe = get_was_safe_state();
 
     // Do not handle messages while redrawing, because it may cause buffers to
@@ -3756,7 +3756,7 @@ vgetorpeek(int advance)
 
 		if (ex_normal_busy > 0)
 		{
-		    static int tc = 0;
+		    static __thread int tc = 0;
 
 		    // No typeahead left and inside ":normal".  Must return
 		    // something to avoid getting stuck.  When an incomplete

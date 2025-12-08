@@ -90,7 +90,7 @@ reset_y_append(void)
  * Keep the last expression line here, for repeating.
  */
 static __thread char_u	*expr_line = NULL;
-static exarg_T	*expr_eap = NULL;
+static __thread exarg_T	*expr_eap = NULL;
 
 /*
  * Get an expression for the "\"=expr1" or "CTRL-R =expr1"
@@ -383,7 +383,7 @@ yank_register_mline(int regname)
 do_record(int c)
 {
     char_u	    *p;
-    static int	    regname;
+    static __thread int	    regname;
     yankreg_T	    *old_y_previous, *old_y_current;
     int		    retval;
 
@@ -497,7 +497,7 @@ stuff_yank(int regname, char_u *p)
 /*
  * Last executed register (@ command)
  */
-static int execreg_lastc = NUL;
+static __thread int execreg_lastc = NUL;
 
 #if defined(FEAT_VIMINFO)
     int

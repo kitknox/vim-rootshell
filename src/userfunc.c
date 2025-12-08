@@ -683,7 +683,7 @@ make_ufunc_name_readable(char_u *name, char_u *buf, size_t bufsize)
     return buf;
 }
 
-static char_u	lambda_name[8 + NUMBUFLEN];
+static __thread char_u	lambda_name[8 + NUMBUFLEN];
 
 /*
  * Get a name for a lambda.  Returned in static memory.
@@ -691,7 +691,7 @@ static char_u	lambda_name[8 + NUMBUFLEN];
     string_T
 get_lambda_name(void)
 {
-    static int	lambda_no = 0;
+    static __thread int	lambda_no = 0;
     int		n;
     string_T	ret;
 
@@ -2602,7 +2602,7 @@ cleanup_function_call(funccall_T *fc)
 	free_funccal(fc);
     else
     {
-	static int made_copy = 0;
+	static __thread int made_copy = 0;
 
 	// "fc" is still in use.  This can happen when returning "a:000",
 	// assigning "l:" to a global variable or defining a closure.

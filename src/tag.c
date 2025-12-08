@@ -283,10 +283,10 @@ do_tag(
     char_u	*tofree = NULL;
 
     // remember the matches for the last used tag
-    static int		num_matches = 0;
-    static int		max_num_matches = 0;  // limit used for match search
-    static char_u	**matches = NULL;
-    static int		flags;
+    static __thread int		num_matches = 0;
+    static __thread int		max_num_matches = 0;  // limit used for match search
+    static __thread char_u	**matches = NULL;
+    static __thread int		flags;
 
 #ifdef EXITFREE
     if (type == DT_FREE)

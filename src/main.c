@@ -1320,9 +1320,9 @@ main_loop(
     volatile int previous_got_int = FALSE;	// "got_int" was TRUE
 #ifdef FEAT_CONCEAL
     // these are static to avoid a compiler warning
-    static linenr_T	conceal_old_cursor_line = 0;
-    static linenr_T	conceal_new_cursor_line = 0;
-    static int		conceal_update_lines = FALSE;
+    static __thread linenr_T	conceal_old_cursor_line = 0;
+    static __thread linenr_T	conceal_new_cursor_line = 0;
+    static __thread int		conceal_update_lines = FALSE;
 #endif
 
     prev_oap = current_oap;

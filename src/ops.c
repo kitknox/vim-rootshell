@@ -3661,7 +3661,7 @@ op_colon(oparg_T *oap)
 }
 
 // callback function for 'operatorfunc'
-static callback_T opfunc_cb;
+static __thread callback_T opfunc_cb;
 
 /*
  * Process the 'operatorfunc' option value.

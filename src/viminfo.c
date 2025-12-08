@@ -43,7 +43,7 @@ typedef struct {
 
 #if defined(FEAT_VIMINFO)
 
-static int  viminfo_errcnt;
+static __thread int  viminfo_errcnt;
 
 /*
  * Find the parameter represented by the given character (eg ''', ':', '"', or
@@ -458,7 +458,7 @@ write_viminfo_bufferlist(FILE *fp)
 /*
  * Buffers for history read from a viminfo file.  Only valid while reading.
  */
-static histentry_T *viminfo_history[HIST_COUNT] =
+static __thread histentry_T *viminfo_history[HIST_COUNT] =
 					       {NULL, NULL, NULL, NULL, NULL};
 static __thread int	viminfo_hisidx[HIST_COUNT] = {0, 0, 0, 0, 0};
 static __thread int	viminfo_hislen[HIST_COUNT] = {0, 0, 0, 0, 0};

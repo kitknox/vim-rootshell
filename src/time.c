@@ -394,8 +394,8 @@ f_strptime(typval_T *argvars, typval_T *rettv)
 # endif
 
 # if defined(FEAT_TIMERS)
-static timer_T	*first_timer = NULL;
-static long	last_timer_id = 0;
+static __thread timer_T	*first_timer = NULL;
+static __thread long	last_timer_id = 0;
 
 /*
  * Return time left, in "msec", until "due".  Negative if past "due".

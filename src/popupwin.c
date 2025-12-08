@@ -30,20 +30,20 @@ static poppos_entry_T poppos_entries[] = {
 
 #ifdef HAS_MESSAGE_WINDOW
 // Window used for ":echowindow"
-static win_T *message_win = NULL;
+static __thread win_T *message_win = NULL;
 
 // Time used for the next ":echowindow" message in msec.
-static int  message_win_time = 3000;
+static __thread int  message_win_time = 3000;
 
 // Flag set when a message is added to the message window, timer is started
 // when the message window is drawn.  This might be after pressing Enter at the
 // hit-enter prompt.
-static int    start_message_win_timer = FALSE;
+static __thread int    start_message_win_timer = FALSE;
 
 static void may_start_message_win_timer(win_T *wp);
 #endif
 
-static int popup_on_cmdline = FALSE;
+static __thread int popup_on_cmdline = FALSE;
 
 static void popup_adjust_position(win_T *wp);
 
@@ -673,7 +673,7 @@ popup_show_curline(win_T *wp)
     static char_u *
 popup_get_sign_name(win_T *wp)
 {
-    static char    buf[30];
+    static __thread char    buf[30];
 
     vim_snprintf(buf, sizeof(buf), "popup-%d", wp->w_id);
     return (char_u *)buf;

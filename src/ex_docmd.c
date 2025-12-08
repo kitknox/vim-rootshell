@@ -676,7 +676,7 @@ do_cmdline(
     char_u	*next_cmdline;		// next cmd to execute
     char_u	*cmdline_copy = NULL;	// copy of cmd line
     int		used_getline = FALSE;	// used "fgetline" to obtain command
-    static int	recursive = 0;		// recursive depth
+    static __thread int	recursive = 0;		// recursive depth
     int		msg_didout_before_start = 0;
     int		count = 0;		// line number count
     int		did_inc_RedrawingDisabled = FALSE;
@@ -704,7 +704,7 @@ do_cmdline(
 # define cmd_getline fgetline
 # define cmd_cookie cookie
 #endif
-    static int	call_depth = 0;		// recursiveness
+    static __thread int	call_depth = 0;		// recursiveness
 #ifdef FEAT_EVAL
     // For every pair of do_cmdline()/do_one_cmd() calls, use an extra memory
     // location for storing error messages to be converted to an exception.

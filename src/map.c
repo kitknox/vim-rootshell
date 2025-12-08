@@ -26,7 +26,7 @@ static __thread int		maphash_valid = FALSE;
 
 // When non-zero then no mappings can be added or removed.  Prevents mappings
 // to change while listing them.
-static int		map_locked = 0;
+static __thread int		map_locked = 0;
 
 /*
  * Make a hash value for a mapping.
