@@ -5875,9 +5875,11 @@ static __thread struct vimoption options[] =
 			    {(char_u *)TRUE, (char_u *)0L} SCTX_INIT},
 
 // terminal output codes
+// iOS: var pointer is NULL here, set at runtime via options_init.h
+// because TLS addresses cannot be compile-time constants
 #define p_term(sss, vvv) \
 			    {sss, NULL, P_STRING|P_VI_DEF|P_RALL|P_SECURE, \
-			    (char_u *)&vvv, PV_NONE, did_set_term_option, NULL, \
+			    (char_u *)NULL, PV_NONE, did_set_term_option, NULL, \
 			    {(char_u *)"", (char_u *)0L} SCTX_INIT},
 
     p_term("t_AB", T_CAB)

@@ -12,6 +12,10 @@
  * here are optional, except "cm" (cursor motion).
  */
 
+#ifdef __APPLE__
+# include <TargetConditionals.h>
+#endif
+
 #if defined(SASC) && SASC < 658
 /*
  * The SAS C compiler has a bug that makes typedefs being forgotten
@@ -129,7 +133,11 @@ enum SpecialKey
  * - there should be code in term.c to obtain the value from the termcap
  */
 
+#if TARGET_OS_IPHONE
+extern __thread char_u *(term_strings[]);    // current terminal strings (TLS for multi-instance)
+#else
 extern char_u *(term_strings[]);    // current terminal strings
+#endif
 
 /*
  * strings used for terminal

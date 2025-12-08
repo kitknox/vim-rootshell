@@ -1496,7 +1496,11 @@ termgui_mch_get_rgb(guicolor_T color)
  * It is initialized with the default values by parse_builtin_tcap().
  * The values can be changed by setting the option with the same name.
  */
+#if TARGET_OS_IPHONE
+__thread char_u *(term_strings[(int)KS_LAST + 1]);
+#else
 char_u *(term_strings[(int)KS_LAST + 1]);
+#endif
 
 static __thread int	need_gather = FALSE;	    // need to fill termleader[]
 static __thread char_u	termleader[256 + 1];	    // for check_termcode()
