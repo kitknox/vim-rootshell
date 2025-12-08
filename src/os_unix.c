@@ -4455,8 +4455,10 @@ mch_get_shellsize(void)
 	// On iOS, ios_ioctl returns the window size set by ios_setWindowSize().
 	// The fd parameter is ignored - it always returns the current session's size.
 	// Try fd=0 first as that's what ios_system typically uses.
-	if (ios_ioctl(0, TIOCGWINSZ, &ws) == 0
-		|| ios_ioctl(1, TIOCGWINSZ, &ws) == 0)
+	// Important: Check that returned values are non-zero, as ios_ioctl may
+	// return success with 0,0 if ios_setWindowSize() hasn't been called yet.
+	if ((ios_ioctl(0, TIOCGWINSZ, &ws) == 0 || ios_ioctl(1, TIOCGWINSZ, &ws) == 0)
+		&& ws.ws_col > 0 && ws.ws_row > 0)
 	{
 	    columns = ws.ws_col;
 	    rows = ws.ws_row;
@@ -4507,15 +4509,10 @@ mch_get_shellsize(void)
      * 2. get size from environment
      *    When being POSIX compliant ('|' flag in 'cpoptions') this overrules
      *    the ioctl() values!
-     *    On iOS, always check env vars - ios_ioctl may return 0 at startup
-     *    before the host app has set the window size.
+     *    On iOS, only check env vars if ios_ioctl didn't return valid values.
+     *    Don't override good ioctl values with potentially stale env vars.
      */
-#if TARGET_OS_IPHONE
-    // On iOS, always check LINES/COLUMNS as ios_ioctl may not be ready yet
-    if (1)
-#else
     if (columns == 0 || rows == 0 || vim_strchr(p_cpo, CPO_TSIZE) != NULL)
-#endif
     {
 	if ((p = (char_u *)getenv("LINES")))
 	{
