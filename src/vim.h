@@ -1968,7 +1968,8 @@ typedef void	    *vim_acl_T;		// dummy to pass an ACL to a function
  * actually defined and initialized.
  */
 #ifndef EXTERN
-# define EXTERN extern
+// iOS: Thread-local storage for concurrent vim instances
+# define EXTERN extern __thread
 # define INIT(x)
 # define INIT2(a, b)
 # define INIT3(a, b, c)

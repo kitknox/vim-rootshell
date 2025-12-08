@@ -642,6 +642,20 @@ set_init_default_encoding(void)
     }
 }
 
+#if TARGET_OS_IPHONE
+/*
+ * Helper function to find option and set its var pointer.
+ * Used for iOS runtime initialization of options[] array.
+ */
+    static void
+findoption_and_set_var(char *name, char_u *var)
+{
+    int idx = findoption((char_u *)name);
+    if (idx >= 0)
+	options[idx].var = var;
+}
+#endif
+
 /*
  * Initialize the options, first part.
  *
@@ -651,6 +665,12 @@ set_init_default_encoding(void)
     void
 set_init_1(int clean_arg)
 {
+#if TARGET_OS_IPHONE
+    // iOS: Initialize options[] var pointers at runtime
+    // (TLS addresses cannot be compile-time constants)
+#include "options_init.h"
+#endif
+
 #ifdef FEAT_LANGMAP
     langmap_init();
 #endif

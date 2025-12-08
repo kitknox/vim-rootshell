@@ -2448,7 +2448,8 @@ f_uriencode(typval_T *argvars, typval_T *rettv)
     rettv->vval.v_string = uri_encode(tv_get_string(&argvars[0]));
 }
 
-static char *e_printf = N_(e_insufficient_arguments_for_printf);
+// iOS: Can't use static initializer with TLS variable address
+#define e_printf N_(e_insufficient_arguments_for_printf)
 
 /*
  * Get number argument from "idxp" entry in "tvs".  First entry is 1.
