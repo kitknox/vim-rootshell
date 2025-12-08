@@ -66,6 +66,7 @@ extern __thread FILE* thread_stderr;
 #define unsetenv ios_unsetenv
 #define putenv ios_putenv
 #define fchdir ios_fchdir
+#define isatty ios_isatty
 
 extern int ios_executable(const char* cmd); // is this command part of the "shell" commands?
 extern int ios_system(const char* inputCmd); // execute this command (executable file or builtin command)

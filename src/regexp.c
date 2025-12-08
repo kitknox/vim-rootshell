@@ -440,8 +440,38 @@ static int	reg_iswordc(int);
 static void report_re_switch(char_u *pat);
 #endif
 
-static regengine_T bt_regengine;
-static regengine_T nfa_regengine;
+// Function prototypes for regex engines (defined in regexp_bt.c and regexp_nfa.c)
+static regprog_T *bt_regcomp(char_u *expr, int re_flags);
+static void bt_regfree(regprog_T *prog);
+static int bt_regexec_nl(regmatch_T *rmp, char_u *line, colnr_T col, int line_lbr);
+static long bt_regexec_multi(regmmatch_T *rmp, win_T *win, buf_T *buf, linenr_T lnum, colnr_T col, int *timed_out);
+static regprog_T *nfa_regcomp(char_u *expr, int re_flags);
+static void nfa_regfree(regprog_T *prog);
+static int nfa_regexec_nl(regmatch_T *rmp, char_u *line, colnr_T col, int line_lbr);
+static long nfa_regexec_multi(regmmatch_T *rmp, win_T *win, buf_T *buf, linenr_T lnum, colnr_T col, int *timed_out);
+
+// Regex engine structures - single definition with initializers
+static regengine_T bt_regengine =
+{
+    bt_regcomp,
+    bt_regfree,
+    bt_regexec_nl,
+    bt_regexec_multi
+#ifdef DEBUG
+    ,(char_u *)""
+#endif
+};
+
+static regengine_T nfa_regengine =
+{
+    nfa_regcomp,
+    nfa_regfree,
+    nfa_regexec_nl,
+    nfa_regexec_multi
+#ifdef DEBUG
+    ,(char_u *)""
+#endif
+};
 
 /*
  * Return TRUE if compiled regular expression "prog" can match a line break.
@@ -2879,29 +2909,7 @@ init_regexec_multi(
 
 #include "regexp_bt.c"
 
-static regengine_T bt_regengine =
-{
-    bt_regcomp,
-    bt_regfree,
-    bt_regexec_nl,
-    bt_regexec_multi
-#ifdef DEBUG
-    ,(char_u *)""
-#endif
-};
-
 #include "regexp_nfa.c"
-
-static regengine_T nfa_regengine =
-{
-    nfa_regcomp,
-    nfa_regfree,
-    nfa_regexec_nl,
-    nfa_regexec_multi
-#ifdef DEBUG
-    ,(char_u *)""
-#endif
-};
 
 // Which regexp engine to use? Needed for vim_regcomp().
 // Must match with 'regexpengine'.
