@@ -571,13 +571,17 @@ mch_chdir(char *path)
     void
 mch_write(char_u *s, int len)
 {
-    vim_ignored = (int)write(1, (char *)s, len);
 #if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_OS_MACCATALYST)
-    // On iOS, write() is redirected to ios_write() which buffers output.
-    // Flush thread_stdout to ensure terminal escape sequences are delivered immediately.
+    // Use thread-local stdout for multi-instance support on iOS.
+    // Hardcoded FD 1 would write to wrong terminal in concurrent instances.
     if (thread_stdout != NULL)
+    {
+	vim_ignored = (int)fwrite((char *)s, 1, len, thread_stdout);
 	fflush(thread_stdout);
+    }
+    else
 #endif
+    vim_ignored = (int)write(1, (char *)s, len);
     if (p_wd)		// Unix is too fast, slow down a bit more
 	RealWaitForChar(read_cmd_fd, p_wd, NULL, NULL);
 }
