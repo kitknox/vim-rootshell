@@ -224,7 +224,7 @@ struct block0
  * (always used for the current buffer only, no buffer change possible while
  * executing a global command).
  */
-static linenr_T	lowest_marked = 0;
+static __thread linenr_T	lowest_marked = 0;
 
 /*
  * arguments for ml_find_line()
@@ -2169,7 +2169,7 @@ make_percent_swname(char_u *dir, char_u *dir_end, char_u *name)
 #if (defined(UNIX) || defined(VMS) || defined(MSWIN)) \
 	&& (defined(FEAT_GUI_DIALOG) || defined(FEAT_CON_DIALOG))
 # define HAVE_PROCESS_STILL_RUNNING
-static int process_still_running;
+static __thread int process_still_running;
 #endif
 
 #if defined(FEAT_EVAL)

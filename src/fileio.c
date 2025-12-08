@@ -4047,7 +4047,7 @@ vim_copyfile(char_u *from, char_u *to)
     return OK;
 }
 
-static int already_warned = FALSE;
+static __thread int already_warned = FALSE;
 
 /*
  * Check if any not hidden buffer has been changed.
@@ -5218,7 +5218,7 @@ delete_recursive(char_u *name)
 #endif
 
 #if defined(TEMPDIRNAMES)
-static long	temp_count = 0;		// Temp filename counter.
+static __thread long	temp_count = 0;		// Temp filename counter.
 
 # if defined(UNIX) && defined(HAVE_FLOCK) && defined(HAVE_DIRFD)
 /*

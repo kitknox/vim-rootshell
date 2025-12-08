@@ -27,7 +27,7 @@ typedef struct digraph
 static void printdigraph(digr_T *dp, result_T *previous);
 
 // digraphs added by the user
-static garray_T	user_digraphs = {0, 0, (int)sizeof(digr_T), 10, NULL};
+static __thread garray_T	user_digraphs = {0, 0, (int)sizeof(digr_T), 10, NULL};
 
 /*
  * digraphs for Unicode from RFC1345
