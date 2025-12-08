@@ -4497,8 +4497,15 @@ mch_get_shellsize(void)
      * 2. get size from environment
      *    When being POSIX compliant ('|' flag in 'cpoptions') this overrules
      *    the ioctl() values!
+     *    On iOS, always check env vars - ios_ioctl may return 0 at startup
+     *    before the host app has set the window size.
      */
+#if TARGET_OS_IPHONE
+    // On iOS, always check LINES/COLUMNS as ios_ioctl may not be ready yet
+    if (1)
+#else
     if (columns == 0 || rows == 0 || vim_strchr(p_cpo, CPO_TSIZE) != NULL)
+#endif
     {
 	if ((p = (char_u *)getenv("LINES")))
 	{
