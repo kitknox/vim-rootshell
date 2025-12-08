@@ -4734,6 +4734,68 @@ struct charstab
 #define CHARSTAB_ENTRY(cp, name) \
     {(cp), {(char_u *)(name), STRLEN_LITERAL(name)}}
 
+#if TARGET_OS_IPHONE
+// iOS: TLS for multiple vim sessions on the same thread.
+// The tables contain pointers to the TLS structs, so they must also be TLS
+// and initialized at runtime since compile-time addresses are not valid.
+static __thread fill_chars_T fill_chars;
+static __thread lcs_chars_T lcs_chars;
+# if defined(FEAT_TABPANEL)
+static __thread struct charstab filltab[14];
+# else
+static __thread struct charstab filltab[13];
+# endif
+static __thread struct charstab lcstab[11];
+static __thread int charstab_initialized = 0;
+
+    static void
+init_charstab_ios(void)
+{
+    if (charstab_initialized)
+	return;
+
+    // Initialize filltab pointers
+    filltab[0] = (struct charstab){&fill_chars.stl, {(char_u *)"stl", 3}};
+    filltab[1] = (struct charstab){&fill_chars.stlnc, {(char_u *)"stlnc", 5}};
+    filltab[2] = (struct charstab){&fill_chars.vert, {(char_u *)"vert", 4}};
+    filltab[3] = (struct charstab){&fill_chars.fold, {(char_u *)"fold", 4}};
+    filltab[4] = (struct charstab){&fill_chars.foldopen, {(char_u *)"foldopen", 8}};
+    filltab[5] = (struct charstab){&fill_chars.foldclosed, {(char_u *)"foldclose", 9}};
+    filltab[6] = (struct charstab){&fill_chars.foldsep, {(char_u *)"foldsep", 7}};
+    filltab[7] = (struct charstab){&fill_chars.foldinner, {(char_u *)"foldinner", 9}};
+    filltab[8] = (struct charstab){&fill_chars.diff, {(char_u *)"diff", 4}};
+    filltab[9] = (struct charstab){&fill_chars.eob, {(char_u *)"eob", 3}};
+    filltab[10] = (struct charstab){&fill_chars.lastline, {(char_u *)"lastline", 8}};
+# if defined(FEAT_TABPANEL)
+    filltab[11] = (struct charstab){&fill_chars.tpl_vert, {(char_u *)"tpl_vert", 8}};
+    filltab[12] = (struct charstab){&fill_chars.trunc, {(char_u *)"trunc", 5}};
+    filltab[13] = (struct charstab){&fill_chars.truncrl, {(char_u *)"truncrl", 7}};
+# else
+    filltab[11] = (struct charstab){&fill_chars.trunc, {(char_u *)"trunc", 5}};
+    filltab[12] = (struct charstab){&fill_chars.truncrl, {(char_u *)"truncrl", 7}};
+# endif
+
+    // Initialize lcstab pointers
+    lcstab[0] = (struct charstab){&lcs_chars.eol, {(char_u *)"eol", 3}};
+    lcstab[1] = (struct charstab){&lcs_chars.ext, {(char_u *)"extends", 7}};
+    lcstab[2] = (struct charstab){&lcs_chars.nbsp, {(char_u *)"nbsp", 4}};
+    lcstab[3] = (struct charstab){&lcs_chars.prec, {(char_u *)"precedes", 8}};
+    lcstab[4] = (struct charstab){&lcs_chars.space, {(char_u *)"space", 5}};
+    lcstab[5] = (struct charstab){&lcs_chars.tab2, {(char_u *)"tab", 3}};
+    lcstab[6] = (struct charstab){&lcs_chars.trail, {(char_u *)"trail", 5}};
+    lcstab[7] = (struct charstab){&lcs_chars.lead, {(char_u *)"lead", 4}};
+# ifdef FEAT_CONCEAL
+    lcstab[8] = (struct charstab){&lcs_chars.conceal, {(char_u *)"conceal", 7}};
+# else
+    lcstab[8] = (struct charstab){NULL, {(char_u *)"conceal", 7}};
+# endif
+    lcstab[9] = (struct charstab){NULL, {(char_u *)"multispace", 10}};
+    lcstab[10] = (struct charstab){NULL, {(char_u *)"leadmultispace", 14}};
+
+    charstab_initialized = 1;
+}
+#else
+// Non-iOS: use static initialization
 static fill_chars_T fill_chars;
 static struct charstab filltab[] =
 {
@@ -4748,9 +4810,9 @@ static struct charstab filltab[] =
     CHARSTAB_ENTRY(&fill_chars.diff,	    "diff"),
     CHARSTAB_ENTRY(&fill_chars.eob,	    "eob"),
     CHARSTAB_ENTRY(&fill_chars.lastline,    "lastline"),
-#if defined(FEAT_TABPANEL)
+# if defined(FEAT_TABPANEL)
     CHARSTAB_ENTRY(&fill_chars.tpl_vert,    "tpl_vert"),
-#endif
+# endif
     CHARSTAB_ENTRY(&fill_chars.trunc,	    "trunc"),
     CHARSTAB_ENTRY(&fill_chars.truncrl,	    "truncrl"),
 };
@@ -4765,14 +4827,15 @@ static struct charstab lcstab[] =
     CHARSTAB_ENTRY(&lcs_chars.tab2,	    "tab"),
     CHARSTAB_ENTRY(&lcs_chars.trail,	    "trail"),
     CHARSTAB_ENTRY(&lcs_chars.lead,	    "lead"),
-#ifdef FEAT_CONCEAL
+# ifdef FEAT_CONCEAL
     CHARSTAB_ENTRY(&lcs_chars.conceal,	    "conceal"),
-#else
+# else
     CHARSTAB_ENTRY(NULL,		    "conceal"),
-#endif
+# endif
     CHARSTAB_ENTRY(NULL,		    "multispace"),
     CHARSTAB_ENTRY(NULL,		    "leadmultispace")
 };
+#endif
 
     static char *
 field_value_err(char *errbuf, size_t errbuflen, char *fmt, char_u *field)
@@ -4804,6 +4867,10 @@ set_chars_option(win_T *wp, char_u *value, int is_listchars, int apply,
     int	    lead_multispace_len = 0;  // Length of lcs-leadmultispace string
 
     struct charstab *tab;
+
+#if TARGET_OS_IPHONE
+    init_charstab_ios();
+#endif
 
     if (is_listchars)
     {
@@ -5065,6 +5132,9 @@ set_listchars_option(win_T *wp, char_u *val, int apply, char *errbuf,
     char_u *
 get_fillchars_name(expand_T *xp UNUSED, int idx)
 {
+#if TARGET_OS_IPHONE
+    init_charstab_ios();
+#endif
     if (idx < 0 || idx >= (int)ARRAY_LENGTH(filltab))
 	return NULL;
 
@@ -5078,6 +5148,9 @@ get_fillchars_name(expand_T *xp UNUSED, int idx)
     char_u *
 get_listchars_name(expand_T *xp UNUSED, int idx)
 {
+#if TARGET_OS_IPHONE
+    init_charstab_ios();
+#endif
     if (idx < 0 || idx >= (int)ARRAY_LENGTH(lcstab))
 	return NULL;
 

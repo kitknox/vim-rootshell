@@ -18,7 +18,12 @@
  * where unset, up to 64 octets long including trailing null byte.
  */
 #if defined(HAVE_LOCALTIME_R) && defined(HAVE_TZSET)
+# if TARGET_OS_IPHONE
+// iOS: TLS to support multiple vim sessions on the same thread
+static __thread char	tz_cache[64];
+# else
 static char	tz_cache[64];
+# endif
 #endif
 
 #define FOR_ALL_TIMERS(t) \
@@ -950,7 +955,12 @@ f_timer_stopall(typval_T *argvars UNUSED, typval_T *rettv UNUSED)
 # endif // FEAT_TIMERS
 
 # if defined(STARTUPTIME)
+#  if TARGET_OS_IPHONE
+// iOS: TLS to support multiple vim sessions on the same thread
+static __thread struct timeval	prev_timeval;
+#  else
 static struct timeval	prev_timeval;
+#  endif
 
 #  ifdef MSWIN
 /*
@@ -1024,7 +1034,12 @@ time_msg(
     void	*tv_start)  // only for do_source: start time; actually
 			    // (struct timeval *)
 {
+#if TARGET_OS_IPHONE
+    // iOS: TLS to support multiple vim sessions on the same thread
+    static __thread struct timeval	start;
+#else
     static struct timeval	start;
+#endif
     struct timeval		now;
 
     if (time_fd == NULL)
