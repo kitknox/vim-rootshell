@@ -1842,7 +1842,12 @@ get_term_entries(int *height, int *width)
 			{(enum SpecialKey)0, NULL}
 		    };
     int		    i;
+#if TARGET_OS_IPHONE
+    // iOS: TLS to support multiple vim sessions on the same thread
+    static __thread char_u   tstrbuf[TBUFSZ];
+#else
     static char_u   tstrbuf[TBUFSZ];
+#endif
     char_u	    *tp = tstrbuf;
 
     /*
@@ -3684,9 +3689,16 @@ limit_screen_size(void)
     void
 win_new_shellsize(void)
 {
+#if TARGET_OS_IPHONE
+    // iOS: TLS to support multiple vim sessions on the same thread
+    static __thread int	old_Rows = 0;
+    static __thread int	old_Columns = 0;
+    static __thread int	old_coloff = 0;
+#else
     static int	old_Rows = 0;
     static int	old_Columns = 0;
     static int	old_coloff = 0;
+#endif
 
     if (old_Rows != Rows || old_Columns != COLUMNS_WITHOUT_TPL()
 	    || old_coloff != TPL_LCOL())

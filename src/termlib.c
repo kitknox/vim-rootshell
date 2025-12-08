@@ -26,12 +26,20 @@ static char *_find(char *, char *);
 
 /*
  * Global variables for termlib
+ * iOS: Must be TLS to support multiple vim sessions on the same thread
  */
 
+#if TARGET_OS_IPHONE
+__thread char	*tent;		      // Pointer to terminal entry, set by tgetent
+__thread char	PC = 0;		      // Pad character, default NULL
+__thread char	*UP = 0, *BC = 0;     // Pointers to UP and BC strings from database
+__thread short	ospeed;		      // Baud rate (1-16, 1=300, 16=19200), as in stty
+#else
 char	*tent;		      // Pointer to terminal entry, set by tgetent
 char	PC = 0;		      // Pad character, default NULL
 char	*UP = 0, *BC = 0;     // Pointers to UP and BC strings from database
 short	ospeed;		      // Baud rate (1-16, 1=300, 16=19200), as in stty
+#endif
 
 /*
  * Module: tgetent
