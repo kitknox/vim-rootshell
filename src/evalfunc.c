@@ -1386,7 +1386,7 @@ static argcheck_T arg23_writefile[] = {arg_list_or_blob, arg_string, arg_string}
 static argcheck_T arg24_match_func[] = {arg_string_or_list_any, arg_string, arg_number, arg_number};
 
 // Can be used by functions called through "f_retfunc" to create new types.
-static garray_T *current_type_gap = NULL;
+static __thread garray_T *current_type_gap = NULL;
 
 /*
  * Functions that return the return type of a builtin function.
