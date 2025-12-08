@@ -69,8 +69,8 @@ static void parseMarker(win_T *wp);
  * While updating the folds lines between invalid_top and invalid_bot have an
  * undefined fold level.  Only used for the window currently being updated.
  */
-static linenr_T invalid_top = (linenr_T)0;
-static linenr_T invalid_bot = (linenr_T)0;
+static __thread linenr_T invalid_top = (linenr_T)0;
+static __thread linenr_T invalid_bot = (linenr_T)0;
 
 /*
  * When using 'foldexpr' we sometimes get the level of the next line, which

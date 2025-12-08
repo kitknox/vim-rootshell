@@ -394,8 +394,8 @@ bytes2offset(char_u **pp)
 #define SPS_FAST    2
 #define SPS_DOUBLE  4
 
-static int sps_flags = SPS_BEST;	// flags from 'spellsuggest'
-static int sps_limit = 9999;		// max nr of suggestions given
+static __thread int sps_flags = SPS_BEST;	// flags from 'spellsuggest'
+static __thread int sps_limit = 9999;		// max nr of suggestions given
 
 /*
  * Check the 'spellsuggest' option.  Return FAIL if it's wrong.
@@ -3099,7 +3099,7 @@ typedef struct
     char_u	sft_word[1];    // soundfolded word, actually longer
 } sftword_T;
 
-static sftword_T dumsft;
+static __thread sftword_T dumsft;
 #define HIKEY2SFT(p)  ((sftword_T *)((p) - (dumsft.sft_word - (char_u *)&dumsft)))
 #define HI2SFT(hi)     HIKEY2SFT((hi)->hi_key)
 

@@ -3227,7 +3227,7 @@ func_allows_type(int idx)
     char_u *
 get_function_name(expand_T *xp, int idx)
 {
-    static int	intidx = -1;
+    static __thread int	intidx = -1;
     char_u	*name;
 
     if (idx == 0)
@@ -3266,7 +3266,7 @@ get_function_name(expand_T *xp, int idx)
     char_u *
 get_expr_name(expand_T *xp, int idx)
 {
-    static int	intidx = -1;
+    static __thread int	intidx = -1;
     char_u	*name;
 
     if (idx == 0)

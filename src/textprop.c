@@ -27,11 +27,11 @@
 #define HI2PT(hi)      HIKEY2PT((hi)->hi_key)
 
 // The global text property types.
-static hashtab_T *global_proptypes = NULL;
-static proptype_T **global_proparray = NULL;
+static __thread hashtab_T *global_proptypes = NULL;
+static __thread proptype_T **global_proparray = NULL;
 
 // The last used text property type ID.
-static int proptype_id = 0;
+static __thread int proptype_id = 0;
 
 /*
  * Find a property type by name, return the hashitem.
