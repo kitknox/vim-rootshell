@@ -12,7 +12,7 @@
  */
 #include "vim.h"
 
-static char_u	*username = NULL; // cached result of mch_get_user_name()
+static __thread char_u	*username = NULL; // cached result of mch_get_user_name()
 
 static int coladvance2(pos_T *pos, int addspaces, int finetune, colnr_T wcol);
 

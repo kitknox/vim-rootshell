@@ -2158,9 +2158,9 @@ tv_equal(
 {
     char_u	buf1[NUMBUFLEN], buf2[NUMBUFLEN];
     char_u	*s1, *s2;
-    static int  recursive_cnt = 0;	    // catch recursive loops
+    static __thread int  recursive_cnt = 0;	    // catch recursive loops
     int		r;
-    static int	tv_equal_recurse_limit;
+    static __thread int	tv_equal_recurse_limit;
 
     // Catch lists and dicts that have an endless loop by limiting
     // recursiveness to a limit.  We guess they are equal then.

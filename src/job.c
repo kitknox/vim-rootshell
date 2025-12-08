@@ -742,7 +742,7 @@ get_job_options(typval_T *tv, jobopt_T *opt, int supported, int supported2)
     return OK;
 }
 
-static job_T *first_job = NULL;
+static __thread job_T *first_job = NULL;
 
     static void
 job_free_contents(job_T *job)
@@ -811,7 +811,7 @@ job_free(job_T *job)
     job_free_job(job);
 }
 
-static job_T *jobs_to_free = NULL;
+static __thread job_T *jobs_to_free = NULL;
 
 /*
  * Put "job" in a list to be freed later, when it's no longer referenced.
