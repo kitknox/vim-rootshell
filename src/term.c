@@ -159,19 +159,32 @@ static __thread termrequest_T rcs_status = TERMREQUEST_INIT;
 // Request window's position report:
 static __thread termrequest_T winpos_status = TERMREQUEST_INIT;
 
-static __thread termrequest_T *all_termrequests[] = {
-    &crv_status,
-    &u7_status,
-    &xcc_status,
+// Get the array of all termrequests - initialized on first call
+// (TLS variables can't be used in static initializers on iOS)
+    static termrequest_T **
+get_all_termrequests(void)
+{
+    static __thread termrequest_T *all_termrequests[10];
+    static __thread int initialized = FALSE;
+
+    if (!initialized)
+    {
+	int i = 0;
+	all_termrequests[i++] = &crv_status;
+	all_termrequests[i++] = &u7_status;
+	all_termrequests[i++] = &xcc_status;
 # ifdef FEAT_TERMINAL
-    &rfg_status,
+	all_termrequests[i++] = &rfg_status;
 # endif
-    &rbg_status,
-    &rbm_status,
-    &rcs_status,
-    &winpos_status,
-    NULL
-};
+	all_termrequests[i++] = &rbg_status;
+	all_termrequests[i++] = &rbm_status;
+	all_termrequests[i++] = &rcs_status;
+	all_termrequests[i++] = &winpos_status;
+	all_termrequests[i] = NULL;
+	initialized = TRUE;
+    }
+    return all_termrequests;
+}
 
 // The t_8u code may default to a value but get reset when the term response is
 // received.  To avoid redrawing too often, only redraw when t_8u is not reset
@@ -677,7 +690,7 @@ static tcap_entry_T builtin_rgb[] = {
 #endif
 
 #ifdef HAVE_TGETENT
-static __thread tcap_entry_T special_term[] = {
+static tcap_entry_T special_term[] = {
     // These are printf strings, not terminal codes.
     {(int)KS_CF,	"\033[%dm"},
     {(int)KS_NAME,	NULL}  // end marker
@@ -3105,6 +3118,7 @@ termrequest_any_pending(void)
 {
     int	    i;
     time_t  now = time(NULL);
+    termrequest_T **all_termrequests = get_all_termrequests();
 
     for (i = 0; all_termrequests[i] != NULL; ++i)
     {

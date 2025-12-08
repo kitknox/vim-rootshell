@@ -82,7 +82,7 @@ hist_char2type(int c)
  * It is sufficient to give the significant prefix of a history name.
  */
 
-static __thread char *(history_names[]) =
+static char *(history_names[]) =
 {
     "cmd",
     "search",

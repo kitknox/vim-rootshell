@@ -440,8 +440,8 @@ static int	reg_iswordc(int);
 static void report_re_switch(char_u *pat);
 #endif
 
-static __thread regengine_T bt_regengine;
-static __thread regengine_T nfa_regengine;
+static regengine_T bt_regengine;
+static regengine_T nfa_regengine;
 
 /*
  * Return TRUE if compiled regular expression "prog" can match a line break.
@@ -2879,7 +2879,7 @@ init_regexec_multi(
 
 #include "regexp_bt.c"
 
-static __thread regengine_T bt_regengine =
+static regengine_T bt_regengine =
 {
     bt_regcomp,
     bt_regfree,
@@ -2892,7 +2892,7 @@ static __thread regengine_T bt_regengine =
 
 #include "regexp_nfa.c"
 
-static __thread regengine_T nfa_regengine =
+static regengine_T nfa_regengine =
 {
     nfa_regcomp,
     nfa_regfree,
