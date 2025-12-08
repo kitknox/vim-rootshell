@@ -4451,16 +4451,9 @@ mch_get_shellsize(void)
 	struct winsize	ws;
 	int fd = 1;
 
-#  if TARGET_OS_IPHONE
-	// On iOS, use ios_gettty() to get the real tty file descriptor
-	fd = ios_gettty();
-	if (fd < 0)
-	    fd = 1;
-#  else
 	// When stdout is not a tty, use stdin for the ioctl().
 	if (!isatty(fd) && isatty(read_cmd_fd))
 	    fd = read_cmd_fd;
-#  endif
 	if (ioctl(fd, TIOCGWINSZ, &ws) == 0)
 	{
 	    columns = ws.ws_col;
@@ -4476,23 +4469,16 @@ mch_get_shellsize(void)
 	struct ttysize	ts;
 	int fd = 1;
 
-#   if TARGET_OS_IPHONE
-	// On iOS, use ios_gettty() to get the real tty file descriptor
-	fd = ios_gettty();
-	if (fd < 0)
-	    fd = 1;
-#   else
 	// When stdout is not a tty, use stdin for the ioctl().
 	if (!isatty(fd) && isatty(read_cmd_fd))
 	    fd = read_cmd_fd;
-#   endif
 	if (ioctl(fd, TIOCGSIZE, &ts) == 0)
 	{
 	    columns = ts.ts_cols;
 	    rows = ts.ts_lines;
-#  ifdef FEAT_EVAL
+#   ifdef FEAT_EVAL
 	    ch_log(NULL, "Got size with TIOCGSIZE: %ld x %ld", columns, rows);
-#  endif
+#   endif
 	}
     }
 #  endif // TIOCGSIZE

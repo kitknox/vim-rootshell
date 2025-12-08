@@ -3571,21 +3571,7 @@ mch_errmsg(char *str)
     int		len;
 #endif
 
-#if TARGET_OS_SIMULATOR || TARGET_OS_IPHONE || TARGET_OS_MACCATALYST
-    // iOS: use thread_stderr for ios_system compatibility
-    // Convert \n to \r\n for proper terminal line wrapping
-    {
-	char *p = str;
-	while (*p)
-	{
-	    if (*p == '\n')
-		fputc('\r', thread_stderr);
-	    fputc(*p, thread_stderr);
-	    p++;
-	}
-    }
-    return;
-#elif (defined(UNIX) || defined(FEAT_GUI)) && !defined(ALWAYS_USE_GUI) && !defined(VIMDLL)
+#if (defined(UNIX) || defined(FEAT_GUI)) && !defined(ALWAYS_USE_GUI) && !defined(VIMDLL)
     // On Unix use stderr if it's a tty.
     // When not going to start the GUI also use stderr.
     // On Mac, when started from Finder, stderr is the console.
@@ -3690,21 +3676,7 @@ mch_msg_c(char *str)
     void
 mch_msg(char *str)
 {
-#if TARGET_OS_SIMULATOR || TARGET_OS_IPHONE || TARGET_OS_MACCATALYST
-    // iOS: use thread_stdout for ios_system compatibility
-    // Convert \n to \r\n for proper terminal line wrapping
-    {
-	char *p = str;
-	while (*p)
-	{
-	    if (*p == '\n')
-		fputc('\r', thread_stdout);
-	    fputc(*p, thread_stdout);
-	    p++;
-	}
-    }
-    return;
-#elif (defined(UNIX) || defined(FEAT_GUI)) && !defined(ALWAYS_USE_GUI) && !defined(VIMDLL)
+#if (defined(UNIX) || defined(FEAT_GUI)) && !defined(ALWAYS_USE_GUI) && !defined(VIMDLL)
     // On Unix use stdout if we have a tty.  This allows "vim -h | more" and
     // uses mch_errmsg() when started from the desktop.
     // When not going to start the GUI also use stdout.

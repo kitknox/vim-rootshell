@@ -21,10 +21,10 @@ extern "C" {
 /* #define errx compileError
 #define err compileError
 #define warn compileError
-#define warnx compileError
+#define warnx compileError */
 #ifndef printf
 #define printf(...) fprintf (thread_stdout, ##__VA_ARGS__)
-#endif */
+#endif
 
 #define putchar(a) fputc(a, thread_stdout)
 #define getchar() fgetc(thread_stdin)
@@ -67,6 +67,7 @@ extern __thread FILE* thread_stderr;
 #define putenv ios_putenv
 #define fchdir ios_fchdir
 #define isatty ios_isatty
+#define ioctl ios_ioctl
 
 extern int ios_executable(const char* cmd); // is this command part of the "shell" commands?
 extern int ios_system(const char* inputCmd); // execute this command (executable file or builtin command)

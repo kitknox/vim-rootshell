@@ -454,7 +454,20 @@ static tcap_entry_T builtin_xterm[] = {
 #endif
     {(int)KS_CL,	"\033[H\033[2J"},
     {(int)KS_CD,	"\033[J"},
+#if TARGET_OS_IPHONE || TARGET_OS_MACCATALYST
+    // iOS: Add color support since we don't have termcap/terminfo
+    {(int)KS_ME,	"\033[0m"},		// normal mode (reset all)
+    {(int)KS_OP,	"\033[0m"},		// original color pair (reset)
+    {(int)KS_CCO,	"256"},			// 256 colors
+    {(int)KS_CAB,	"\033[4%dm"},		// set background color (ANSI)
+    {(int)KS_CAF,	"\033[3%dm"},		// set foreground color (ANSI)
+    {(int)KS_CZH,	"\033[3m"},		// italic mode on
+    {(int)KS_CZR,	"\033[23m"},		// italic mode off
+    {(int)KS_SO,	"\033[91m"},		// standout: bright red text
+    {(int)KS_SE,	"\033[39m"},		// standout end
+#else
     {(int)KS_ME,	"\033[m"},
+#endif
     {(int)KS_MR,	"\033[7m"},
     {(int)KS_MD,	"\033[1m"},
     {(int)KS_UE,	"\033[m"},
