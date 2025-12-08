@@ -3743,7 +3743,7 @@ channel_close_now(channel_T *channel)
     static void
 channel_read(channel_T *channel, ch_part_T part, char *func)
 {
-    static char_u	*buf = NULL;
+    static __thread char_u	*buf = NULL;
     int			len = 0;
     int			readlen = 0;
     sock_T		fd;
@@ -4867,7 +4867,7 @@ channel_parse_messages(void)
     int		ret = FALSE;
     int		r;
     ch_part_T	part = PART_SOCK;
-    static int	recursive = 0;
+    static __thread int	recursive = 0;
 #ifdef ELAPSED_FUNC
     elapsed_T	start_tv;
 #endif

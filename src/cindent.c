@@ -225,7 +225,7 @@ find_start_rawstring(int ind_maxcomment)	// XXX
     static pos_T *
 ind_find_start_CORS(linenr_T *is_raw)	    // XXX
 {
-    static pos_T comment_pos_copy;
+    static __thread pos_T comment_pos_copy;
     pos_T	*comment_pos;
     pos_T	*rs_pos;
 
@@ -345,7 +345,7 @@ cin_islinecomment(char_u *p)
     static pos_T *
 find_line_comment(void) // XXX
 {
-    static pos_T pos;
+    static __thread pos_T pos;
     char_u	 *line;
     char_u	 *p;
 
@@ -1144,7 +1144,7 @@ find_match_char(int c, int ind_maxparen)	// XXX
 {
     pos_T	cursor_save;
     pos_T	*trypos;
-    static pos_T pos_copy;
+    static __thread pos_T pos_copy;
     int		ind_maxp_wk;
 
     cursor_save = curwin->w_cursor;
@@ -1726,7 +1726,7 @@ find_start_brace(void)	    // XXX
     pos_T	    cursor_save;
     pos_T	    *trypos;
     pos_T	    *pos;
-    static pos_T    pos_copy;
+    static __thread pos_T    pos_copy;
 
     cursor_save = curwin->w_cursor;
     while ((trypos = findmatchlimit(NULL, '{', FM_BLOCKSTOP, 0)) != NULL)

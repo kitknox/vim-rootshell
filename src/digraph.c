@@ -1444,8 +1444,8 @@ static digr_T digraphdefault[] = {
     int
 do_digraph(int c)
 {
-    static int	backspaced;	// character before K_BS
-    static int	lastchar;	// last typed character
+    static __thread int	backspaced;	// character before K_BS
+    static __thread int	lastchar;	// last typed character
 
     if (c == -1)		// init values
     {
@@ -1474,7 +1474,7 @@ get_digraph_for_char(int val_arg)
     int		i;
     int		use_defaults;
     digr_T	*dp;
-    static      char_u      r[3];
+    static __thread char_u      r[3];
 
 #if defined(USE_UNICODE_DIGRAPHS)
     if (!enc_utf8)

@@ -2295,7 +2295,7 @@ fail:
     void
 f_tempname(typval_T *argvars UNUSED, typval_T *rettv)
 {
-    static int	x = 'A';
+    static __thread int	x = 'A';
 
     rettv->v_type = VAR_STRING;
     rettv->vval.v_string = vim_tempname(x, FALSE);
@@ -2463,7 +2463,7 @@ do_browse(
     buf_T	*buf)		// buffer to read/write for
 {
     char_u		*fname;
-    static char_u	*last_dir = NULL;    // last used directory
+    static __thread char_u	*last_dir = NULL;    // last used directory
     char_u		*tofree = NULL;
     int			save_cmod_flags = cmdmod.cmod_flags;
 
@@ -3542,7 +3542,7 @@ dos_expandpath(
     size_t	buflen;
     size_t	len;
     int		starstar = FALSE;
-    static int	stardepth = 0;	    // depth for "**" expansion
+    static __thread int	stardepth = 0;	    // depth for "**" expansion
     HANDLE		hFind = INVALID_HANDLE_VALUE;
     WIN32_FIND_DATAW    wfb;
     WCHAR		*wn = NULL;	// UCS-2 name, NULL when not used.
@@ -3791,7 +3791,7 @@ unix_expandpath(
     size_t	buflen;
     size_t	len;
     int		starstar = FALSE;
-    static int	stardepth = 0;	    // depth for "**" expansion
+    static __thread int	stardepth = 0;	    // depth for "**" expansion
 
     DIR		*dirp;
     struct dirent *dp;
@@ -4075,7 +4075,7 @@ gen_expand_wildcards(
     int			i;
     garray_T		ga;
     char_u		*p;
-    static int		recursive = FALSE;
+    static __thread int		recursive = FALSE;
     int			add_pat;
     int			retval = OK;
     int			did_expand_in_path = FALSE;

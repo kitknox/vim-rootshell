@@ -951,20 +951,20 @@ get_breakindent_win(
     win_T	*wp,
     char_u	*line) // start of the line
 {
-    static int	    prev_indent = 0;	// cached indent value
-    static long	    prev_ts     = 0L;	// cached tabstop value
+    static __thread int	    prev_indent = 0;	// cached indent value
+    static __thread long	    prev_ts     = 0L;	// cached tabstop value
 # ifdef FEAT_VARTABS
-    static int      *prev_vts = NULL;   // cached vartabs values
+    static __thread int      *prev_vts = NULL;   // cached vartabs values
 # endif
-    static int	    prev_fnum   = 0;	// cached buffer number
-    static char_u   *prev_line  = NULL;	// cached copy of "line"
-    static varnumber_T prev_tick = 0;   // changedtick of cached value
-    static int      prev_list = 0;	// cached list indent
-    static int      prev_listopt = 0;	// cached w_p_briopt_list value
-    static int      prev_no_ts = FALSE;	// cached no_ts value
-    static unsigned prev_dy_uhex = 0;	// cached 'display' "uhex" value
+    static __thread int	    prev_fnum   = 0;	// cached buffer number
+    static __thread char_u   *prev_line  = NULL;	// cached copy of "line"
+    static __thread varnumber_T prev_tick = 0;   // changedtick of cached value
+    static __thread int      prev_list = 0;	// cached list indent
+    static __thread int      prev_listopt = 0;	// cached w_p_briopt_list value
+    static __thread int      prev_no_ts = FALSE;	// cached no_ts value
+    static __thread unsigned prev_dy_uhex = 0;	// cached 'display' "uhex" value
     // cached formatlistpat value
-    static char_u   *prev_flp = NULL;
+    static __thread char_u   *prev_flp = NULL;
     int		    bri = 0;
     // window width minus window margin space, i.e. what rests for text
     const int	    eff_wwidth = wp->w_width

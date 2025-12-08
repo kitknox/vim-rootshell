@@ -2414,7 +2414,7 @@ do_lock_var(
     void
 item_lock(typval_T *tv, int deep, int lock, int check_refcount)
 {
-    static int	recurse = 0;
+    static __thread int	recurse = 0;
     list_T	*l;
     listitem_T	*li;
     dict_T	*d;
@@ -2591,12 +2591,12 @@ cat_prefix_varname(int prefix, char_u *name)
     char_u *
 get_user_var_name(expand_T *xp, int idx)
 {
-    static long_u	gdone;
-    static long_u	bdone;
-    static long_u	wdone;
-    static long_u	tdone;
-    static int		vidx;
-    static hashitem_T	*hi;
+    static __thread long_u	gdone;
+    static __thread long_u	bdone;
+    static __thread long_u	wdone;
+    static __thread long_u	tdone;
+    static __thread int		vidx;
+    static __thread hashitem_T	*hi;
     hashtab_T		*ht;
 
     if (idx == 0)

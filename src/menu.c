@@ -1405,11 +1405,11 @@ set_context_in_menu_cmd(
     char_u *
 get_menu_name(expand_T *xp UNUSED, int idx)
 {
-    static vimmenu_T	*menu = NULL;
-    static int		did_alt_menu = FALSE;
+    static __thread vimmenu_T	*menu = NULL;
+    static __thread int		did_alt_menu = FALSE;
     char_u		*str;
 #ifdef FEAT_MULTI_LANG
-    static  int		should_advance = FALSE;
+    static __thread int		should_advance = FALSE;
 #endif
 
     if (idx == 0)	    // first call: start at first item
@@ -1481,13 +1481,13 @@ get_menu_name(expand_T *xp UNUSED, int idx)
     char_u *
 get_menu_names(expand_T *xp UNUSED, int idx)
 {
-    static vimmenu_T	*menu = NULL;
-    static int		did_alt_menu = FALSE;
+    static __thread vimmenu_T	*menu = NULL;
+    static __thread int		did_alt_menu = FALSE;
 #define TBUFFER_LEN 256
-    static char_u	tbuffer[TBUFFER_LEN]; //hack
+    static __thread char_u	tbuffer[TBUFFER_LEN]; //hack
     char_u		*str;
 #ifdef FEAT_MULTI_LANG
-    static  int		should_advance = FALSE;
+    static __thread int		should_advance = FALSE;
 #endif
 
     if (idx == 0)	    // first call: start at first item
@@ -2122,7 +2122,7 @@ gui_update_menus_recurse(vimmenu_T *menu, int mode)
     void
 gui_update_menus(int modes)
 {
-    static int	    prev_mode = -1;
+    static __thread int	    prev_mode = -1;
     int		    mode = 0;
 
     if (modes != 0x0)

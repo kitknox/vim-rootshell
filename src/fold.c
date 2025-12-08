@@ -1919,10 +1919,10 @@ get_foldtext(
     char_u	*text = NULL;
 #ifdef FEAT_EVAL
      // an error occurred when evaluating 'fdt' setting
-    static int	    got_fdt_error = FALSE;
+    static __thread int	    got_fdt_error = FALSE;
     int		    save_did_emsg = did_emsg;
-    static win_T    *last_wp = NULL;
-    static linenr_T last_lnum = 0;
+    static __thread win_T    *last_wp = NULL;
+    static __thread linenr_T last_lnum = 0;
 
     if (last_wp != wp || last_wp == NULL
 					|| last_lnum > lnum || last_lnum == 0)
@@ -3812,7 +3812,7 @@ f_foldtextresult(typval_T *argvars UNUSED, typval_T *rettv)
     char_u	buf[FOLD_TEXT_LEN];
     foldinfo_T  foldinfo;
     int		fold_count;
-    static int	entered = FALSE;
+    static __thread int	entered = FALSE;
 # endif
 
     rettv->v_type = VAR_STRING;
