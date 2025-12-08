@@ -3859,8 +3859,13 @@ set_shellsize_inner(int width, int height, int mustset)
     void
 set_shellsize(int width, int height, int mustset)
 {
+#if TARGET_OS_IPHONE
+    static __thread int	busy = FALSE;
+    static __thread int	do_run = FALSE;
+#else
     static int	busy = FALSE;
     static int	do_run = FALSE;
+#endif
 
     if (width < 0 || height < 0)    // just checking...
 	return;
@@ -4429,7 +4434,11 @@ cursor_unsleep(void)
     void
 term_cursor_mode(int forced)
 {
+#if TARGET_OS_IPHONE
+    static __thread int showing_mode = -1;
+#else
     static int showing_mode = -1;
+#endif
     char_u *p;
 
     // Only do something when redrawing the screen and we can restore the
@@ -7635,8 +7644,13 @@ find_first_tcap(
 swap_tcap(void)
 {
 # ifdef FEAT_TERMGUICOLORS
+#if TARGET_OS_IPHONE
+    static __thread int		init_done = FALSE;
+    static __thread cmode_T	curr_mode;
+#else
     static int		init_done = FALSE;
     static cmode_T	curr_mode;
+#endif
     struct ks_tbl_S	*ks;
     cmode_T		mode;
 
