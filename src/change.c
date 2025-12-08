@@ -150,13 +150,13 @@ changed_internal(void)
 
 #ifdef FEAT_EVAL
 // Set when listener callbacks are being invoked.
-static int recursive = FALSE;
+static __thread int recursive = FALSE;
 
-static long next_listener_id = 0;
+static __thread long next_listener_id = 0;
 
 // A flag that is set when any buffer listener housekeeping is required.
 // Currently the only condition is when a listener is marked for removal.
-static bool housekeeping_required;
+static __thread bool housekeeping_required;
 
 /*
  * Remove a given listener_T entry from its containing list.

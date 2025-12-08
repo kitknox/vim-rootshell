@@ -252,19 +252,19 @@ typedef enum
 #define VAR_WIN ((char_u *)-1)
 
 // Saved values for when 'bin' is set.
-static int	p_et_nobin;
-static int	p_ml_nobin;
-static long	p_tw_nobin;
-static long	p_wm_nobin;
+static __thread int	p_et_nobin;
+static __thread int	p_ml_nobin;
+static __thread long	p_tw_nobin;
+static __thread long	p_wm_nobin;
 
 // Saved values for when 'paste' is set
-static int	p_ai_nopaste;
-static int	p_et_nopaste;
-static long	p_sts_nopaste;
-static long	p_tw_nopaste;
-static long	p_wm_nopaste;
+static __thread int	p_ai_nopaste;
+static __thread int	p_et_nopaste;
+static __thread long	p_sts_nopaste;
+static __thread long	p_tw_nopaste;
+static __thread long	p_wm_nopaste;
 #ifdef FEAT_VARTABS
-static char_u	*p_vsts_nopaste;
+static __thread char_u	*p_vsts_nopaste;
 #endif
 
 struct vimoption
@@ -329,7 +329,7 @@ struct vimoption
 // Exception: "t_" options are at the end.
 // The options with a NULL variable are 'hidden': a set command for them is
 // ignored and they are not printed.
-static struct vimoption options[] =
+static __thread struct vimoption options[] =
 {
     {"aleph",	    "al",   P_NUM|P_VI_DEF|P_CURSWANT,
 #ifdef FEAT_RIGHTLEFT

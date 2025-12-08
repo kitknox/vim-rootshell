@@ -19,7 +19,7 @@
 
 // This flag is set whenever the argument list is being changed and calling a
 // function that might trigger an autocommand.
-static int arglist_locked = FALSE;
+static __thread int arglist_locked = FALSE;
 
     static int
 check_arglist_locked(void)

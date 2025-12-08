@@ -316,8 +316,8 @@ static int set_spell_chartab(char_u *fol, char_u *low, char_u *upp);
 static void set_map_str(slang_T *lp, char_u *map);
 
 
-static char *e_afftrailing = N_("Trailing text in %s line %d: %s");
-static char *e_affname = N_("Affix name too long in %s line %d: %s");
+static __thread char *e_afftrailing = N_("Trailing text in %s line %d: %s");
+static __thread char *e_affname = N_("Affix name too long in %s line %d: %s");
 static char *msg_compressing = N_("Compressing word tree...");
 
 /*

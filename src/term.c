@@ -29,7 +29,8 @@
 # ifdef HAVE_TERMIOS_H
 #  include <termios.h>	    // seems to be required for some Linux
 # endif
-# ifdef HAVE_TERMCAP_H
+// iOS/Catalyst: Don't include system termcap.h, it conflicts with Vim's termlib
+# if defined(HAVE_TERMCAP_H) && !TARGET_OS_IPHONE && !TARGET_OS_MACCATALYST
 #  include <termcap.h>
 # endif
 
@@ -498,7 +499,12 @@ static tcap_entry_T builtin_xterm[] = {
     {(int)KS_CXM,	"\033[?1006;1000%?%p1%{1}%=%th%el%;"},
     {(int)KS_RFG,	"\033]10;?\007"},
     {(int)KS_RBG,	"\033]11;?\007"},
+#if TARGET_OS_IPHONE || TARGET_OS_MACCATALYST
+    // Disable cursor position query on iOS - causes hangs waiting for response
+    {(int)KS_U7,	""},
+#else
     {(int)KS_U7,	"\033[6n"},
+#endif
     {(int)KS_CAU,	"\033[58;5;%dm"},
     {(int)KS_CBE,	"\033[?2004h"},
     {(int)KS_CBD,	"\033[?2004l"},
@@ -511,10 +517,18 @@ static tcap_entry_T builtin_xterm[] = {
     {(int)KS_FE,	"\033[?1004h"},
 #endif
 
+#if TARGET_OS_IPHONE || TARGET_OS_MACCATALYST
+    // iOS: Use CSI style instead of SS3 with modifier for better compatibility
+    {K_UP,		"\033[A"},
+    {K_DOWN,		"\033[B"},
+    {K_RIGHT,		"\033[C"},
+    {K_LEFT,		"\033[D"},
+#else
     {K_UP,		"\033O*A"},
     {K_DOWN,		"\033O*B"},
     {K_RIGHT,		"\033O*C"},
     {K_LEFT,		"\033O*D"},
+#endif
     // An extra set of cursor keys for vt100 mode
     {K_XUP,		"\033[@;*A"},	// Esc [ A or Esc [ 1 ; A
     {K_XDOWN,		"\033[@;*B"},	// Esc [ B or Esc [ 1 ; B

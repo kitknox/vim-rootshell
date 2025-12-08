@@ -16,7 +16,7 @@
 #if defined(FEAT_EVAL)
 
 // List heads for garbage collection.
-static list_T		*first_list = NULL;	// list of all lists
+static __thread list_T		*first_list = NULL;	// list of all lists
 
 #define FOR_ALL_WATCHERS(l, lw) \
     for ((lw) = (l)->lv_watch; (lw) != NULL; (lw) = (lw)->lw_next)
@@ -1953,7 +1953,7 @@ typedef struct
     int		item_compare_func_err;
     int		item_compare_keep_zero;
 } sortinfo_T;
-static sortinfo_T	*sortinfo = NULL;
+static __thread sortinfo_T	*sortinfo = NULL;
 #define ITEM_COMPARE_FAIL 999
 
 /*

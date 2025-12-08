@@ -13,11 +13,11 @@
 
 #include "vim.h"
 
-static histentry_T *(history[HIST_COUNT]) = {NULL, NULL, NULL, NULL, NULL};
-static int	hisidx[HIST_COUNT] = {-1, -1, -1, -1, -1};  // lastused entry
-static int	hisnum[HIST_COUNT] = {0, 0, 0, 0, 0};
+static __thread histentry_T *(history[HIST_COUNT]) = {NULL, NULL, NULL, NULL, NULL};
+static __thread int	hisidx[HIST_COUNT] = {-1, -1, -1, -1, -1};  // lastused entry
+static __thread int	hisnum[HIST_COUNT] = {0, 0, 0, 0, 0};
 		    // identifying (unique) number of newest history entry
-static int	hislen = 0;		// actual length of history tables
+static __thread int	hislen = 0;		// actual length of history tables
 
 /*
  * Return the length of the history tables
@@ -82,7 +82,7 @@ hist_char2type(int c)
  * It is sufficient to give the significant prefix of a history name.
  */
 
-static char *(history_names[]) =
+static __thread char *(history_names[]) =
 {
     "cmd",
     "search",
@@ -299,7 +299,7 @@ get_histtype(char_u *name)
     return -1;
 }
 
-static int	last_maptick = -1;	// last seen maptick
+static __thread int	last_maptick = -1;	// last seen maptick
 
 /*
  * Add the given string to the given history.  If the string is already in the

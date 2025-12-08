@@ -7,7 +7,7 @@
  * See README.txt for an overview of the Vim source code.
  */
 
-#define EXTERN
+#define EXTERN __thread
 #include "vim.h"
 
 #ifdef __CYGWIN__
@@ -55,7 +55,7 @@ static void set_progpath(char_u *argv0);
 /*
  * Different types of error messages.
  */
-static char *(main_errors[]) =
+static __thread char *(main_errors[]) =
 {
     N_("Unknown option argument"),
 #define ME_UNKNOWN_OPTION	0
@@ -74,17 +74,17 @@ static char *(main_errors[]) =
 #ifndef PROTO		// don't want a prototype for main()
 
 // Various parameters passed between main() and other functions.
-static mparm_T	params;
+static __thread mparm_T	params;
 
 #ifdef _IOLBF
-static void *s_vbuf = NULL;		// buffer for setvbuf()
+static __thread void *s_vbuf = NULL;		// buffer for setvbuf()
 #endif
 
 #ifndef NO_VIM_MAIN	// skip this for unittests
 
-static char_u *start_dir = NULL;	// current working dir on startup
+static __thread char_u *start_dir = NULL;	// current working dir on startup
 
-static int has_dash_c_arg = FALSE;
+static __thread int has_dash_c_arg = FALSE;
 
 # ifdef VIMDLL
 __declspec(dllexport)

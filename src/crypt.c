@@ -236,39 +236,39 @@ typedef struct {
 #  define randombytes_buf   dll_randombytes_buf
 #  define randombytes_random dll_randombytes_random
 
-static int (*dll_sodium_init)(void) = NULL;
-static void (*dll_sodium_free)(void *) = NULL;
-static void *(*dll_sodium_malloc)(const size_t) = NULL;
-static void (*dll_sodium_memzero)(void * const, const size_t) = NULL;
-static int (*dll_sodium_mlock)(void * const, const size_t) = NULL;
-static int (*dll_sodium_munlock)(void * const, const size_t) = NULL;
-static int (*dll_crypto_secretstream_xchacha20poly1305_init_push)
+static __thread int (*dll_sodium_init)(void) = NULL;
+static __thread void (*dll_sodium_free)(void *) = NULL;
+static __thread void *(*dll_sodium_malloc)(const size_t) = NULL;
+static __thread void (*dll_sodium_memzero)(void * const, const size_t) = NULL;
+static __thread int (*dll_sodium_mlock)(void * const, const size_t) = NULL;
+static __thread int (*dll_sodium_munlock)(void * const, const size_t) = NULL;
+static __thread int (*dll_crypto_secretstream_xchacha20poly1305_init_push)
    (crypto_secretstream_xchacha20poly1305_state *state,
     unsigned char [],
     const unsigned char []) = NULL;
-static int (*dll_crypto_secretstream_xchacha20poly1305_push)
+static __thread int (*dll_crypto_secretstream_xchacha20poly1305_push)
    (crypto_secretstream_xchacha20poly1305_state *state,
     unsigned char *c, unsigned long long *clen_p,
     const unsigned char *m, unsigned long long mlen,
     const unsigned char *ad, unsigned long long adlen, unsigned char tag)
     = NULL;
-static int (*dll_crypto_secretstream_xchacha20poly1305_init_pull)
+static __thread int (*dll_crypto_secretstream_xchacha20poly1305_init_pull)
    (crypto_secretstream_xchacha20poly1305_state *state,
     const unsigned char [],
     const unsigned char []) = NULL;
-static int (*dll_crypto_secretstream_xchacha20poly1305_pull)
+static __thread int (*dll_crypto_secretstream_xchacha20poly1305_pull)
    (crypto_secretstream_xchacha20poly1305_state *state,
     unsigned char *m, unsigned long long *mlen_p, unsigned char *tag_p,
     const unsigned char *c, unsigned long long clen,
     const unsigned char *ad, unsigned long long adlen) = NULL;
-static int (*dll_crypto_pwhash)(unsigned char * const out,
+static __thread int (*dll_crypto_pwhash)(unsigned char * const out,
     unsigned long long outlen,
     const char * const passwd, unsigned long long passwdlen,
     const unsigned char * const salt,
     unsigned long long opslimit, size_t memlimit, int alg)
     = NULL;
-static void (*dll_randombytes_buf)(void * const buf, const size_t size);
-static uint32_t (*dll_randombytes_random)(void);
+static __thread void (*dll_randombytes_buf)(void * const buf, const size_t size);
+static __thread uint32_t (*dll_randombytes_random)(void);
 
 static struct {
     const char *name;

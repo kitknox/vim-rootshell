@@ -460,9 +460,9 @@ write_viminfo_bufferlist(FILE *fp)
  */
 static histentry_T *viminfo_history[HIST_COUNT] =
 					       {NULL, NULL, NULL, NULL, NULL};
-static int	viminfo_hisidx[HIST_COUNT] = {0, 0, 0, 0, 0};
-static int	viminfo_hislen[HIST_COUNT] = {0, 0, 0, 0, 0};
-static int	viminfo_add_at_front = FALSE;
+static __thread int	viminfo_hisidx[HIST_COUNT] = {0, 0, 0, 0, 0};
+static __thread int	viminfo_hislen[HIST_COUNT] = {0, 0, 0, 0, 0};
+static __thread int	viminfo_add_at_front = FALSE;
 
 /*
  * Translate a history type number to the associated character.
@@ -1486,7 +1486,7 @@ read_viminfo_search_pattern(vir_T *virp, int force)
     long	off = 0;
     int		setlast = FALSE;
 #ifdef FEAT_SEARCH_EXTRA
-    static int	hlsearch_on = FALSE;
+    static __thread int	hlsearch_on = FALSE;
 #endif
     char_u	*val;
     spat_T	*spat;
@@ -1600,7 +1600,7 @@ write_viminfo_search_pattern(FILE *fp)
  * Functions relating to reading/writing registers from viminfo
  */
 
-static yankreg_T *y_read_regs = NULL;
+static __thread yankreg_T *y_read_regs = NULL;
 
 #define REG_PREVIOUS 1
 #define REG_EXEC 2
@@ -2013,9 +2013,9 @@ write_viminfo_registers(FILE *fp)
  * Functions relating to reading/writing marks from viminfo
  */
 
-static xfmark_T *vi_namedfm = NULL;
-static xfmark_T *vi_jumplist = NULL;
-static int vi_jumplist_len = 0;
+static __thread xfmark_T *vi_namedfm = NULL;
+static __thread xfmark_T *vi_jumplist = NULL;
+static __thread int vi_jumplist_len = 0;
 
     static void
 write_one_mark(FILE *fp_out, int c, pos_T *pos)

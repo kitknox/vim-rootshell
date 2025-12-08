@@ -13,9 +13,9 @@
 
 #include "vim.h"
 
-static int	cmd_showtail;	// Only show path tail in lists ?
-static int	may_expand_pattern = FALSE;
-static pos_T	pre_incsearch_pos; // Cursor position when incsearch started
+static __thread int	cmd_showtail;	// Only show path tail in lists ?
+static __thread int	may_expand_pattern = FALSE;
+static __thread pos_T	pre_incsearch_pos; // Cursor position when incsearch started
 
 static void	set_context_for_wildcard_arg(exarg_T *eap, char_u *arg, int usefilter, expand_T *xp, int *complp);
 static int	ExpandFromContext(expand_T *xp, char_u *, char_u ***, int *, int);
@@ -30,13 +30,13 @@ static int	expand_pattern_in_buf(char_u *pat, int dir, char_u ***matches, int *n
 
 // "compl_match_array" points the currently displayed list of entries in the
 // popup menu.  It is NULL when there is no popup menu.
-static pumitem_T *compl_match_array = NULL;
-static int compl_match_arraysize;
+static __thread pumitem_T *compl_match_array = NULL;
+static __thread int compl_match_arraysize;
 // First column in cmdline of the matched item for completion.
-static int compl_startcol;
-static int compl_selected;
+static __thread int compl_startcol;
+static __thread int compl_selected;
 // cmdline before expansion
-static char_u *cmdline_orig = NULL;
+static __thread char_u *cmdline_orig = NULL;
 
 #define SHOW_MATCH(m) (showtail ? showmatches_gettail(matches[m]) : matches[m])
 

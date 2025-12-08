@@ -20,7 +20,7 @@
  * have done to avoid endless recursiveness.  This unique ID is used for that.
  * The last bit is used for previous_funccal, ignored when comparing.
  */
-static int current_copyID = 0;
+static __thread int current_copyID = 0;
 
 static int free_unref_items(int copyID);
 

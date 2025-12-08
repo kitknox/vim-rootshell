@@ -72,7 +72,7 @@ static ch_part_T channel_part_read(channel_T *channel);
 
 // Whether we are inside channel_parse_messages() or another situation where it
 // is safe to invoke callbacks.
-static int safe_to_invoke_callback = 0;
+static __thread int safe_to_invoke_callback = 0;
 
 #ifdef MSWIN
     static int
@@ -181,8 +181,8 @@ strerror_win32(int eno)
 /*
  * The list of all allocated channels.
  */
-static channel_T *first_channel = NULL;
-static int next_ch_id = 0;
+static __thread channel_T *first_channel = NULL;
+static __thread int next_ch_id = 0;
 
 /*
  * Allocate a new channel.  The refcount is set to 1.
@@ -3889,7 +3889,7 @@ channel_read_block(
     return msg;
 }
 
-static int channel_blocking_wait = 0;
+static __thread int channel_blocking_wait = 0;
 
 /*
  * Return TRUE if in a blocking wait that might trigger callbacks.

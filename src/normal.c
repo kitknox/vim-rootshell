@@ -14,7 +14,7 @@
 
 #include "vim.h"
 
-static int	VIsual_mode_orig = NUL;		// saved Visual mode
+static __thread int	VIsual_mode_orig = NUL;		// saved Visual mode
 
 #ifdef FEAT_EVAL
 static void	set_vcount_ca(cmdarg_T *cap, int *set_prevcount);
@@ -691,7 +691,7 @@ normal_cmd(
     int		need_flushbuf = FALSE;	// need to call out_flush()
     pos_T	old_pos;		// cursor position before command
     int		mapped_len;
-    static int	old_mapped_len = 0;
+    static __thread int	old_mapped_len = 0;
     int		idx;
     int		set_prevcount = FALSE;
     int		save_did_cursorhold = did_cursorhold;
@@ -1603,9 +1603,9 @@ may_clear_cmdline(void)
  * Routines for displaying a partly typed command
  */
 
-static char_u	old_showcmd_buf[SHOWCMD_BUFLEN];  // For push_showcmd()
-static int	showcmd_is_clear = TRUE;
-static int	showcmd_visual = FALSE;
+static __thread char_u	old_showcmd_buf[SHOWCMD_BUFLEN];  // For push_showcmd()
+static __thread int	showcmd_is_clear = TRUE;
+static __thread int	showcmd_visual = FALSE;
 
 static void display_showcmd(void);
 

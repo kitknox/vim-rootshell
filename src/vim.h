@@ -9,6 +9,10 @@
 #ifndef VIM__H
 # define VIM__H
 
+#ifdef __APPLE__
+# include <TargetConditionals.h>
+#endif
+
 #include "protodef.h"
 
 // _WIN32 is defined as 1 when the compilation target is 32-bit or 64-bit.

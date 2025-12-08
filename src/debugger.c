@@ -14,15 +14,15 @@
 #include "vim.h"
 
 #if defined(FEAT_EVAL)
-static int debug_greedy = FALSE;	// batch mode debugging: don't save
+static __thread int debug_greedy = FALSE;	// batch mode debugging: don't save
 					// and restore typeahead.
 static void do_setdebugtracelevel(char_u *arg);
 static void do_checkbacktracelevel(void);
 static void do_showbacktrace(char_u *cmd);
 
-static char_u *debug_oldval = NULL;	// old and newval for debug expressions
-static char_u *debug_newval = NULL;
-static int     debug_expr   = 0;	// use debug_expr
+static __thread char_u *debug_oldval = NULL;	// old and newval for debug expressions
+static __thread char_u *debug_newval = NULL;
+static __thread int     debug_expr   = 0;	// use debug_expr
 
     int
 has_watchexpr(void)
@@ -413,8 +413,8 @@ ex_debug(exarg_T *eap)
     debug_break_level = debug_break_level_save;
 }
 
-static char_u	*debug_breakpoint_name = NULL;
-static linenr_T	debug_breakpoint_lnum;
+static __thread char_u	*debug_breakpoint_name = NULL;
+static __thread linenr_T	debug_breakpoint_lnum;
 
 /*
  * When debugging or a breakpoint is set on a skipped command, no debug prompt
@@ -423,8 +423,8 @@ static linenr_T	debug_breakpoint_lnum;
  * a skipped command decides itself that a debug prompt should be displayed, it
  * can do so by calling dbg_check_skipped().
  */
-static int	debug_skipped;
-static char_u	*debug_skipped_name;
+static __thread int	debug_skipped;
+static __thread char_u	*debug_skipped_name;
 
 /*
  * Go to debug mode when a breakpoint was encountered or "ex_nesting_level" is
@@ -519,22 +519,22 @@ struct debuggy
     int		dbg_level;      // stored nested level for expr
 };
 
-static garray_T dbg_breakp = {0, 0, sizeof(struct debuggy), 4, NULL};
+static __thread garray_T dbg_breakp = {0, 0, sizeof(struct debuggy), 4, NULL};
 #define BREAKP(idx)		(((struct debuggy *)dbg_breakp.ga_data)[idx])
 #define DEBUGGY(gap, idx)	(((struct debuggy *)gap->ga_data)[idx])
-static int last_breakp = 0;	// nr of last defined breakpoint
-static int has_expr_breakpoint = FALSE;
+static __thread int last_breakp = 0;	// nr of last defined breakpoint
+static __thread int has_expr_breakpoint = FALSE;
 
 #ifdef FEAT_PROFILE
 // Profiling uses file and func names similar to breakpoints.
-static garray_T prof_ga = {0, 0, sizeof(struct debuggy), 4, NULL};
+static __thread garray_T prof_ga = {0, 0, sizeof(struct debuggy), 4, NULL};
 
 // Profiling caches results of regexp lookups for function/script name.
 #define N_PROF_HTAB 2
-static hashtab_T prof_cache[N_PROF_HTAB];
+static __thread hashtab_T prof_cache[N_PROF_HTAB];
 #define PROF_HTAB_FUNCS 0
 #define PROF_HTAB_FILES 1
-static int prof_cache_initialized;
+static __thread int prof_cache_initialized;
 typedef struct profentry_S
 {
     char    pen_flags;	// cache data booleans: profiling, forceit
@@ -931,7 +931,7 @@ dbg_find_breakpoint(
 
 #if defined(FEAT_PROFILE)
 #if defined(PROF_CACHE_LOG)
-static int count_lookups[2];
+static __thread int count_lookups[2];
 #endif
 /*
  * Return TRUE if profiling is on for a function or sourced file.

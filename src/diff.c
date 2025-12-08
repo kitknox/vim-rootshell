@@ -21,8 +21,8 @@
 
 #if defined(FEAT_DIFF)
 
-static int diff_busy = FALSE;	    // using diff structs, don't change them
-static int diff_need_update = FALSE; // ex_diffupdate needs to be called
+static __thread int diff_busy = FALSE;	    // using diff structs, don't change them
+static __thread int diff_need_update = FALSE; // ex_diffupdate needs to be called
 
 // flags obtained from the 'diffopt' option
 #define DIFF_FILLER	0x001	// display filler lines
@@ -46,16 +46,16 @@ static int diff_need_update = FALSE; // ex_diffupdate needs to be called
 #define ALL_WHITE_DIFF (DIFF_IWHITE | DIFF_IWHITEALL | DIFF_IWHITEEOL)
 #define ALL_INLINE (DIFF_INLINE_NONE | DIFF_INLINE_SIMPLE | DIFF_INLINE_CHAR | DIFF_INLINE_WORD)
 #define ALL_INLINE_DIFF (DIFF_INLINE_CHAR | DIFF_INLINE_WORD)
-static int	diff_flags = DIFF_INTERNAL | DIFF_FILLER | DIFF_CLOSE_OFF | DIFF_INLINE_CHAR;
+static __thread int	diff_flags = DIFF_INTERNAL | DIFF_FILLER | DIFF_CLOSE_OFF | DIFF_INLINE_CHAR;
 
-static long diff_algorithm = XDF_INDENT_HEURISTIC;
+static __thread long diff_algorithm = XDF_INDENT_HEURISTIC;
 
 #define LBUFLEN 50		// length of line in diff file
 
-static int diff_a_works = MAYBE; // TRUE when "diff -a" works, FALSE when it
+static __thread int diff_a_works = MAYBE; // TRUE when "diff -a" works, FALSE when it
 				 // doesn't work, MAYBE when not checked yet
 #if defined(MSWIN)
-static int diff_bin_works = MAYBE; // TRUE when "diff --binary" works, FALSE
+static __thread int diff_bin_works = MAYBE; // TRUE when "diff --binary" works, FALSE
 				   // when it doesn't work, MAYBE when not
 				   // checked yet
 #endif
@@ -3110,7 +3110,7 @@ diff_update_line(linenr_T lnum)
     }
 }
 
-static diffline_change_T simple_diffline_change; // used for simple inline diff algorithm
+static __thread diffline_change_T simple_diffline_change; // used for simple inline diff algorithm
 
 /*
  * Parse a diffline struct and returns the [start,end] byte offsets

@@ -38,7 +38,16 @@
 
 #ifdef HAVE_SELINUX
 # include <selinux/selinux.h>
-static int selinux_enabled = -1;
+static __thread int selinux_enabled = -1;
+#endif
+
+#if TARGET_OS_SIMULATOR || TARGET_OS_IPHONE || TARGET_OS_MACCATALYST
+# include <dlfcn.h>  // for dlopen()/dlsym()/dlclose()
+# include "ios_error.h"
+# define S_ISXXX(m) ((m) & (S_IXUSR | S_IXGRP | S_IXOTH)) // access() always returns -1 on iOS
+# undef mch_getenv
+# define mch_getenv(x) (char_u *)ios_getenv((char *)(x))
+extern int chdir_nolock(const char* path); // defined in ios_system.m
 #endif
 
 #ifdef FEAT_XATTR
@@ -139,7 +148,7 @@ static void sig_sysmouse SIGPROTOARG;
 #  include <X11/Intrinsic.h>
 #  include <X11/Shell.h>
 #  include <X11/StringDefs.h>
-static Widget	xterm_Shell = (Widget)0;
+static __thread Widget	xterm_Shell = (Widget)0;
 static void clip_update(void);
 # endif
 
@@ -155,8 +164,8 @@ Display	    *x11_display = NULL;
 # define SOCKET_SERVER_MAX_CMD_SIZE 16384
 # define SOCKET_SERVER_MAX_MSG 6
 
-static int socket_server_fd = -1;
-static char_u *socket_server_path = NULL;
+static __thread int socket_server_fd = -1;
+static __thread char_u *socket_server_path = NULL;
 
 typedef enum {
     SS_MSG_TYPE_ENCODING    = 'e',  // Encoding of message.
@@ -225,7 +234,7 @@ typedef struct ss_pending_cmd_S {
 ss_pending_cmd_T *ss_pending_cmds;
 
 // Serial is always greater than zero
-static uint32_t ss_serial = 0;
+static __thread uint32_t ss_serial = 0;
 
 // Represents a reply from a server2client call. Each client that calls a
 // server2client call to us has its own ss_reply_T. Each time a client sends
@@ -240,7 +249,7 @@ typedef struct {
     garray_T strings;
 } ss_reply_T;
 
-static garray_T ss_replies;
+static __thread garray_T ss_replies;
 
 static char_u *socket_server_get_path_from_name(char_u *name);
 static int socket_server_connect(char_u *name, char_u **path, int silent);
@@ -264,15 +273,15 @@ static int socket_server_name_is_valid(char_u *name);
 
 #endif // FEAT_SOCKETSERVER
 
-static int ignore_sigtstp = FALSE;
+static __thread int ignore_sigtstp = FALSE;
 
 static int get_x11_title(int);
 
-static char_u	*oldtitle = NULL;
-static volatile sig_atomic_t oldtitle_outdated = FALSE;
-static int	unix_did_set_title = FALSE;
-static char_u	*oldicon = NULL;
-static int	did_set_icon = FALSE;
+static __thread char_u	*oldtitle = NULL;
+static __thread volatile sig_atomic_t oldtitle_outdated = FALSE;
+static __thread int	unix_did_set_title = FALSE;
+static __thread char_u	*oldicon = NULL;
+static __thread int	did_set_icon = FALSE;
 
 static void may_core_dump(void);
 

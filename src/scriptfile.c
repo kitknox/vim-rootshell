@@ -15,12 +15,12 @@
 
 #if defined(FEAT_EVAL)
 // The names of packages that once were loaded are remembered.
-static garray_T		ga_loaded = {0, 0, sizeof(char_u *), 4, NULL};
+static __thread garray_T		ga_loaded = {0, 0, sizeof(char_u *), 4, NULL};
 #endif
 
 // last used sequence number for sourcing scripts (current_sctx.sc_seq)
 #ifdef FEAT_EVAL
-static int		last_current_SID_seq = 0;
+static __thread int		last_current_SID_seq = 0;
 #endif
 
 static int do_source_ext(char_u *fname, int check_other, int is_vimrc, int *ret_sid, exarg_T *eap, int clearvars);
@@ -369,7 +369,7 @@ ex_runtime(exarg_T *eap)
     source_runtime(arg, flags);
 }
 
-static int runtime_expand_flags;
+static __thread int runtime_expand_flags;
 
 /*
  * Set the completion context for the :runtime command.
@@ -948,8 +948,8 @@ theend:
     static int
 load_pack_plugin(char_u *fname)
 {
-    static char *plugpat = "%s/plugin/**/*.vim";
-    static char *ftpat = "%s/ftdetect/*.vim";
+    static __thread char *plugpat = "%s/plugin/**/*.vim";
+    static __thread char *ftpat = "%s/ftdetect/*.vim";
     int		len;
     char_u	*ffname = fix_fname(fname);
     char_u	*pat = NULL;
@@ -987,9 +987,9 @@ theend:
 }
 
 // used for "cookie" of add_pack_plugin()
-static int APP_ADD_DIR;
-static int APP_LOAD;
-static int APP_BOTH;
+static __thread int APP_ADD_DIR;
+static __thread int APP_LOAD;
+static __thread int APP_BOTH;
 
     static void
 add_pack_plugin(char_u *fname, void *cookie)
@@ -1067,7 +1067,7 @@ ex_packloadall(exarg_T *eap)
     void
 ex_packadd(exarg_T *eap)
 {
-    static char *plugpat = "pack/*/%s/%s";
+    static __thread char *plugpat = "pack/*/%s/%s";
     int		len;
     char	*pat;
     int		round;

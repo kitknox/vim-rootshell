@@ -67,10 +67,10 @@ static char *msg_qflist = N_("[Quickfix List]");
 #endif
 
 // Number of times free_buffer() was called.
-static int	buf_free_count = 0;
+static __thread int	buf_free_count = 0;
 
-static int	top_file_num = 1;	// highest file number
-static garray_T buf_reuse = GA_EMPTY;	// file numbers to recycle
+static __thread int	top_file_num = 1;	// highest file number
+static __thread garray_T buf_reuse = GA_EMPTY;	// file numbers to recycle
 
     static void
 trigger_undo_ftplugin(buf_T *buf, win_T *win)
@@ -476,7 +476,7 @@ buf_valid(buf_T *buf)
 /*
  * A hash table used to quickly lookup a buffer by its number.
  */
-static hashtab_T buf_hashtab;
+static __thread hashtab_T buf_hashtab;
 
     static void
 buf_hashtab_add(buf_T *buf)
@@ -4008,8 +4008,8 @@ col_print(
     return (int)vim_snprintf_safelen((char *)buf, buflen, "%d-%d", col, vcol);
 }
 
-static char_u *lasttitle = NULL;
-static char_u *lasticon = NULL;
+static __thread char_u *lasttitle = NULL;
+static __thread char_u *lasticon = NULL;
 
 /*
  * Put the file name in the title bar and icon of the window.
@@ -4323,12 +4323,12 @@ typedef struct
     }		stl_type;
 } stl_item_T;
 
-static size_t		stl_items_len = 20; // Initial value, grows as needed.
-static stl_item_T      *stl_items = NULL;
-static int	       *stl_groupitem = NULL;
-static stl_hlrec_T     *stl_hltab = NULL;
-static stl_hlrec_T     *stl_tabtab = NULL;
-static int		*stl_separator_locations = NULL;
+static __thread size_t		stl_items_len = 20; // Initial value, grows as needed.
+static __thread stl_item_T      *stl_items = NULL;
+static __thread int	       *stl_groupitem = NULL;
+static __thread stl_hlrec_T     *stl_hltab = NULL;
+static __thread stl_hlrec_T     *stl_tabtab = NULL;
+static __thread int		*stl_separator_locations = NULL;
 
 /*
  * Build a string from the status line items in "fmt".

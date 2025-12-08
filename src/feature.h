@@ -587,8 +587,11 @@
 
 /*
  * +termguicolors	'termguicolors' option.
+ * Disabled on iOS/visionOS because X11 color name resolution is unavailable.
  */
-#if (defined(FEAT_NORMAL) && defined(FEAT_SYN_HL)) && !defined(ALWAYS_USE_GUI)
+#if defined(__APPLE__) && (TARGET_OS_IPHONE || (defined(TARGET_OS_XR) && TARGET_OS_XR))
+  /* iOS and visionOS don't have X11 color name support */
+#elif (defined(FEAT_NORMAL) && defined(FEAT_SYN_HL)) && !defined(ALWAYS_USE_GUI)
 # define FEAT_TERMGUICOLORS
 #endif
 

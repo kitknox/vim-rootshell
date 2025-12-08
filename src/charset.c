@@ -17,7 +17,7 @@ static int parse_isopt(char_u *var, buf_T *buf, int only_check);
 static int win_nolbr_chartabsize(chartabsize_T *cts, int *headp);
 static unsigned nr2hex(unsigned c);
 
-static int    chartab_initialized = FALSE;
+static __thread int    chartab_initialized = FALSE;
 
 // b_chartab[] is an array of 32 bytes, each bit representing one of the
 // characters 0-255.
@@ -26,7 +26,7 @@ static int    chartab_initialized = FALSE;
 #define GET_CHARTAB(buf, c) ((buf)->b_chartab[(unsigned)(c) >> 3] & (1 << ((c) & 0x7)))
 
 // table used below, see init_chartab() for an explanation
-static char_u	g_chartab[256];
+static __thread char_u	g_chartab[256];
 
 /*
  * Flags for g_chartab[].
@@ -521,7 +521,7 @@ str_foldcase(
  * Also doesn't work for the first byte of a multi-byte, "c" must be a
  * character!
  */
-static char_u	transchar_charbuf[7];
+static __thread char_u	transchar_charbuf[7];
 
     char_u *
 transchar(int c)

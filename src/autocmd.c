@@ -211,8 +211,8 @@ static keyvalue_T event_tab[NUM_EVENTS] = {
     KEYVALUE_ENTRY(-EVENT_WINSCROLLED, "WinScrolled"),
 };
 
-static AutoPat *first_autopat[NUM_EVENTS] = { NULL };
-static AutoPat *last_autopat[NUM_EVENTS] = { NULL };
+static __thread AutoPat *first_autopat[NUM_EVENTS] = { NULL };
+static __thread AutoPat *last_autopat[NUM_EVENTS] = { NULL };
 
 #define AUGROUP_DEFAULT    (-1)	    // default autocmd group
 #define AUGROUP_ERROR	   (-2)	    // erroneous autocmd group
@@ -236,7 +236,7 @@ struct AutoPatCmd_S
     AutoPatCmd_T *next;		// chain of active apc-s for auto-invalidation
 };
 
-static AutoPatCmd_T *active_apc_list = NULL; // stack of active autocommands
+static __thread AutoPatCmd_T *active_apc_list = NULL; // stack of active autocommands
 
 // Macro to loop over all the patterns for an autocmd event
 #define FOR_ALL_AUTOCMD_PATTERNS(event, ap) \
@@ -245,17 +245,17 @@ static AutoPatCmd_T *active_apc_list = NULL; // stack of active autocommands
 /*
  * augroups stores a list of autocmd group names.
  */
-static garray_T augroups = {0, 0, sizeof(char_u *), 10, NULL};
+static __thread garray_T augroups = {0, 0, sizeof(char_u *), 10, NULL};
 #define AUGROUP_NAME(i) (((char_u **)augroups.ga_data)[i])
 // use get_deleted_augroup() to get this
-static char_u *deleted_augroup = NULL;
+static __thread char_u *deleted_augroup = NULL;
 
 /*
  * The ID of the current group.  Group 0 is the default one.
  */
-static int current_augroup = AUGROUP_DEFAULT;
+static __thread int current_augroup = AUGROUP_DEFAULT;
 
-static int au_need_clean = FALSE;   // need to delete marked patterns
+static __thread int au_need_clean = FALSE;   // need to delete marked patterns
 
 static event_T event_name2nr(char_u *start, char_u **end);
 static char_u *event_nr2name(event_T event);
@@ -265,9 +265,9 @@ static int apply_autocmds_group(event_T event, char_u *fname, char_u *fname_io, 
 static void auto_next_pat(AutoPatCmd_T *apc, int stop_at_last);
 static int au_find_group(char_u *name);
 
-static event_T	last_event;
-static int	last_group;
-static int	autocmd_blocked = 0;	// block all autocmds
+static __thread event_T	last_event;
+static __thread int	last_group;
+static __thread int	autocmd_blocked = 0;	// block all autocmds
 
     static char_u *
 get_deleted_augroup(void)
@@ -1841,7 +1841,7 @@ win_found:
 	check_pos(curbuf, &VIsual);
 }
 
-static int	autocmd_nested = FALSE;
+static __thread int	autocmd_nested = FALSE;
 
 /*
  * Execute autocommands for "event" and file name "fname".
@@ -2531,12 +2531,12 @@ BYPASS_AU:
 }
 
 # ifdef FEAT_EVAL
-static char_u	*old_termresponse = NULL;
-static char_u	*old_termu7resp = NULL;
-static char_u	*old_termblinkresp = NULL;
-static char_u	*old_termrbgresp = NULL;
-static char_u	*old_termrfgresp = NULL;
-static char_u	*old_termstyleresp = NULL;
+static __thread char_u	*old_termresponse = NULL;
+static __thread char_u	*old_termu7resp = NULL;
+static __thread char_u	*old_termblinkresp = NULL;
+static __thread char_u	*old_termrbgresp = NULL;
+static __thread char_u	*old_termrfgresp = NULL;
+static __thread char_u	*old_termstyleresp = NULL;
 # endif
 
 /*
@@ -2821,7 +2821,7 @@ get_augroup_name(expand_T *xp UNUSED, int idx)
     return AUGROUP_NAME(idx);		// return a name
 }
 
-static int include_groups = FALSE;
+static __thread int include_groups = FALSE;
 
     char_u  *
 set_context_in_autocmd(
