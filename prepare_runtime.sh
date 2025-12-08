@@ -81,6 +81,9 @@ echo "Copying autoload files..."
 if [ -f "$RUNTIME_SRC/autoload/dist/ft.vim" ]; then
     cp "$RUNTIME_SRC/autoload/dist/ft.vim" "$RESOURCES_PATH/autoload/dist/"
 fi
+if [ -f "$RUNTIME_SRC/autoload/dist/script.vim" ]; then
+    cp "$RUNTIME_SRC/autoload/dist/script.vim" "$RESOURCES_PATH/autoload/dist/"
+fi
 
 # Copy all colorschemes (small, ~72KB total)
 echo "Copying colorschemes..."
