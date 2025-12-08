@@ -71,26 +71,16 @@ mkdir -p "$RESOURCES_PATH/indent"
 mkdir -p "$RESOURCES_PATH/plugin"
 mkdir -p "$RESOURCES_PATH/pack/dist/opt/matchit/plugin"
 mkdir -p "$RESOURCES_PATH/pack/dist/opt/matchit/autoload"
+mkdir -p "$RESOURCES_PATH/pack/dist/opt/netrw/plugin"
+mkdir -p "$RESOURCES_PATH/pack/dist/opt/netrw/autoload/netrw"
+mkdir -p "$RESOURCES_PATH/pack/dist/opt/netrw/syntax"
 mkdir -p "$RESOURCES_PATH/doc"
 
-# Copy autoload files (needed for filetype detection and netrw)
+# Copy autoload files (needed for filetype detection)
 echo "Copying autoload files..."
 if [ -f "$RUNTIME_SRC/autoload/dist/ft.vim" ]; then
     cp "$RUNTIME_SRC/autoload/dist/ft.vim" "$RESOURCES_PATH/autoload/dist/"
 fi
-
-# Netrw file browser
-NETRW_FILES=(
-    "netrw.vim"
-    "netrwFileHandlers.vim"
-    "netrwSettings.vim"
-    "netrw_gitignore.vim"
-)
-for file in "${NETRW_FILES[@]}"; do
-    if [ -f "$RUNTIME_SRC/autoload/$file" ]; then
-        cp "$RUNTIME_SRC/autoload/$file" "$RESOURCES_PATH/autoload/"
-    fi
-done
 
 # Copy all colorschemes (small, ~72KB total)
 echo "Copying colorschemes..."
@@ -259,6 +249,26 @@ if [ -f "$RUNTIME_SRC/pack/dist/opt/matchit/plugin/matchit.vim" ]; then
 fi
 if [ -f "$RUNTIME_SRC/pack/dist/opt/matchit/autoload/matchit.vim" ]; then
     cp "$RUNTIME_SRC/pack/dist/opt/matchit/autoload/matchit.vim" "$RESOURCES_PATH/pack/dist/opt/matchit/autoload/"
+fi
+
+# Copy netrw pack (file browser - moved to pack in Vim 9.1)
+echo "Copying netrw plugin..."
+if [ -f "$RUNTIME_SRC/pack/dist/opt/netrw/plugin/netrwPlugin.vim" ]; then
+    cp "$RUNTIME_SRC/pack/dist/opt/netrw/plugin/netrwPlugin.vim" "$RESOURCES_PATH/pack/dist/opt/netrw/plugin/"
+fi
+for file in netrw.vim netrw_gitignore.vim; do
+    if [ -f "$RUNTIME_SRC/pack/dist/opt/netrw/autoload/$file" ]; then
+        cp "$RUNTIME_SRC/pack/dist/opt/netrw/autoload/$file" "$RESOURCES_PATH/pack/dist/opt/netrw/autoload/"
+    fi
+done
+# Netrw subdirectory autoload files
+for file in fs.vim msg.vim os.vim; do
+    if [ -f "$RUNTIME_SRC/pack/dist/opt/netrw/autoload/netrw/$file" ]; then
+        cp "$RUNTIME_SRC/pack/dist/opt/netrw/autoload/netrw/$file" "$RESOURCES_PATH/pack/dist/opt/netrw/autoload/netrw/"
+    fi
+done
+if [ -f "$RUNTIME_SRC/pack/dist/opt/netrw/syntax/netrw.vim" ]; then
+    cp "$RUNTIME_SRC/pack/dist/opt/netrw/syntax/netrw.vim" "$RESOURCES_PATH/pack/dist/opt/netrw/syntax/"
 fi
 
 # Copy minimal docs (help requires tags file)
