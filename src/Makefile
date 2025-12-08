@@ -1785,7 +1785,7 @@ OBJ_MAIN = \
 	objects/memfile.o \
 	objects/message.o
 
-OBJ = $(OBJ_COMMON) $(OBJ_MAIN)
+OBJ = objects/termlib.o $(OBJ_COMMON) $(OBJ_MAIN)
 
 OBJ_JSON_TEST = \
 	objects/charset.o \
@@ -4777,3 +4777,7 @@ proto/gui_gtk_x11.pro: gui_gtk_x11.c
 proto/gui_x11.pro: gui_x11.c
 proto/gui_w32.pro: gui_w32.c
 proto/gui_photon.pro: gui_photon.c
+
+# Builtin termlib for iOS (no ncurses available)
+objects/termlib.o: termlib.c objects/.dirstamp
+	$(CCC) -o $@ termlib.c

@@ -33,7 +33,15 @@
 #endif
 
 #include "vim.h"
+#include <TargetConditionals.h>
+
+// iOS/Catalyst: switch to UIKit for iOS and Mac Catalyst, keep AppKit for macOS
+#if TARGET_OS_IPHONE || TARGET_OS_MACCATALYST
+#include <UIKit/UIKit.h>
+#define NSPasteboard UIPasteboard
+#else
 #import <AppKit/AppKit.h>
+#endif
 
 
 /*
@@ -69,6 +77,11 @@ clip_mch_request_selection(Clipboard_T *cbd)
     NSAutoreleasePool *pool = [[NSAutoreleasePool alloc] init];
 
     NSPasteboard *pb = [NSPasteboard generalPasteboard];
+    // iOS: move variable declaration here because of #ifdef
+    int motion_type = MAUTO;
+    NSString *string = nil;
+
+#if !TARGET_OS_IPHONE
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= 1060
     NSArray *supportedTypes = [NSArray arrayWithObjects:VimPboardType,
 	    NSPasteboardTypeString, nil];
@@ -79,9 +92,6 @@ clip_mch_request_selection(Clipboard_T *cbd)
     NSString *bestType = [pb availableTypeFromArray:supportedTypes];
     if (!bestType) goto releasepool;
 
-    int motion_type = MAUTO;
-    NSString *string = nil;
-
     if ([bestType isEqual:VimPboardType])
     {
 	/* This type should consist of an array with two objects:
@@ -90,6 +100,13 @@ clip_mch_request_selection(Clipboard_T *cbd)
 	 * If this is not the case we fall back on using NSPasteboardTypeString.
 	 */
 	id plist = [pb propertyListForType:VimPboardType];
+#else
+	// iOS version. Simpler.
+    NSArray *supportedTypes = [NSArray arrayWithObjects:VimPboardType, nil];
+
+    if([pb containsPasteboardTypes:[NSArray arrayWithObject:VimPboardType]]) {
+        id plist = [pb valueForPasteboardType:VimPboardType];
+#endif // TARGET_OS_IPHONE
 	if ([plist isKindOfClass:[NSArray class]] && [plist count] == 2)
 	{
 	    id obj = [plist objectAtIndex:1];
@@ -103,6 +120,14 @@ clip_mch_request_selection(Clipboard_T *cbd)
 
     if (!string)
     {
+#if TARGET_OS_IPHONE
+        NSString * s = [pb string];
+        if(!s) { return; }
+        NSMutableString * mstr = [NSMutableString stringWithString:s];
+        NSRange range = {0, [mstr length]};
+        [mstr replaceOccurrencesOfString:@"\r" withString:@"\n" options:0 range:range];
+        string = mstr;
+#else
 	/* Use NSPasteboardTypeString.  The motion type is detected automatically.
 	 */
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= 1060
@@ -126,6 +151,7 @@ clip_mch_request_selection(Clipboard_T *cbd)
 	}
 
 	string = mstring;
+#endif // TARGET_OS_IPHONE
     }
 
     /* Default to MAUTO, uses MCHAR or MLINE depending on trailing NL. */
@@ -188,6 +214,7 @@ clip_mch_set_selection(Clipboard_T *cbd)
 
 	/* See clip_mch_request_selection() for info on pasteboard types. */
 	NSPasteboard *pb = [NSPasteboard generalPasteboard];
+#if !TARGET_OS_IPHONE
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= 1060
 	NSArray *supportedTypes = [NSArray arrayWithObjects:VimPboardType,
 		NSPasteboardTypeString, nil];
@@ -196,15 +223,24 @@ clip_mch_set_selection(Clipboard_T *cbd)
 		NSStringPboardType, nil];
 #endif
 	[pb declareTypes:supportedTypes owner:nil];
+#endif
 
 	NSNumber *motion = [NSNumber numberWithInt:motion_type];
 	NSArray *plist = [NSArray arrayWithObjects:motion, string, nil];
+#if !TARGET_OS_IPHONE
 	[pb setPropertyList:plist forType:VimPboardType];
+#else
+        [pb setValue:plist forPasteboardType:VimPboardType];
+#endif
 
+#if !TARGET_OS_IPHONE
 #if MAC_OS_X_VERSION_MAX_ALLOWED >= 1060
 	[pb setString:string forType:NSPasteboardTypeString];
 #else
 	[pb setString:string forType:NSStringPboardType];
+#endif
+#else // !TARGET_OS_IPHONE
+        [pb setString:string];
 #endif
 
 	[string release];
@@ -384,7 +420,8 @@ timer_delete(timer_t timerid)
 
 #endif /* FEAT_RELTIME */
 
-#ifdef FEAT_SOUND
+// NSSound is not available on iOS - only build sound support for macOS
+#if defined(FEAT_SOUND) && !TARGET_OS_IPHONE
 
 static NSMutableDictionary *sounds_list = nil;
 
@@ -515,7 +552,148 @@ sound_mch_free(void)
     sound_mch_clear();
 }
 
-#endif // FEAT_SOUND
+#endif // FEAT_SOUND && !TARGET_OS_IPHONE
+
+#if TARGET_OS_IPHONE
+/*
+ * open() replacement that asks for bookmarks stored at the application level
+ */
+
+    static BOOL
+downloadRemoteFile(NSURL* fileURL) {
+    if ([NSFileManager.defaultManager fileExistsAtPath:fileURL.path])
+	return true;
+
+    NSError *error;
+    [NSFileManager.defaultManager startDownloadingUbiquitousItemAtURL: fileURL error:&error];
+    // try downloading the file for 5s, then give up:
+    NSDate* limitTime = [[NSDate alloc] initWithTimeIntervalSinceNow:5];
+    while (![NSFileManager.defaultManager fileExistsAtPath:fileURL.path] &&
+		 ([limitTime timeIntervalSinceDate:[NSDate date]] < 0)) { }
+    if ([NSFileManager.defaultManager fileExistsAtPath:fileURL.path])
+	return true;
+    return false;
+}
+
+    int
+mch_open(const char *path, int oflag, mode_t mode)
+{
+    int returnValue = open(path, oflag, mode);
+    if (returnValue >= 0)
+	return returnValue;
+    // open() has failed. We assume it is for permission issues, and try to get permission:
+    // Get dictionary of all permission bookmarks
+    // Do not use bookmarks if path is inside ~/Documents or $APPDIR (vim calls mch_open *a lot*)
+    NSString *pathString = @(path);
+    NSString* docsPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) lastObject];
+    if ([pathString hasPrefix:docsPath]) return -1;
+    NSString* appdir = [[NSBundle mainBundle] resourcePath];
+    if ([pathString hasPrefix:appdir]) return -1;
+    NSDictionary *storedBookmarks = [[NSUserDefaults standardUserDefaults] dictionaryForKey:@"fileBookmarks"];
+    NSURL *fileURL = [NSURL fileURLWithPath:pathString];
+
+    while ([fileURL pathComponents].count > 7) {
+	// Missing: add "/private" at the beginning
+	// Access the dictionary:
+	pathString = fileURL.path;
+	while ([pathString hasSuffix:@"/"]) {
+	    // Something inserted "//" in a path.
+	    // URLByDeletingLastPathComponent will react by adding "../", creating an infinite loop.
+	    pathString = [pathString substringToIndex:[pathString length]- 1];
+	    fileURL = [NSURL fileURLWithPath:pathString];
+	}
+	NSData *bookmark = storedBookmarks[pathString];
+	// if access fails, we try with the parent URL:
+	fileURL = [fileURL URLByDeletingLastPathComponent];
+	if (bookmark != nil) {
+	    BOOL isStale = false;
+	    NSError *error;
+	    NSURL* bookmarkedLocation = [NSURL URLByResolvingBookmarkData:bookmark
+								  options:NSURLBookmarkResolutionWithoutUI
+							    relativeToURL:nil
+						      bookmarkDataIsStale:&isStale
+								    error:&error];
+	    if (!isStale) {
+		//startAccessingSecurityScopedResource
+		BOOL isSecure = bookmarkedLocation.startAccessingSecurityScopedResource;
+		//downloadRemoteFile
+		BOOL downloaded = downloadRemoteFile(fileURL);
+		if (isSecure && !downloaded) {
+		    (void)bookmarkedLocation.stopAccessingSecurityScopedResource;
+		    return -1;
+		}
+		// access worked. Do we have access to the file now?
+		returnValue = open(path, oflag, mode);
+		if (returnValue >= 0)
+		    return returnValue;
+	    }
+	}
+    }
+    return -1;
+}
+
+/*
+ * fopen() replacement that asks for bookmarks stored at the application level
+ */
+    FILE *
+mch_fopen(const char *path, const char * mode)
+{
+    FILE* returnValue = fopen(path, mode);
+    if (returnValue != NULL)
+	return returnValue;
+    // fopen() has failed. We assume it is for permission issues, and try to get permission:
+    // Get dictionary of all permission bookmarks
+    // Do not use bookmarks if path is inside $HOME or $APPDIR
+    NSString *pathString = @(path);
+    NSString* home = @(getenv("HOME"));
+    if ([pathString hasPrefix:home]) return NULL;
+    NSString* appdir = @(getenv("APPDIR"));
+    if ([pathString hasPrefix:appdir]) return NULL;
+    //
+    NSDictionary *storedBookmarks = [[NSUserDefaults standardUserDefaults] dictionaryForKey:@"fileBookmarks"];
+    NSURL *fileURL = [NSURL fileURLWithPath:pathString];
+
+    while ([fileURL pathComponents].count > 7) {
+	// Missing: add "/private" at the beginning
+	// Access the dictionary:
+	pathString = fileURL.path;
+	while ([pathString hasSuffix:@"/"]) {
+	    // Something inserted "//" in a path.
+	    // URLByDeletingLastPathComponent will react by adding "../", creating an infinite loop.
+	    pathString = [pathString substringToIndex:[pathString length]- 1];
+	    fileURL = [NSURL fileURLWithPath:pathString];
+	}
+	NSData *bookmark = storedBookmarks[pathString];
+	// if access fails, we try with the parent URL:
+	fileURL = [fileURL URLByDeletingLastPathComponent];
+	if (bookmark != nil) {
+	    BOOL isStale = false;
+	    NSError *error;
+	    NSURL* bookmarkedLocation = [NSURL URLByResolvingBookmarkData:bookmark
+								  options:NSURLBookmarkResolutionWithoutUI
+							    relativeToURL:nil
+						      bookmarkDataIsStale:&isStale
+								    error:&error];
+	    if (!isStale) {
+		//startAccessingSecurityScopedResource
+		BOOL isSecure = bookmarkedLocation.startAccessingSecurityScopedResource;
+		//downloadRemoteFile
+		BOOL downloaded = downloadRemoteFile(fileURL);
+		if (isSecure && !downloaded) {
+		    (void)bookmarkedLocation.stopAccessingSecurityScopedResource;
+		    return NULL;
+		}
+		// access worked. Do we have access to the file now?
+		returnValue = fopen(path, mode);
+		if (returnValue != NULL)
+		    return returnValue;
+	    }
+	}
+    }
+    return NULL;
+}
+
+#endif // TARGET_OS_IPHONE
 
 /* Lift the compiler warning suppression. */
 #if defined(__clang__) && defined(__STRICT_ANSI__)

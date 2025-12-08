@@ -558,9 +558,11 @@ EXTERN int	garbage_collect_at_exit INIT(= FALSE);
 #define t_const_tuple_empty	(static_types[95])
 
 
-EXTERN type_T static_types[96]
+// static_types is NOT thread-local because it's immutable type definitions
+// that can safely be shared across threads, and its initializers contain
+// cross-references that aren't valid as TLS initializers
 #ifdef DO_INIT
-= {
+type_T static_types[96] = {
     // 0: t_unknown
     {VAR_UNKNOWN, 0, 0, TTFLAG_STATIC, NULL, NULL, NULL},
     {VAR_UNKNOWN, 0, 0, TTFLAG_STATIC|TTFLAG_CONST, NULL, NULL, NULL},
@@ -753,6 +755,8 @@ EXTERN type_T static_types[96]
     {VAR_TUPLE, 0, 0, TTFLAG_STATIC, NULL, NULL, NULL},
     {VAR_TUPLE, 0, 0, TTFLAG_STATIC|TTFLAG_CONST, NULL, NULL, NULL},
 }
+#else
+extern type_T static_types[96]
 #endif
 ;
 

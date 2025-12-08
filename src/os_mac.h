@@ -23,6 +23,9 @@
 # include <AvailabilityMacros.h>
 #endif
 
+// Include TARGET_OS_* macros for platform detection
+#include <TargetConditionals.h>
+
 /*
  * Unix interface
  */
@@ -33,11 +36,14 @@
 // && defined(HAVE_CURSE)
 // The curses.h from MacOS X provides by default some BACKWARD compatibility
 // definition which can cause us problem later on. So we undefine a few of them.
-# include <curses.h>
-# undef reg
-# undef ospeed
+// iOS SDK doesn't have curses.h - only include on macOS
+# if !TARGET_OS_IPHONE && !TARGET_OS_MACCATALYST
+#  include <curses.h>
+#  undef reg
+#  undef ospeed
 // OK defined to 0 in MacOS X 10.2 curses!  Remove it, we define it to be 1.
-# undef OK
+#  undef OK
+# endif
 #endif
 #include <signal.h>
 #include <errno.h>
@@ -299,5 +305,11 @@ extern int timer_settime(
     struct itimerspec *unused);
 
 #endif // FEAT_RELTIME
+
+// iOS App Store compliance: these termcap externals are forbidden
+#if TARGET_OS_IPHONE || TARGET_OS_MACCATALYST
+# undef OSPEED_EXTERN
+# undef UP_BC_PC_EXTERN
+#endif
 
 #endif // OS_MAC__H

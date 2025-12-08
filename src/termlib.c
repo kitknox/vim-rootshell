@@ -13,7 +13,8 @@
 #include "vim.h"
 #include "termlib.pro"
 
-#if !defined(AMIGA) && !defined(VMS)
+// sgtty.h is for old terminal control - not available on iOS/Catalyst
+#if !defined(AMIGA) && !defined(VMS) && !TARGET_OS_IPHONE && !TARGET_OS_MACCATALYST
 # include <sgtty.h>
 #endif
 
@@ -543,7 +544,7 @@ long _bauds[16]={
 tputs(
     char *cp,				// string to print
     int affcnt,				// Number of lines affected
-    void (*outc)(unsigned int))		// routine to output 1 character
+    int (*outc)(int))			// routine to output 1 character
 {
     long    frac,			// 10^(#digits after decimal point)
 	counter,			// digits

@@ -38,6 +38,10 @@
 # if defined(UNIX) || defined(VMS)
 #  include "os_unix.pro"
 # endif
+// iOS uses builtin termlib since iOS doesn't have ncurses/termcap
+# if TARGET_OS_IPHONE || TARGET_OS_MACCATALYST
+#  include "termlib.pro"
+# endif
 # ifdef MSWIN
 #  include "os_win32.pro"
 #  include "os_mswin.pro"

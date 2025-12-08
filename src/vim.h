@@ -251,9 +251,11 @@
 # endif
 #endif
 
-// The Mac conversion stuff doesn't work under X11.
-#if defined(MACOS_X_DARWIN)
-# define MACOS_CONVERT
+// The Mac conversion stuff doesn't work under X11 or iOS.
+#if !TARGET_OS_IPHONE
+# if defined(MACOS_X_DARWIN)
+#  define MACOS_CONVERT
+# endif
 #endif
 
 // Can't use "PACKAGE" here, conflicts with a Perl include file.
@@ -2546,9 +2548,21 @@ typedef int (*opt_expand_cb_T)(optexpand_T *args, int *numMatches, char_u ***mat
 
 // This must come after including proto.h.
 // For VMS this is defined in macros.h.
-#if !defined(MSWIN) && !defined(VMS) && !defined(PROTO)
+// iOS defines these as functions in os_macosx.m for security-scoped bookmark support
+#if !defined(MSWIN) && !defined(VMS) && !defined(PROTO) && !TARGET_OS_IPHONE
 # define mch_open(n, m, p)	open((n), (m), (p))
 # define mch_fopen(n, p)	fopen((n), (p))
+#endif
+
+// iOS: extern declarations for mch_open/mch_fopen (defined in os_macosx.m)
+#if TARGET_OS_IPHONE
+extern int mch_open(const char *path, int oflag, mode_t mode);
+extern FILE* mch_fopen(const char *path, const char *mode);
+#endif
+
+// iOS: ios_system integration (thread_stdin, thread_stdout, etc.)
+#if TARGET_OS_IPHONE
+# include "ios_error.h"
 #endif
 
 #include "globals.h"	    // global variables and messages

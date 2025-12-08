@@ -101,6 +101,15 @@ main
     int		i;
 #endif
 
+#if TARGET_OS_IPHONE
+    // iOS: Reset thread-local globals for each vim invocation
+    // This is required because ios_system runs vim in a new thread each time
+#include "globals_init.h"
+    read_cmd_fd = fileno(thread_stdin);
+    start_dir = NULL;
+    has_dash_c_arg = FALSE;
+#endif
+
     /*
      * Do any system-specific initialisations.  These can NOT use IObuff or
      * NameBuff.  Thus emsg2() cannot be called!

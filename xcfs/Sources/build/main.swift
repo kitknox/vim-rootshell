@@ -199,18 +199,22 @@ func configureVim(platform: PlatformConfig, arch: String, sdkPath: String, frame
 
     print("  Configuring for \(platform.name) \(arch)...")
 
+    // Configure vim - disable tgetent to use vim's builtin termlib
+    // iOS doesn't have termcap/ncurses, and Catalyst's ncurses conflicts with our termlib
+    // vim_cv_tgetent=non-zero tells configure that tgetent doesn't work
+    // ac_cv_search_tgetent=no prevents searching for terminal libraries
     try sh("""
         ./configure \
             vim_cv_toupper_broken=no \
             vim_cv_terminfo=no \
-            vim_cv_tgetent=zero \
+            vim_cv_tgetent=non-zero \
+            ac_cv_search_tgetent=no \
             vim_cv_memmove_handles_overlap=no \
             vim_cv_memcpy_handles_overlap=no \
             vim_cv_bcopy_handles_overlap=no \
             vim_cv_tty_group=world \
             vim_cv_stat_ignores_slash=yes \
             vim_cv_getcwd_broken=no \
-            --with-tlib=ncurses \
             --with-features=big \
             --disable-luainterp \
             --disable-pythoninterp \
@@ -225,6 +229,42 @@ func configureVim(platform: PlatformConfig, arch: String, sdkPath: String, frame
             LDFLAGS="\(ldflags)" \
             --build=x86_64-apple-darwin \
             --host=\(platform.hostTriple)
+        """)
+
+    // iOS doesn't have termcap/ncurses library, so we need to use vim's builtin termlib
+    // Patch config.h to disable system termcap - configure doesn't respect our cache vars properly
+    print("  Patching config.h to disable system termcap...")
+    try sh("""
+        sed -i '' 's/^#define HAVE_TGETENT 1$/\\/\\* #undef HAVE_TGETENT - iOS uses builtin termlib \\*\\//' src/auto/config.h
+        sed -i '' 's/^#define HAVE_DEL_CURTERM 1$/\\/\\* #undef HAVE_DEL_CURTERM - not on iOS \\*\\//' src/auto/config.h
+        sed -i '' 's/^#define HAVE_TERMCAP_H 1$/\\/\\* #undef HAVE_TERMCAP_H - iOS uses builtin termlib \\*\\//' src/auto/config.h
+        """)
+
+    // Patch the Makefile to add termlib.o to the object list and add compilation rule
+    // Use idempotent commands to avoid duplicates when rebuilding
+    print("  Patching Makefile for builtin termlib...")
+    // Only add termlib.o if not already present
+    try sh("""
+        if ! grep -q 'objects/termlib\\.o' src/Makefile; then
+            sed -i '' 's/^OBJ = /OBJ = objects\\/termlib.o /' src/Makefile
+        fi
+        """)
+    // Add compilation rule for termlib.o only if not already present
+    try sh(#"""
+        if ! grep -q 'objects/termlib.o:' src/Makefile; then
+            echo '' >> src/Makefile
+            echo '# Builtin termlib for iOS (no ncurses available)' >> src/Makefile
+            echo 'objects/termlib.o: termlib.c objects/.dirstamp' >> src/Makefile
+            echo '	$(CCC) -o $@ termlib.c' >> src/Makefile
+        fi
+        """#)
+
+    // Remove AppKit (not on iOS) and ncurses (using builtin termlib) from linker flags
+    // Add Foundation for Objective-C runtime
+    print("  Removing iOS-incompatible linker flags...")
+    try sh("""
+        sed -i '' 's/-framework AppKit/-framework UIKit -framework Foundation/g' src/auto/config.mk
+        sed -i '' 's/-lncurses//g' src/auto/config.mk
         """)
 }
 

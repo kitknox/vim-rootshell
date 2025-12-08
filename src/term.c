@@ -25,6 +25,10 @@
 
 #include "vim.h"
 
+#ifdef __APPLE__
+# include <TargetConditionals.h>
+#endif
+
 #ifdef HAVE_TGETENT
 # ifdef HAVE_TERMIOS_H
 #  include <termios.h>	    // seems to be required for some Linux
@@ -2405,7 +2409,9 @@ set_termname(char_u *term)
 
 #if defined(EXITFREE)
 
-# ifdef HAVE_DEL_CURTERM
+// iOS/Catalyst: Don't include system term.h, it conflicts with our termlib.
+// del_curterm is not available on iOS anyway.
+# if defined(HAVE_DEL_CURTERM) && !TARGET_OS_IPHONE && !TARGET_OS_MACCATALYST
 #  include <term.h>	    // declares cur_term
 # endif
 
@@ -2416,7 +2422,7 @@ set_termname(char_u *term)
     void
 free_cur_term(void)
 {
-# ifdef HAVE_DEL_CURTERM
+# if defined(HAVE_DEL_CURTERM) && !TARGET_OS_IPHONE && !TARGET_OS_MACCATALYST
     if (cur_term)
 	del_curterm(cur_term);
 # endif
@@ -2684,7 +2690,8 @@ tltoa(unsigned long i)
 }
 #endif
 
-#ifndef HAVE_TGETENT
+// iOS/Catalyst uses full termlib.c, so skip vim's minimal implementation
+#if !defined(HAVE_TGETENT) && !TARGET_OS_IPHONE && !TARGET_OS_MACCATALYST
 
 /*
  * minimal tgoto() implementation.
@@ -2733,7 +2740,7 @@ tgoto(char *cm, int x, int y)
     return buf;
 }
 
-#endif // HAVE_TGETENT
+#endif // !HAVE_TGETENT && !iOS
 
 /*
  * Set the terminal name and initialize the terminal options.
@@ -3170,6 +3177,16 @@ term_get_winpos(int *x, int *y, varnumber_T timeout)
 #  endif
 # endif
 
+    void
+term_set_winsize(int height, int width)
+{
+    OUT_STR(tgoto((char *)T_CWS, width, height));
+}
+#endif // HAVE_TGETENT
+
+// term_set_winsize must be available even without HAVE_TGETENT for iOS/Catalyst
+// where we use builtin termlib
+#if !defined(HAVE_TGETENT) && (TARGET_OS_IPHONE || TARGET_OS_MACCATALYST)
     void
 term_set_winsize(int height, int width)
 {
