@@ -45,7 +45,7 @@
 /*
  * The attributes that are actually active for writing to the screen.
  */
-static int	screen_attr = 0;
+static __thread int	screen_attr = 0;
 
 static void screen_char_2(unsigned off, int row, int col);
 static int screenclear2(int doclear);
@@ -57,7 +57,7 @@ static void msg_pos_mode(void);
 static void recording_mode(int attr);
 
 // Ugly global: overrule attribute used by screen_char()
-static int screen_char_attr = 0;
+static __thread int screen_char_attr = 0;
 
 #if defined(FEAT_CONCEAL)
 /*
@@ -1016,7 +1016,7 @@ win_redr_custom(
     win_T	*wp,
     int		draw_ruler)	// TRUE or FALSE
 {
-    static int	entered = FALSE;
+    static __thread int	entered = FALSE;
     int		attr;
     int		curattr;
     int		row;
@@ -2422,8 +2422,8 @@ screenalloc(int doclear)
     char	    *new_popup_transparent;
 #endif
     tabpage_T	    *tp;
-    static int	    entered = FALSE;		// avoid recursiveness
-    static int	    done_outofmem_msg = FALSE;	// did outofmem message
+    static __thread int	    entered = FALSE;		// avoid recursiveness
+    static __thread int	    done_outofmem_msg = FALSE;	// did outofmem message
     int		    retry_count = 0;
     int		    found_null;
 

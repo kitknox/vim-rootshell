@@ -254,11 +254,11 @@ popup_close_if_on_X(win_T *wp, int row, int col)
 }
 
 // Values set when dragging a popup window starts.
-static int drag_start_row;
-static int drag_start_col;
-static int drag_start_wantline;
-static int drag_start_wantcol;
-static int drag_on_resize_handle;
+static __thread int drag_start_row;
+static __thread int drag_start_col;
+static __thread int drag_start_wantline;
+static __thread int drag_start_wantcol;
+static __thread int drag_on_resize_handle;
 
 /*
  * Mouse down on border of popup window: start dragging it.
@@ -3740,7 +3740,7 @@ invoke_popup_filter(win_T *wp, int c)
     int
 popup_do_filter(int c)
 {
-    static int	recursive = FALSE;
+    static __thread int	recursive = FALSE;
     int		res = FALSE;
     win_T	*wp;
     int		save_KeyTyped = KeyTyped;
