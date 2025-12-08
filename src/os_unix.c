@@ -8879,9 +8879,9 @@ xsmp_close(void)
 /*
  * Implement timeout with timer_create() and timer_settime().
  */
-static volatile sig_atomic_t timeout_flag = FALSE;
-static timer_t		     timer_id;
-static int		     timer_created = FALSE;
+static __thread volatile sig_atomic_t timeout_flag = FALSE;
+static __thread timer_t		     timer_id;
+static __thread int		     timer_created = FALSE;
 
 /*
  * Callback for when the timer expires.
@@ -8980,11 +8980,11 @@ delete_timer(void)
 /*
  * Implement timeout with setitimer()
  */
-static struct sigaction		prev_sigaction;
-static volatile sig_atomic_t	timeout_flag	     = FALSE;
-static int			timer_active	     = FALSE;
-static int			timer_handler_active = FALSE;
-static volatile sig_atomic_t	alarm_pending	     = FALSE;
+static __thread struct sigaction	prev_sigaction;
+static __thread volatile sig_atomic_t	timeout_flag	     = FALSE;
+static __thread int			timer_active	     = FALSE;
+static __thread int			timer_handler_active = FALSE;
+static __thread volatile sig_atomic_t	alarm_pending	     = FALSE;
 
 /*
  * Handle SIGALRM for a timeout.

@@ -4894,11 +4894,11 @@ popup_hide_message_win(void)
 }
 
 // Values saved in start_echowindow() and restored in end_echowindow()
-static int save_msg_didout = FALSE;
-static int save_msg_col = 0;
+static __thread int save_msg_didout = FALSE;
+static __thread int save_msg_col = 0;
 // Values saved in end_echowindow() and restored in start_echowindow()
-static int ew_msg_didout = FALSE;
-static int ew_msg_col = 0;
+static __thread int ew_msg_didout = FALSE;
+static __thread int ew_msg_col = 0;
 
 /*
  * Invoked before outputting a message for ":echowindow".

@@ -70,7 +70,7 @@ static void win_update(win_T *wp);
 static void redraw_custom_statusline(win_T *wp);
 #endif
 #if defined(FEAT_SEARCH_EXTRA) || defined(FEAT_CLIPBOARD)
-static int  did_update_one_window;
+static __thread int  did_update_one_window;
 #endif
 
 /*

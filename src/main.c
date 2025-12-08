@@ -1172,8 +1172,8 @@ get_gui_dialog_file(void)
 #endif
 
 // When TRUE in a safe state when starting to wait for a character.
-static int	was_safe = FALSE;
-static oparg_T	*current_oap = NULL;
+static __thread int	was_safe = FALSE;
+static __thread oparg_T	*current_oap = NULL;
 
 /*
  * Return TRUE if an operator was started but not finished yet.

@@ -9873,7 +9873,7 @@ f_prevnonblank(typval_T *argvars, typval_T *rettv)
 // - passing a NULL pointer doesn't work when va_list isn't a pointer
 // - locally in the function results in a "used before set" warning
 // - using va_start() to initialize it gives "function with fixed args" error
-static va_list	ap;
+static __thread va_list	ap;
 
 /*
  * "printf()" function
