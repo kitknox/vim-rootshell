@@ -1694,7 +1694,7 @@ f_prop_remove(typval_T *argvars, typval_T *rettv)
 	len = ml_get_buf_len(buf, lnum) + 1;
 	if ((size_t)buf->b_ml.ml_line_len > len)
 	{
-	    static textprop_T	textprop;  // static because of alignment
+	    static __thread textprop_T	textprop;  // static because of alignment
 	    unsigned		idx;
 
 	    for (idx = 0; idx < (buf->b_ml.ml_line_len - len)

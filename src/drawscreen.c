@@ -83,7 +83,7 @@ update_screen(int type_arg)
 {
     int		type = type_arg;
     win_T	*wp;
-    static int	did_intro = FALSE;
+    static __thread int	did_intro = FALSE;
 #ifdef FEAT_GUI
     int		did_one = FALSE;
     int		did_undraw = FALSE;
@@ -435,7 +435,7 @@ win_redr_status(win_T *wp, int ignore_pum UNUSED)
     int		row;
     int		fillchar;
     int		attr;
-    static int  busy = FALSE;
+    static __thread int  busy = FALSE;
 
     // It's possible to get here recursively when 'statusline' (indirectly)
     // invokes ":redrawstatus".  Simply ignore the call then.
@@ -581,7 +581,7 @@ win_redr_status(win_T *wp, int ignore_pum UNUSED)
     static void
 redraw_custom_statusline(win_T *wp)
 {
-    static int	    entered = FALSE;
+    static __thread int	    entered = FALSE;
 
     // When called recursively return.  This can happen when the statusline
     // contains an expression that triggers a redraw.
@@ -1460,7 +1460,7 @@ win_update(win_T *wp)
     int		didline = FALSE; // if TRUE, we finished the last line
     int		i;
     long	j;
-    static int	recursive = FALSE;	// being called recursively
+    static __thread int	recursive = FALSE;	// being called recursively
     linenr_T	old_botline = wp->w_botline;
 #ifdef FEAT_CONCEAL
     int		old_wrow = wp->w_wrow;

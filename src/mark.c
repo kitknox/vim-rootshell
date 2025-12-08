@@ -346,7 +346,7 @@ getmark_buf_fnum(
 {
     pos_T		*posp;
     pos_T		*startp, *endp;
-    static pos_T	pos_copy;
+    static __thread pos_T	pos_copy;
 
     posp = NULL;
 
@@ -635,7 +635,7 @@ check_mark(pos_T *pos)
     void
 clrallmarks(buf_T *buf)
 {
-    static int		i = -1;
+    static __thread int		i = -1;
 
     if (i == -1)	// first call ever: initialize
 	for (i = 0; i < NMARKS + 1; i++)
@@ -759,7 +759,7 @@ show_one_mark(
     char_u	*name_arg,
     int		current)	// in current file
 {
-    static int	did_title = FALSE;
+    static __thread int	did_title = FALSE;
     int		mustfree = FALSE;
     char_u	*name = name_arg;
 

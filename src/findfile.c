@@ -1785,8 +1785,8 @@ find_file_in_path_option(
     char	**search_ctx_arg) // in/out: state of the search
 {
     ff_search_ctx_T	**search_ctx = (ff_search_ctx_T **)search_ctx_arg;
-    static char_u	*dir;
-    static int		did_findfile_init = FALSE;
+    static __thread char_u	*dir;
+    static __thread int		did_findfile_init = FALSE;
     char_u		*file_name = NULL;
     int			rel_to_curdir;
 # ifdef AMIGA
@@ -1796,7 +1796,7 @@ find_file_in_path_option(
     // Avoid a requester here for a volume that doesn't exist.
     proc->pr_WindowPtr = (APTR)-1L;
 # endif
-    static size_t	file_to_findlen = 0;
+    static __thread size_t	file_to_findlen = 0;
 
     if (first == TRUE)
     {

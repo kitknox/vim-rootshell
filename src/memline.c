@@ -2729,8 +2729,8 @@ ml_get_buf(
 {
     bhdr_T	*hp;
     DATA_BL	*dp;
-    static int	recursive = 0;
-    static char_u questions[4];
+    static __thread int	recursive = 0;
+    static __thread char_u questions[4];
 
     if (lnum > buf->b_ml.ml_line_count)	// invalid line number
     {

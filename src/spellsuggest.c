@@ -784,7 +784,7 @@ spell_find_suggest(
     int		do_combine = FALSE;
     char_u	*sps_copy;
 #ifdef FEAT_EVAL
-    static int	expr_busy = FALSE;
+    static __thread int	expr_busy = FALSE;
 #endif
     int		c;
     int		i;

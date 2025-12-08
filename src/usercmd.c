@@ -525,7 +525,7 @@ cmdcomplete_str_to_type(char_u *complete_str)
 {
     keyvalue_T target;
     keyvalue_T *entry;
-    static keyvalue_T *last_entry = NULL;	// cached result
+    static __thread keyvalue_T *last_entry = NULL;	// cached result
 
     if (STRNCMP(complete_str, "custom,", 7) == 0)
 	return EXPAND_USER_DEFINED;
@@ -770,7 +770,7 @@ parse_addr_type_arg(
 {
     addrtype_T target;
     addrtype_T *entry;
-    static addrtype_T *last_entry;	// cached result
+    static __thread addrtype_T *last_entry;	// cached result
 
     target.key = 0;
     target.fullname = (char *)value;
@@ -837,7 +837,7 @@ parse_compl_arg(
     int		valend = vallen;
     keyvalue_T	target;
     keyvalue_T	*entry;
-    static keyvalue_T	*last_entry = NULL;	    // cached result
+    static __thread keyvalue_T	*last_entry = NULL;	    // cached result
 
     // Look for any argument part - which is the part after any ','
     for (i = 0; i < vallen; ++i)
