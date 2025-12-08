@@ -43,7 +43,7 @@ static linenr_T readfile_linenr(linenr_T linecnt, char_u *p, char_u *endp);
 static char_u *check_for_bom(char_u *p, long size, int *lenp, int flags);
 
 #ifdef FEAT_EVAL
-static int readdirex_sort;
+static __thread int readdirex_sort;
 #endif
 
     void

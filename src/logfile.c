@@ -17,10 +17,10 @@
 #if defined(FEAT_EVAL)
 
 // Log file opened with ch_logfile().
-static FILE *log_fd = NULL;
-static char_u *log_name = NULL;
+static __thread FILE *log_fd = NULL;
+static __thread char_u *log_name = NULL;
 #ifdef FEAT_RELTIME
-static proftime_T log_start;
+static __thread proftime_T log_start;
 #endif
 
     void

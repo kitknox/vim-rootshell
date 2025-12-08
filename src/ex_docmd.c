@@ -6976,7 +6976,7 @@ ex_wrongmodifier(exarg_T *eap)
 #if defined(FEAT_EVAL)
 
 // callback function for 'findfunc'
-static callback_T ffu_cb;
+static __thread callback_T ffu_cb;
 
     static callback_T *
 get_findfunc_callback(void)
