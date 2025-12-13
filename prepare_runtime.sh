@@ -98,6 +98,13 @@ SYNTAX_INFRA=(
     "syntax.vim"
     "nosyntax.vim"
     "manual.vim"
+    # Dependencies for included syntax scripts
+    "autodoc.vim"
+    "dtd.vim"
+    "pod.vim"
+    "python2.vim"
+    "scheme.vim"
+    "tcl.vim"
 )
 
 # Syntax files - Primary languages
