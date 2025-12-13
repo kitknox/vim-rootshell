@@ -3068,24 +3068,34 @@ out_str(char_u *s)
     void
 term_windgoto(int row, int col)
 {
+    // On iOS with TLS, T_CM may be NULL if called from a different thread
+    // during cleanup (e.g., via ios_exit). Avoid outputting "OOPS" from tgoto.
+    if (T_CM == NULL || *T_CM == NUL)
+	return;
     OUT_STR(tgoto((char *)T_CM, col, row));
 }
 
     void
 term_cursor_right(int i)
 {
+    if (T_CRI == NULL || *T_CRI == NUL)
+	return;
     OUT_STR(tgoto((char *)T_CRI, 0, i));
 }
 
     void
 term_append_lines(int line_count)
 {
+    if (T_CAL == NULL || *T_CAL == NUL)
+	return;
     OUT_STR(tgoto((char *)T_CAL, 0, line_count));
 }
 
     void
 term_delete_lines(int line_count)
 {
+    if (T_CDL == NULL || *T_CDL == NUL)
+	return;
     OUT_STR(tgoto((char *)T_CDL, 0, line_count));
 }
 
@@ -3093,6 +3103,8 @@ term_delete_lines(int line_count)
     void
 term_enable_mouse(int enable)
 {
+    if (T_CXM == NULL || *T_CXM == NUL)
+	return;
     int on = enable ? 1 : 0;
     OUT_STR(tgoto((char *)T_CXM, 0, on));
 }
@@ -3102,6 +3114,8 @@ term_enable_mouse(int enable)
     void
 term_set_winpos(int x, int y)
 {
+    if (T_CWP == NULL || *T_CWP == NUL)
+	return;
     // Can't handle a negative value here
     if (x < 0)
 	x = 0;
@@ -3219,6 +3233,8 @@ term_get_winpos(int *x, int *y, varnumber_T timeout)
     void
 term_set_winsize(int height, int width)
 {
+    if (T_CWS == NULL || *T_CWS == NUL)
+	return;
     OUT_STR(tgoto((char *)T_CWS, width, height));
 }
 #endif // HAVE_TGETENT
@@ -3229,6 +3245,8 @@ term_set_winsize(int height, int width)
     void
 term_set_winsize(int height, int width)
 {
+    if (T_CWS == NULL || *T_CWS == NUL)
+	return;
     OUT_STR(tgoto((char *)T_CWS, width, height));
 }
 #endif
@@ -3248,7 +3266,11 @@ term_font(int n)
 term_color(char_u *s, int n)
 {
     char	buf[20];
-    int		i = *s == CSI ? 1 : 2;
+    int		i;
+
+    if (s == NULL || *s == NUL)
+	return;
+    i = *s == CSI ? 1 : 2;
 		// index in s[] just after <Esc>[ or CSI
 
     // Special handling of 16 colors, because termcap can't handle it
@@ -3289,9 +3311,9 @@ term_color(char_u *s, int n)
 term_fg_color(int n)
 {
     // Use "AF" termcap entry if present, "Sf" entry otherwise
-    if (*T_CAF)
+    if (T_CAF != NULL && *T_CAF)
 	term_color(T_CAF, n);
-    else if (*T_CSF)
+    else if (T_CSF != NULL && *T_CSF)
 	term_color(T_CSF, n);
 }
 
@@ -3299,16 +3321,16 @@ term_fg_color(int n)
 term_bg_color(int n)
 {
     // Use "AB" termcap entry if present, "Sb" entry otherwise
-    if (*T_CAB)
+    if (T_CAB != NULL && *T_CAB)
 	term_color(T_CAB, n);
-    else if (*T_CSB)
+    else if (T_CSB != NULL && *T_CSB)
 	term_color(T_CSB, n);
 }
 
     void
 term_ul_color(int n)
 {
-    if (*T_CAU)
+    if (T_CAU != NULL && *T_CAU)
 	term_color(T_CAU, n);
 }
 
@@ -4519,7 +4541,7 @@ blink_state_is_inverted(void)
     void
 term_cursor_shape(int shape, int blink)
 {
-    if (*T_CSH != NUL)
+    if (T_CSH != NULL && *T_CSH != NUL)
     {
 	OUT_STR(tgoto((char *)T_CSH, 0, shape * 2 - blink));
 	out_flush();
@@ -4557,9 +4579,10 @@ term_cursor_shape(int shape, int blink)
     void
 scroll_region_set(win_T *wp, int off)
 {
-    OUT_STR(tgoto((char *)T_CS, W_WINROW(wp) + wp->w_height - 1,
+    if (T_CS != NULL && *T_CS != NUL)
+	OUT_STR(tgoto((char *)T_CS, W_WINROW(wp) + wp->w_height - 1,
 							 W_WINROW(wp) + off));
-    if (*T_CSV != NUL && wp->w_width != Columns)
+    if (T_CSV != NULL && *T_CSV != NUL && wp->w_width != Columns)
 	OUT_STR(tgoto((char *)T_CSV, wp->w_wincol + wp->w_width - 1,
 							       wp->w_wincol));
 #if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_OS_MACCATALYST)
@@ -4574,8 +4597,9 @@ scroll_region_set(win_T *wp, int off)
     void
 scroll_region_reset(void)
 {
-    OUT_STR(tgoto((char *)T_CS, (int)Rows - 1, 0));
-    if (*T_CSV != NUL)
+    if (T_CS != NULL && *T_CS != NUL)
+	OUT_STR(tgoto((char *)T_CS, (int)Rows - 1, 0));
+    if (T_CSV != NULL && *T_CSV != NUL)
 	OUT_STR(tgoto((char *)T_CSV, (int)Columns - 1, 0));
 #if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_OS_MACCATALYST)
     out_flush();	// iOS: ensure scroll region is reset before content

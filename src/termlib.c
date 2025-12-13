@@ -407,7 +407,11 @@ tgoto(
 	addup = 0,				// add upline
 	addbak = 0,				// add backup
 	c;
+#if TARGET_OS_IPHONE
+    static __thread char buffer[32];		// TLS for multi-instance support
+#else
     static char buffer[32];
+#endif
 
     if (!cm)
 	return "OOPS";				// Kludge, but standard
