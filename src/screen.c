@@ -3747,7 +3747,18 @@ screen_ins_lines(
 	for (i = 0; i < line_count; ++i)
 	{
 	    windgoto(off + i, cursor_col);
-	    out_str(T_CE);
+	    if (*T_CE != NUL)
+		out_str(T_CE);
+	    else
+	    {
+		int	clear_end_col = wp != NULL
+					    ? wp->w_wincol + wp->w_width
+					    : (int)Columns;
+		int	clear_col;
+
+		for (clear_col = cursor_col; clear_col < clear_end_col; ++clear_col)
+		    out_char(' ');
+	    }
 	    screen_start();	    // don't know where cursor is now
 	}
     }
@@ -3991,7 +4002,18 @@ screen_del_lines(
 	    else // type == USE_T_CE
 	    {
 		windgoto(cursor_row + i, cursor_col);
-		out_str(T_CE);		// erase a line
+		if (*T_CE != NUL)
+		    out_str(T_CE);		// erase a line
+		else
+		{
+		    int	clear_end_col = wp != NULL
+						? wp->w_wincol + wp->w_width
+						: (int)Columns;
+		    int	clear_col;
+
+		    for (clear_col = cursor_col; clear_col < clear_end_col; ++clear_col)
+			out_char(' ');
+		}
 	    }
 	    screen_start();		// don't know where cursor is now
 	}
@@ -4006,7 +4028,18 @@ screen_del_lines(
 	for (i = line_count; i > 0; --i)
 	{
 	    windgoto(cursor_end - i, cursor_col);
-	    out_str(T_CE);		// erase a line
+	    if (*T_CE != NUL)
+		out_str(T_CE);		// erase a line
+	    else
+	    {
+		int	clear_end_col = wp != NULL
+					    ? wp->w_wincol + wp->w_width
+					    : (int)Columns;
+		int	clear_col;
+
+		for (clear_col = cursor_col; clear_col < clear_end_col; ++clear_col)
+		    out_char(' ');
+	    }
 	    screen_start();		// don't know where cursor is now
 	}
     }

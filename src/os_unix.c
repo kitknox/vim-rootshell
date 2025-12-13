@@ -627,12 +627,69 @@ mch_write(char_u *s, int len)
     // Hardcoded FD 1 would write to wrong terminal in concurrent instances.
     if (thread_stdout != NULL)
     {
-	vim_ignored = (int)fwrite((char *)s, 1, len, thread_stdout);
+	static __thread int did_set_thread_stdout_unbuf = FALSE;
+	int total = 0;
+
+	flockfile(thread_stdout);
+
+	// Avoid buffering so short writes become visible to fwrite().
+	if (!did_set_thread_stdout_unbuf)
+	{
+	    (void)setvbuf(thread_stdout, NULL, _IONBF, 0);
+	    did_set_thread_stdout_unbuf = TRUE;
+	}
+
+	while (total < len)
+	{
+	    size_t n = fwrite((char *)s + total, (size_t)1,
+					      (size_t)(len - total),
+					      thread_stdout);
+	    if (n > 0)
+	    {
+		total += (int)n;
+		continue;
+	    }
+	    if (ferror(thread_stdout))
+	    {
+		clearerr(thread_stdout);
+		usleep(1000);
+		continue;
+	    }
+	    break;
+	}
 	fflush(thread_stdout);
+	funlockfile(thread_stdout);
+	vim_ignored = total;
+	if (p_wd)		// Unix is too fast, slow down a bit more
+	    RealWaitForChar(read_cmd_fd, p_wd, NULL, NULL);
+	return;
     }
-    else
 #endif
-    vim_ignored = (int)write(1, (char *)s, len);
+    {
+	int	    total = 0;
+
+	while (total < len)
+	{
+	    ssize_t n = write(1, (char *)s + total, (size_t)(len - total));
+
+	    if (n > 0)
+	    {
+		total += (int)n;
+		continue;
+	    }
+	    if (n < 0 && errno == EINTR)
+		continue;
+	    if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK))
+	    {
+		// Back off briefly and retry, avoids dropping bytes on non-blocking
+		// streams used by embedded terminals.
+		usleep(1000);
+		continue;
+	    }
+	    break;
+	}
+	vim_ignored = total;
+    }
     if (p_wd)		// Unix is too fast, slow down a bit more
 	RealWaitForChar(read_cmd_fd, p_wd, NULL, NULL);
 }
