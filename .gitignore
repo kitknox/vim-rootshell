@@ -129,4 +129,4 @@ src/cscope.out
 /.ccls-cache/
 /compile_commands.json
 # Build Output
-.build
+.build/
