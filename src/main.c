@@ -101,10 +101,11 @@ main
     int		i;
 #endif
 
-#if TARGET_OS_IPHONE
+#ifdef VIM_APPLE_SANDBOX
     // iOS: Reset thread-local globals for each vim invocation
     // This is required because ios_system runs vim in a new thread each time
 #include "globals_init.h"
+    params = (mparm_T){0};
     read_cmd_fd = fileno(thread_stdin);
     start_dir = NULL;
     has_dash_c_arg = FALSE;
@@ -983,7 +984,7 @@ vim_main2(void)
 
     TIME_MSG("before starting main loop");
 
-#if TARGET_OS_IPHONE
+#ifdef VIM_APPLE_SANDBOX
     // On iOS, re-query shell size before entering main loop.
     // The initial ui_get_shellsize() call happens before the host app's
     // window size is fully set up via ios_setWindowSize().
@@ -2909,7 +2910,7 @@ check_tty(mparm_T *parmp)
 	if (netbeans_active() && (!stdout_isatty || !input_isatty))
 	{
 	    mch_errmsg(_("Vim: Error: Failure to start gvim from NetBeans\n"));
-	    exit(1);
+	    mch_exit(1);
 	}
 #endif
 #if defined(MSWIN) && (!defined(FEAT_GUI_MSWIN) || defined(VIMDLL))
@@ -2935,7 +2936,7 @@ check_tty(mparm_T *parmp)
 	    vim_free(tofree);
 # endif
 	    mch_errmsg(_("Vim: Error: This version of Vim does not run in a Cygwin terminal\n"));
-	    exit(1);
+	    mch_exit(1);
 	}
 #endif
 	if (!stdout_isatty)
@@ -2944,7 +2945,7 @@ check_tty(mparm_T *parmp)
 	    mch_errmsg(_("Vim: Warning: Input is not from a terminal\n"));
 	out_flush();
 	if (parmp->tty_fail && (!stdout_isatty || !input_isatty))
-	    exit(1);
+	    mch_exit(1);
 	if (scriptin[0] == NULL)
 	    ui_delay(2005L, TRUE);
 	TIME_MSG("Warning delay");

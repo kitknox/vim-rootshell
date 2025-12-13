@@ -589,8 +589,8 @@
  * +termguicolors	'termguicolors' option.
  * Disabled on iOS/visionOS because X11 color name resolution is unavailable.
  */
-#if defined(__APPLE__) && (TARGET_OS_IPHONE || (defined(TARGET_OS_XR) && TARGET_OS_XR))
-  /* iOS and visionOS don't have X11 color name support */
+#ifdef VIM_APPLE_SANDBOX
+  /* Apple sandbox targets don't have X11 color name support */
 #elif (defined(FEAT_NORMAL) && defined(FEAT_SYN_HL)) && !defined(ALWAYS_USE_GUI)
 # define FEAT_TERMGUICOLORS
 #endif
@@ -806,6 +806,22 @@
  *			shell.  Doesn't work for the GUI!
  */
 // #define USE_SYSTEM
+
+// Apple sandbox targets: avoid fork/exec and ensure full cleanup on exit.
+#ifdef VIM_APPLE_SANDBOX
+# ifndef USE_SYSTEM
+#  define USE_SYSTEM
+# endif
+# ifndef EXITFREE
+#  define EXITFREE
+# endif
+# ifdef FEAT_JOB_CHANNEL
+#  undef FEAT_JOB_CHANNEL
+# endif
+# ifdef FEAT_NETBEANS_INTG
+#  undef FEAT_NETBEANS_INTG
+# endif
+#endif
 
 /*
  * +X11			Unix only.  Include code for xterm title saving and X

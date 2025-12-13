@@ -139,6 +139,14 @@ set backupdir=~/tmp//
 set undodir=~/Library/vim/undo//
 ```
 
+## Sandboxed Process APIs
+
+The App Store sandbox does not allow spawning arbitrary processes. This port:
+
+- Uses `ios_system()` for `:!`, `system()` and related shell execution
+- Disables fork/exec-based features (e.g. `job_start()`, channels, NetBeans integration)
+- Enables Vim's `EXITFREE` cleanup to avoid leaking state across repeated in-process runs
+
 ## Troubleshooting
 
 ### Vim hangs on startup

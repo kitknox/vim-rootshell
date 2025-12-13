@@ -169,7 +169,11 @@
 # define mch_stat(n, p)		stat(vms_fixfilename(n), (p))
 #else
 # if !defined(MSWIN) && !defined(PROTO)
+#  ifdef VIM_APPLE_SANDBOX
+#   define mch_access(n, p)	ios_mch_access((n), (p))
+#  else
 #   define mch_access(n, p)	access((n), (p))
+#  endif
 # endif
 
 // Use 64-bit fstat function on MS-Windows.

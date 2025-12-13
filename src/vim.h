@@ -13,6 +13,14 @@
 # include <TargetConditionals.h>
 #endif
 
+// Apple sandbox targets where Vim is run in-process and may be invoked
+// repeatedly and/or concurrently across threads.
+#if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_OS_SIMULATOR \
+	|| TARGET_OS_MACCATALYST \
+	|| (defined(TARGET_OS_VISION) && TARGET_OS_VISION))
+# define VIM_APPLE_SANDBOX 1
+#endif
+
 #include "protodef.h"
 
 // _WIN32 is defined as 1 when the compilation target is 32-bit or 64-bit.
@@ -251,8 +259,8 @@
 # endif
 #endif
 
-// The Mac conversion stuff doesn't work under X11 or iOS.
-#if !TARGET_OS_IPHONE
+// The Mac conversion stuff doesn't work under X11, iOS or visionOS.
+#if !TARGET_OS_IPHONE && !(defined(TARGET_OS_VISION) && TARGET_OS_VISION)
 # if defined(MACOS_X_DARWIN)
 #  define MACOS_CONVERT
 # endif
@@ -288,6 +296,9 @@
 #if (defined(UNIX) || defined(VMS)) \
 	&& (!defined(MACOS_X) || defined(HAVE_CONFIG_H))
 # include "os_unix.h"	    // bring lots of system header files
+# ifdef VIM_APPLE_SANDBOX
+#  include "ios_sandbox.h"
+# endif
 #elif !defined(PROTO)
   // For all non-Unix systems: use old-fashioned signal().
 # define mch_signal(signum, sighandler) signal(signum, sighandler)
@@ -491,6 +502,11 @@ typedef long long vimlong_T;
 #include "ascii.h"
 #include "keymap.h"
 #include "termdefs.h"
+
+#ifdef VIM_APPLE_SANDBOX
+int ios_mch_access(char *n, int p);
+#endif
+
 #include "macros.h"
 
 #ifdef LATTICE
@@ -2550,19 +2566,20 @@ typedef int (*opt_expand_cb_T)(optexpand_T *args, int *numMatches, char_u ***mat
 // This must come after including proto.h.
 // For VMS this is defined in macros.h.
 // iOS defines these as functions in os_macosx.m for security-scoped bookmark support
-#if !defined(MSWIN) && !defined(VMS) && !defined(PROTO) && !TARGET_OS_IPHONE
+#if !defined(MSWIN) && !defined(VMS) && !defined(PROTO) \
+	&& !TARGET_OS_IPHONE && !(defined(TARGET_OS_VISION) && TARGET_OS_VISION)
 # define mch_open(n, m, p)	open((n), (m), (p))
 # define mch_fopen(n, p)	fopen((n), (p))
 #endif
 
-// iOS: extern declarations for mch_open/mch_fopen (defined in os_macosx.m)
-#if TARGET_OS_IPHONE
+// iOS/visionOS: extern declarations for mch_open/mch_fopen (defined in os_macosx.m)
+#if TARGET_OS_IPHONE || (defined(TARGET_OS_VISION) && TARGET_OS_VISION)
 extern int mch_open(const char *path, int oflag, mode_t mode);
 extern FILE* mch_fopen(const char *path, const char *mode);
 #endif
 
-// iOS: ios_system integration (thread_stdin, thread_stdout, etc.)
-#if TARGET_OS_IPHONE
+// iOS/visionOS: ios_system integration (thread_stdin, thread_stdout, etc.)
+#if TARGET_OS_IPHONE || (defined(TARGET_OS_VISION) && TARGET_OS_VISION)
 # include "ios_error.h"
 #endif
 

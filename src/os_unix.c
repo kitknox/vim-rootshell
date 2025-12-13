@@ -41,7 +41,7 @@
 static __thread int selinux_enabled = -1;
 #endif
 
-#if TARGET_OS_SIMULATOR || TARGET_OS_IPHONE || TARGET_OS_MACCATALYST
+#ifdef VIM_APPLE_SANDBOX
 # include <dlfcn.h>  // for dlopen()/dlsym()/dlclose()
 # include "ios_error.h"
 # define S_ISXXX(m) ((m) & (S_IXUSR | S_IXGRP | S_IXOTH)) // access() always returns -1 on iOS
@@ -329,7 +329,7 @@ static void sig_alarm SIGPROTOARG;
 // volatile because it is used in signal handler sig_alarm().
 static __thread volatile sig_atomic_t sig_alarm_called;
 #endif
-#if TARGET_OS_IPHONE
+#ifdef VIM_APPLE_SANDBOX
 // Reference counting for concurrent vim instances sharing signal handlers.
 // Signal handlers are process-wide, so we only reset them when the last
 // vim instance exits to avoid breaking other running instances.
@@ -392,6 +392,57 @@ typedef struct
 } xsmp_config_T;
 
 static __thread xsmp_config_T xsmp;
+#endif
+
+#ifdef VIM_APPLE_SANDBOX
+/*
+ * Replacement for access() on Apple sandbox targets.
+ * The sandbox environment can make access(2) unreliable for our purposes.
+ */
+    int
+ios_mch_access(char *name, int mode)
+{
+    stat_T	st;
+    int		fd;
+
+    if (name == NULL || *name == NUL)
+	return -1;
+
+    if (mch_stat(name, &st) != 0)
+	return -1;
+
+    // Existence check only.
+    if (mode == F_OK)
+	return 0;
+
+    // Executability is not a meaningful concept for most sandboxed paths.
+    if (mode & X_OK)
+    {
+	if (S_ISDIR(st.st_mode))
+	    return 0;
+	if (S_ISREG(st.st_mode) && S_ISXXX(st.st_mode))
+	    return 0;
+	return -1;
+    }
+
+    if (mode & R_OK)
+    {
+	fd = open(name, O_RDONLY, 0);
+	if (fd < 0)
+	    return -1;
+	close(fd);
+    }
+
+    if (mode & W_OK)
+    {
+	fd = open(name, O_WRONLY, 0);
+	if (fd < 0)
+	    return -1;
+	close(fd);
+    }
+
+    return 0;
+}
 #endif
 
 #ifdef SYS_SIGLIST_DECLARED
@@ -571,7 +622,7 @@ mch_chdir(char *path)
     void
 mch_write(char_u *s, int len)
 {
-#if defined(__APPLE__) && (TARGET_OS_IPHONE || TARGET_OS_MACCATALYST)
+#ifdef VIM_APPLE_SANDBOX
     // Use thread-local stdout for multi-instance support on iOS.
     // Hardcoded FD 1 would write to wrong terminal in concurrent instances.
     if (thread_stdout != NULL)
@@ -1606,7 +1657,7 @@ mch_init(void)
     static void
 set_signals(void)
 {
-#if TARGET_OS_IPHONE
+#ifdef VIM_APPLE_SANDBOX
     // Track this instance and check if signals are already set up by another.
     int prev_count = atomic_fetch_add(&vim_active_instances, 1);
     this_instance_has_signals = TRUE;
@@ -1696,7 +1747,7 @@ catch_int_signal(void)
     void
 reset_signals(void)
 {
-#if TARGET_OS_IPHONE
+#ifdef VIM_APPLE_SANDBOX
     // Only reset signals when the last vim instance exits.
     // Other instances still need the signal handlers.
     if (!this_instance_has_signals)
@@ -3606,6 +3657,20 @@ mch_can_exe(char_u *name, char_u **path, int use_path)
     size_t	elen;
     int		retval;
 
+#ifdef VIM_APPLE_SANDBOX
+    // In the sandbox we cannot exec arbitrary binaries; rely on ios_system's
+    // builtin command set instead of probing the filesystem for X_OK.
+    if (path != NULL)
+	*path = NULL;
+    if (ios_executable((char *)name))
+    {
+	if (path != NULL)
+	    *path = vim_strsave(name);
+	return TRUE;
+    }
+    return FALSE;
+#endif
+
     // When "use_path" is false and if it's an absolute or relative path don't
     // need to use $PATH.
     if (!use_path || gettail(name) != name)
@@ -3897,6 +3962,11 @@ mch_exit(int r)
 
 #ifdef EXITFREE
     free_all_mem();
+#endif
+
+#ifdef VIM_APPLE_SANDBOX
+    // The process stays alive; release any process-wide signal handlers.
+    reset_signals();
 #endif
 
     exit(r);
@@ -4489,7 +4559,7 @@ mch_get_shellsize(void)
 	struct winsize	ws;
 	int fd = 1;
 
-#  if TARGET_OS_IPHONE
+#  ifdef VIM_APPLE_SANDBOX
 	// On iOS, ios_ioctl returns the window size set by ios_setWindowSize().
 	// Use fileno(thread_stdout) like Joe does - this is more reliable than
 	// using fd 0 or 1 directly because it uses the actual pipe fd that
@@ -4530,7 +4600,7 @@ mch_get_shellsize(void)
 	// When stdout is not a tty, use stdin for the ioctl().
 	if (!isatty(fd) && isatty(read_cmd_fd))
 	    fd = read_cmd_fd;
-#   if TARGET_OS_IPHONE
+#   ifdef VIM_APPLE_SANDBOX
 	if (ios_ioctl(fd, TIOCGSIZE, &ts) == 0)
 #   else
 	if (ioctl(fd, TIOCGSIZE, &ts) == 0)

@@ -38,8 +38,9 @@
 # if defined(UNIX) || defined(VMS)
 #  include "os_unix.pro"
 # endif
-// iOS uses builtin termlib since iOS doesn't have ncurses/termcap
-# if TARGET_OS_IPHONE || TARGET_OS_MACCATALYST
+// Apple sandbox targets use builtin termlib since system termcap/ncurses
+// availability and behavior differs from traditional Unix environments.
+# ifdef VIM_APPLE_SANDBOX
 #  include "termlib.pro"
 # endif
 # ifdef MSWIN
