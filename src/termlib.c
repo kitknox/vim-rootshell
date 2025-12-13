@@ -18,6 +18,16 @@
 # include <sgtty.h>
 #endif
 
+// On iOS-family ports we don't want "OOPS" to be written to the embedded
+// terminal when a termcap/terminfo escape can't be decoded during shutdown.
+#if (defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE) \
+	|| (defined(TARGET_OS_MACCATALYST) && TARGET_OS_MACCATALYST) \
+	|| (defined(TARGET_OS_VISION) && TARGET_OS_VISION)
+# define TGO_OOPS ""
+#else
+# define TGO_OOPS "OOPS"
+#endif
+
 static int  getent(char *, char *, FILE *, int);
 static int  nextent(char *, FILE *, int);
 static int  _match(char *, char *);
@@ -414,7 +424,7 @@ tgoto(
 #endif
 
     if (!cm)
-	return "OOPS";				// Kludge, but standard
+	return TGO_OOPS;				// Kludge, but standard
 
     bufp = buffer;
     ptr = cm;
@@ -490,7 +500,7 @@ tgoto(
 		col = col-2*(col&15);
 		break;
 	    default:				// Unknown escape
-		return "OOPS";
+		return TGO_OOPS;
 	    }
 	}
     }
