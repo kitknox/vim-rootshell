@@ -85,6 +85,30 @@ if [ -f "$RUNTIME_SRC/autoload/dist/script.vim" ]; then
     cp "$RUNTIME_SRC/autoload/dist/script.vim" "$RESOURCES_PATH/autoload/dist/"
 fi
 
+# Copy autoload files required by bundled ftplugins (omnifunc completions, etc.)
+AUTOLOAD_FILES=(
+    "htmlcomplete.vim"     # html.vim, markdown.vim (via html.vim)
+    "htmlfold.vim"         # html.vim fold support
+    "csscomplete.vim"      # css.vim
+    "xmlcomplete.vim"      # xml.vim
+    "xmlformat.vim"        # xml.vim
+    "javascriptcomplete.vim" # javascript.vim
+    "pythoncomplete.vim"   # python.vim fallback
+    "python3complete.vim"  # python.vim
+    "ccomplete.vim"        # c.vim, cpp.vim
+    "rubycomplete.vim"     # ruby.vim
+    "phpcomplete.vim"      # php.vim
+    "sqlcomplete.vim"      # sql.vim
+    "vimcomplete.vim"      # vim.vim
+    "javaformat.vim"       # java.vim
+    "spotbugs.vim"         # java.vim
+)
+for file in "${AUTOLOAD_FILES[@]}"; do
+    if [ -f "$RUNTIME_SRC/autoload/$file" ]; then
+        cp "$RUNTIME_SRC/autoload/$file" "$RESOURCES_PATH/autoload/"
+    fi
+done
+
 # Copy all colorschemes (small, ~72KB total)
 echo "Copying colorschemes..."
 if [ -d "$RUNTIME_SRC/colors" ]; then
