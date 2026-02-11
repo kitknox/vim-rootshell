@@ -551,17 +551,13 @@ static tcap_entry_T builtin_xterm[] = {
     // Use modern ?1049 sequence that Ghostty expects (smcup/rmcup)
     {(int)KS_TI,	"\033[?1049h"},   // Enter alternate screen
     {(int)KS_TE,	"\033[?1049l"},   // Leave alternate screen
-    // iOS: Use CSI style instead of SS3 with modifier for better compatibility
-    {K_UP,		"\033[A"},
-    {K_DOWN,		"\033[B"},
-    {K_RIGHT,		"\033[C"},
-    {K_LEFT,		"\033[D"},
-#else
+#endif
+    // SS3 format with modifier wildcard - matches what terminal sends
+    // when application cursor key mode (DECCKM) is enabled via smkx
     {K_UP,		"\033O*A"},
     {K_DOWN,		"\033O*B"},
     {K_RIGHT,		"\033O*C"},
     {K_LEFT,		"\033O*D"},
-#endif
     // An extra set of cursor keys for vt100 mode
     {K_XUP,		"\033[@;*A"},	// Esc [ A or Esc [ 1 ; A
     {K_XDOWN,		"\033[@;*B"},	// Esc [ B or Esc [ 1 ; B
