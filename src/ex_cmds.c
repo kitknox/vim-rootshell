@@ -1810,14 +1810,17 @@ make_filter_cmd(
 				|| fnamecmp(shell_name, "powershell.exe") == 0
 				|| fnamecmp(shell_name, "pwsh") == 0
 				|| fnamecmp(shell_name, "pwsh.exe") == 0);
-	len = (long_u)STRLEN(cmd) + 3;		// "()" + NUL
+	if (is_powershell)
+	    len = (long_u)STRLEN(cmd) + 7; // "& { " + " }" + NUL
+	else
+	    len = (long_u)STRLEN(cmd) + 3; // "()" + NUL
     }
 
     if (itmp != NULL)
     {
 	if (is_powershell)
-	    // "& { Get-Content " + " | & " + " }"
-	    len += (long_u)STRLEN(itmp) + 24;
+	    // "Get-Content " + " | & "
+	    len += (long_u)STRLEN(itmp) + 17;
 	else
 	    len += (long_u)STRLEN(itmp) + 9;	// " { < " + " } "
     }
@@ -1836,7 +1839,7 @@ make_filter_cmd(
 	    vim_snprintf((char *)buf, len, "& { Get-Content %s | & %s }",
 								itmp, cmd);
 	else
-	    vim_snprintf((char *)buf, len, "(%s)", cmd);
+	    vim_snprintf((char *)buf, len, "& { %s }", cmd);
     }
     else
     {
@@ -2498,6 +2501,7 @@ do_wqall(exarg_T *eap)
     buf_T	*buf;
     int		error = 0;
     int		save_forceit = eap->forceit;
+    int		save_exiting = exiting;
 
     if (eap->cmdidx == CMD_xall || eap->cmdidx == CMD_wqall)
     {
@@ -2509,9 +2513,9 @@ do_wqall(exarg_T *eap)
     FOR_ALL_BUFFERS(buf)
     {
 #ifdef FEAT_TERMINAL
-	if (exiting && term_job_running(buf->b_term))
+	if (exiting && !eap->forceit && term_job_running(buf->b_term))
 	{
-	    no_write_message_nobang(buf);
+	    no_write_message_buf(buf);
 	    ++error;
 	}
 	else
@@ -2564,7 +2568,7 @@ do_wqall(exarg_T *eap)
     {
 	if (!error)
 	    getout(0);		// exit Vim
-	not_exiting();
+	not_exiting(save_exiting);
     }
 }
 
@@ -5489,12 +5493,18 @@ ex_global(exarg_T *eap)
 	}
 	else
 	{
+#ifdef FEAT_CLIPBOARD_PROVIDER
+	    inc_clip_provider();
+#endif
 #ifdef FEAT_CLIPBOARD
 	    start_global_changes();
 #endif
 	    global_exe(cmd);
 #ifdef FEAT_CLIPBOARD
 	    end_global_changes();
+#endif
+#ifdef FEAT_CLIPBOARD_PROVIDER
+	    dec_clip_provider();
 #endif
 	}
 
@@ -5681,7 +5691,7 @@ prepare_tagpreview(
     void
 ex_smile(exarg_T *eap UNUSED)
 {
-    static char *code[] = {
+    static __thread char *code[] = {
 	"\34 \4o\14$\4ox\30 \2o\30$\1ox\25 \2o\36$\1o\11 \1o\1$\3 \2$\1 \1o\1$x\5 \1o\1 \1$\1 \2o\10 \1o\44$\1o\7 \2$\1 \2$\1 \2$\1o\1$x\2 \2o\1 \1$\1 \1$\1 \1\"\1$\6 \1o\11$\4 \15$\4 \11$\1o\7 \3$\1o\2$\1o\1$x\2 \1\"\6$\1o\1$\5 \1o\11$\6 \13$\6 \12$\1o\4 \10$x\4 \7$\4 \13$\6 \13$\6 \27$x\4 \27$\4 \15$\4 \16$\2 \3\"\3$x\5 \1\"\3$\4\"\61$\5 \1\"\3$x\6 \3$\3 \1o\62$\5 \1\"\3$\1ox\5 \1o\2$\1\"\3 \63$\7 \3$\1ox\5 \3$\4 \55$\1\"\1 \1\"\6$",
 	"\5o\4$\1ox\4 \1o\3$\4o\5$\2 \45$\3 \1o\21$x\4 \10$\1\"\4$\3 \42$\5 \4$\10\"x\3 \4\"\7 \4$\4 \1\"\34$\1\"\6 \1o\3$x\16 \1\"\3$\1o\5 \3\"\22$\1\"\2$\1\"\11 \3$x\20 \3$\1o\12 \1\"\2$\2\"\6$\4\"\13 \1o\3$x\21 \4$\1o\40 \1o\3$\1\"x\22 \1\"\4$\1o\6 \1o\6$\1o\1\"\4$\1o\10 \1o\4$x\24 \1\"\5$\2o\5 \2\"\4$\1o\5$\1o\3 \1o\4$\2\"x\27 \2\"\5$\4o\2 \1\"\3$\1o\11$\3\"x\32 \2\"\7$\2o\1 \12$x\42 \4\"\13$x\46 \14$x\47 \12$\1\"x\50 \1\"\3$\4\"x"
     };

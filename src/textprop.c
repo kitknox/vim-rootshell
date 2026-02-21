@@ -732,8 +732,8 @@ count_props(linenr_T lnum, int only_starting, int last_line)
     return result;
 }
 
-static textprop_T	*text_prop_compare_props;
-static buf_T		*text_prop_compare_buf;
+static __thread textprop_T	*text_prop_compare_props;
+static __thread buf_T		*text_prop_compare_buf;
 
 /*
  * Score for sorting on position of the text property: 0: above,

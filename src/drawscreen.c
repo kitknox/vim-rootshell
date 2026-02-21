@@ -73,6 +73,11 @@ static void redraw_custom_statusline(win_T *wp);
 static __thread int  did_update_one_window;
 #endif
 
+#ifdef FEAT_EVAL
+static void redraw_listener_cleanup(void);
+static void invoke_redraw_listener_start_or_end(bool start);
+#endif
+
 /*
  * Based on the current value of curwin->w_topline, transfer a screenfull
  * of stuff from Filemem to ScreenLines[], and update curwin->w_botline.
@@ -244,6 +249,10 @@ update_screen(int type_arg)
 	curwin->w_redr_type = UPD_NOT_VALID;
 #endif
 
+#ifdef FEAT_EVAL
+    invoke_redraw_listener_start_or_end(true);
+#endif
+
     // Only start redrawing if there is really something to do.
     if (type == UPD_INVERTED)
 	update_curswant();
@@ -405,6 +414,12 @@ update_screen(int type_arg)
 	gui_update_scrollbars(FALSE);
     }
 #endif
+
+#ifdef FEAT_EVAL
+    invoke_redraw_listener_start_or_end(false);
+    redraw_listener_cleanup();
+#endif
+
     return OK;
 }
 
@@ -883,12 +898,12 @@ text_to_screenline(win_T *wp, char_u *text, int col)
 	{
 	    cells = (*mb_ptr2cells)(p);
 	    c_len = (*mb_ptr2len)(p);
-	    if (col + cells > wp->w_width
-# ifdef FEAT_RIGHTLEFT
-		    - (wp->w_p_rl ? col : 0)
-# endif
-		    )
+	    if (col + cells > wp->w_width)
 		break;
+# ifdef FEAT_RIGHTLEFT
+	    if (wp->w_p_rl)
+		idx = off + wp->w_width - col - cells;
+# endif
 	    ScreenLines[idx] = *p;
 	    if (enc_utf8)
 	    {
@@ -896,13 +911,13 @@ text_to_screenline(win_T *wp, char_u *text, int col)
 		if (*p < 0x80 && u8cc[0] == 0)
 		{
 		    ScreenLinesUC[idx] = 0;
-#ifdef FEAT_ARABIC
+# ifdef FEAT_ARABIC
 		    prev_c = u8c;
-#endif
+# endif
 		}
 		else
 		{
-#ifdef FEAT_ARABIC
+# ifdef FEAT_ARABIC
 		    if (p_arshape && !p_tbidi && ARABIC_CHAR(u8c))
 		    {
 			// Do Arabic shaping.
@@ -933,7 +948,7 @@ text_to_screenline(win_T *wp, char_u *text, int col)
 		    }
 		    else
 			prev_c = u8c;
-#endif
+# endif
 		    // Non-BMP character: display as ? or fullwidth ?.
 		    ScreenLinesUC[idx] = u8c;
 		    for (i = 0; i < Screen_mco; ++i)
@@ -966,11 +981,11 @@ text_to_screenline(win_T *wp, char_u *text, int col)
 	    len = n;
 	if (len > 0)
 	{
-#ifdef FEAT_RIGHTLEFT
+# ifdef FEAT_RIGHTLEFT
 	    if (wp->w_p_rl)
 		mch_memmove(current_ScreenLine, text, len);
 	    else
-#endif
+# endif
 		mch_memmove(current_ScreenLine + col, text, len);
 	    col += len;
 	}
@@ -1110,8 +1125,8 @@ fold_line(
 	++col;
     }
 
-#ifdef FEAT_RIGHTLEFT
-# define RL_MEMSET(p, v, l) \
+# ifdef FEAT_RIGHTLEFT
+#  define RL_MEMSET(p, v, l) \
     do { \
 	if (wp->w_p_rl) \
 	    for (ri = 0; ri < (l); ++ri) \
@@ -1120,13 +1135,13 @@ fold_line(
 	    for (ri = 0; ri < (l); ++ri) \
 	       ScreenAttrs[off + (p) + ri] = v; \
     } while (0)
-#else
-# define RL_MEMSET(p, v, l) \
+# else
+#  define RL_MEMSET(p, v, l) \
     do { \
 	for (ri = 0; ri < l; ++ri) \
 	    ScreenAttrs[off + (p) + ri] = v; \
     } while (0)
-#endif
+# endif
 
     // 2. Add the 'foldcolumn'
     //    Reduce the width when there is not enough space.
@@ -1147,11 +1162,11 @@ fold_line(
 		ch = mb_ptr2char_adv(&p);
 	    else
 		ch = *p++;
-#ifdef FEAT_RIGHTLEFT
+# ifdef FEAT_RIGHTLEFT
 	    if (wp->w_p_rl)
 		idx = off + wp->w_width - i - 1 - col;
 	    else
-#endif
+# endif
 		idx = off + col + i;
 	    if (enc_utf8)
 	    {
@@ -1179,7 +1194,7 @@ fold_line(
     // text
     RL_MEMSET(col, HL_ATTR(HLF_FL), wp->w_width - col);
 
-#ifdef FEAT_SIGNS
+# ifdef FEAT_SIGNS
     // If signs are being displayed, add two spaces.
     if (signcolumn_on(wp))
     {
@@ -1188,18 +1203,18 @@ fold_line(
 	{
 	    if (len > 2)
 		len = 2;
-# ifdef FEAT_RIGHTLEFT
+#  ifdef FEAT_RIGHTLEFT
 	    if (wp->w_p_rl)
 		// the line number isn't reversed
 		copy_text_attr(off + wp->w_width - len - col,
 					(char_u *)"  ", len, HL_ATTR(HLF_FL));
 	    else
-# endif
+#  endif
 		copy_text_attr(off + col, (char_u *)"  ", len, HL_ATTR(HLF_FL));
 	    col += len;
 	}
     }
-#endif
+# endif
 
     // 3. Add the 'number' or 'relativenumber' column
     if (wp->w_p_nu || wp->w_p_rnu)
@@ -1231,13 +1246,13 @@ fold_line(
 	    }
 
 	    vim_snprintf((char *)buf, sizeof(buf), fmt, w, num);
-#ifdef FEAT_RIGHTLEFT
+# ifdef FEAT_RIGHTLEFT
 	    if (wp->w_p_rl)
 		// the line number isn't reversed
 		copy_text_attr(off + wp->w_width - len - col, buf, len,
 							     HL_ATTR(HLF_FL));
 	    else
-#endif
+# endif
 		copy_text_attr(off + col, buf, len, HL_ATTR(HLF_FL));
 	    col += len;
 	}
@@ -1255,35 +1270,33 @@ fold_line(
     col = text_to_screenline(wp, text, col);
 
     // Fill the rest of the line with the fold filler
-#ifdef FEAT_RIGHTLEFT
-    if (wp->w_p_rl)
-	col -= txtcol;
-#endif
-    while (col < wp->w_width
-#ifdef FEAT_RIGHTLEFT
-		    - (wp->w_p_rl ? txtcol : 0)
-#endif
-	    )
+    while (col < wp->w_width)
     {
 	int c = wp->w_fill_chars.fold;
+	int idx = off + col;
+
+# ifdef FEAT_RIGHTLEFT
+	if (wp->w_p_rl)
+	    idx = off + wp->w_width - 1 - col;
+# endif
 
 	if (enc_utf8)
 	{
 	    if (c >= 0x80)
 	    {
-		ScreenLinesUC[off + col] = c;
-		ScreenLinesC[0][off + col] = 0;
-		ScreenLines[off + col] = 0x80; // avoid storing zero
+		ScreenLinesUC[idx] = c;
+		ScreenLinesC[0][idx] = 0;
+		ScreenLines[idx] = 0x80; // avoid storing zero
 	    }
 	    else
 	    {
-		ScreenLinesUC[off + col] = 0;
-		ScreenLines[off + col] = c;
+		ScreenLinesUC[idx] = 0;
+		ScreenLines[idx] = c;
 	    }
-	    col++;
 	}
 	else
-	    ScreenLines[off + col++] = c;
+	    ScreenLines[idx] = c;
+	++col;
     }
 
     if (text != buf)
@@ -1339,7 +1352,7 @@ fold_line(
 	}
     }
 
-#ifdef FEAT_SYN_HL
+# ifdef FEAT_SYN_HL
     // Show colorcolumn in the fold line, but let cursorcolumn override it.
     if (wp->w_p_cc_cols)
     {
@@ -1374,7 +1387,7 @@ fold_line(
 	    ScreenAttrs[off + txtcol] = hl_combine_attr(
 				 ScreenAttrs[off + txtcol], HL_ATTR(HLF_CUC));
     }
-#endif
+# endif
 
     screen_line(wp, row + W_WINROW(wp), wp->w_wincol, wp->w_width, wp->w_width,
 	    -1, 0);
@@ -2133,11 +2146,11 @@ win_update(win_T *wp)
 		else if (!scrolled_down)
 		    srow += wp->w_lines[idx].wl_size;
 		++idx;
-# ifdef FEAT_FOLDING
+#ifdef FEAT_FOLDING
 		if (idx < wp->w_lines_valid && wp->w_lines[idx].wl_valid)
 		    lnum = wp->w_lines[idx].wl_lnum;
 		else
-# endif
+#endif
 		    ++lnum;
 	    }
 	    srow += mid_start;
@@ -2282,11 +2295,11 @@ win_update(win_T *wp)
 	    // When at start of changed lines: May scroll following lines
 	    // up or down to minimize redrawing.
 	    // Don't do this when the change continues until the end.
-	    // Don't scroll the top area which was already scrolled above,
-	    // but do scroll for changed lines below the top area.
+	    // Don't scroll for changed lines in the top area if that's already
+	    // done above, but do scroll for changed lines below the top area.
 	    if (!scrolled_for_mod && mod_bot != MAXLNUM
 		    && lnum >= mod_top && lnum < MAX(mod_bot, mod_top + 1)
-		    && row >= top_end)
+		    && (!scrolled_down || row >= top_end))
 	    {
 		scrolled_for_mod = TRUE;
 
@@ -2827,19 +2840,19 @@ update_prepare(void)
 {
     cursor_off();
     updating_screen = TRUE;
-#ifdef FEAT_GUI
+# ifdef FEAT_GUI
     // Remove the cursor before starting to do anything, because scrolling may
     // make it difficult to redraw the text under it.
     if (gui.in_use)
 	gui_undraw_cursor();
-#endif
-#ifdef FEAT_SEARCH_EXTRA
+# endif
+# ifdef FEAT_SEARCH_EXTRA
     start_search_hl();
-#endif
-#ifdef FEAT_PROP_POPUP
+# endif
+# ifdef FEAT_PROP_POPUP
     // Update popup_mask if needed.
     may_update_popup_mask(must_redraw);
-#endif
+# endif
 }
 
 /*
@@ -2893,9 +2906,9 @@ update_debug_sign(buf_T *buf, linenr_T lnum)
     if (!doit || updating_screen
 	    || State == MODE_ASKMORE || State == MODE_HITRETURN
 	    || msg_scrolled
-#ifdef FEAT_GUI
+# ifdef FEAT_GUI
 	    || gui.starting
-#endif
+# endif
 	    || starting)
 	return;
 
@@ -2910,10 +2923,10 @@ update_debug_sign(buf_T *buf, linenr_T lnum)
 	    win_redr_status(wp, FALSE);
     }
 
-#if defined(FEAT_TABPANEL)
+# if defined(FEAT_TABPANEL)
     if (redraw_tabpanel)
 	draw_tabpanel();
-#endif
+# endif
 
     update_finish();
 }
@@ -2933,13 +2946,13 @@ updateWindow(win_T *wp)
 
     update_prepare();
 
-#ifdef FEAT_CLIPBOARD
+# ifdef FEAT_CLIPBOARD
     // When Visual area changed, may have to update selection.
     if (clip_star.available && clip_isautosel_star())
 	clip_update_selection(&clip_star);
     if (clip_plus.available && clip_isautosel_plus())
 	clip_update_selection(&clip_plus);
-#endif
+# endif
 
     win_update(wp);
 
@@ -2947,10 +2960,10 @@ updateWindow(win_T *wp)
     if (redraw_tabline)
 	draw_tabline();
 
-#if defined(FEAT_TABPANEL)
+# if defined(FEAT_TABPANEL)
     if (redraw_tabpanel)
 	draw_tabpanel();
-#endif
+# endif
 
     if (wp->w_redr_status || p_ru
 # ifdef FEAT_STL_OPT
@@ -2959,10 +2972,10 @@ updateWindow(win_T *wp)
 	    )
 	win_redr_status(wp, FALSE);
 
-#ifdef FEAT_PROP_POPUP
+# ifdef FEAT_PROP_POPUP
     // Display popup windows on top of everything.
     update_popups(win_update);
-#endif
+# endif
 
     update_finish();
 }
@@ -3185,6 +3198,13 @@ redraw_win_later(
     win_T	*wp,
     int		type)
 {
+#ifdef FEAT_EVAL
+    // If inside a redraw_listener_add() callback, then only set the redraw type
+    // for the window and not request another one right after.
+    if (inside_redraw_on_start_cb && wp->w_redr_type < type)
+	wp->w_redr_type = type;
+    else
+#endif
     if (!exiting && !redraw_not_allowed && wp->w_redr_type < type)
     {
 	wp->w_redr_type = type;
@@ -3228,9 +3248,9 @@ redraw_all_later(int type)
 redraw_all_windows_later(int type)
 {
     redraw_all_later(type);
-#ifdef FEAT_PROP_POPUP
+# ifdef FEAT_PROP_POPUP
     popup_redraw_all();		// redraw all popup windows
-#endif
+# endif
 }
 #endif
 
@@ -3241,7 +3261,11 @@ redraw_all_windows_later(int type)
     void
 set_must_redraw(int type)
 {
-    if (!redraw_not_allowed && must_redraw < type)
+    if (!redraw_not_allowed &&
+#ifdef FEAT_EVAL
+	    !inside_redraw_on_start_cb &&
+#endif
+	    must_redraw < type)
 	must_redraw = type;
 }
 
@@ -3410,3 +3434,187 @@ redraw_win_range_later(
 	redraw_win_later(wp, UPD_VALID);
     }
 }
+
+#ifdef FEAT_EVAL
+static __thread bool redraw_cb_in_progress = false;
+
+    void
+f_redraw_listener_add(typval_T *argvars, typval_T *rettv)
+{
+    redraw_listener_T	*rln;
+    dict_T		*dict;
+    typval_T		tv;
+    bool		got_one = false;
+    static __thread int		id;
+
+    if (redraw_cb_in_progress)
+    {
+	emsg(_(e_cannot_add_redraw_listener_in_listener_callback));
+	return;
+    }
+
+    if (check_for_dict_arg(argvars, 0) == FAIL)
+	return;
+
+    rln = ALLOC_CLEAR_ONE(redraw_listener_T);
+
+    if (rln == NULL)
+	return;
+    dict = argvars[0].vval.v_dict;
+
+    /*
+     * on_start: called on each screen redraw
+     *
+     * on_end: called at the end of a redraw cycle
+     */
+    if (dict_get_tv(dict, "on_start", &tv) == OK)
+    {
+	callback_T cb = get_callback(&tv);
+
+	if (cb.cb_name == NULL)
+	{
+	    clear_tv(&tv);
+	    vim_free(rln);
+	    return;
+	}
+	copy_callback(&rln->rl_callbacks.on_start, &cb);
+	free_callback(&cb);
+	clear_tv(&tv);
+	got_one = true;
+    }
+
+    if (dict_get_tv(dict, "on_end", &tv) == OK)
+    {
+	callback_T cb = get_callback(&tv);
+
+	if (cb.cb_name == NULL)
+	{
+	    clear_tv(&tv);
+	    free_callback(&rln->rl_callbacks.on_start);
+	    vim_free(rln);
+	    return;
+	}
+	copy_callback(&rln->rl_callbacks.on_end, &cb);
+	free_callback(&cb);
+	clear_tv(&tv);
+	got_one = true;
+    }
+
+    if (!got_one)
+    {
+	emsg(_(e_no_redraw_listener_callbacks_defined));
+	vim_free(rln);
+	return;
+    }
+
+    rln->rl_next = redraw_listeners;
+    redraw_listeners = rln;
+    rln->rl_id = ++id; // Never zero
+
+    rettv->v_type = VAR_NUMBER;
+    rettv->vval.v_number = id;
+
+    return;
+}
+
+    static void
+redraw_listener_free(redraw_listener_T *rln)
+{
+    free_callback(&rln->rl_callbacks.on_start);
+    free_callback(&rln->rl_callbacks.on_end);
+
+    vim_free(rln);
+}
+
+
+    static void
+redraw_listener_cleanup(void)
+{
+    for (redraw_listener_T *rln = redraw_listeners; rln != NULL;)
+    {
+	redraw_listener_T *next = rln->rl_next;
+	if (rln->rl_id == 0)
+	{
+	    if (redraw_listeners == rln)
+		redraw_listeners = rln->rl_next;
+	    redraw_listener_free(rln);
+	}
+	rln = next;
+    }
+}
+
+/*
+ * Return the redraw listener struct with the specified id. Returns NULL if not
+ * found.
+ */
+    static redraw_listener_T *
+get_redraw_listener(int id)
+{
+    for (redraw_listener_T *rln = redraw_listeners; rln != NULL; rln = rln->rl_next)
+	if (rln->rl_id == id)
+	    return rln;
+    return NULL;
+}
+
+    void
+f_redraw_listener_remove(typval_T *argvars, typval_T *rettv UNUSED)
+{
+    int			id;
+    redraw_listener_T	*rln;
+
+    if (check_for_number_arg(argvars, 0) == FAIL)
+	return;
+
+    id = argvars[0].vval.v_number;
+    rln = get_redraw_listener(id);
+
+    rettv->v_type = VAR_NUMBER;
+    if (rln == NULL)
+    {
+	rettv->vval.v_number = 0;
+	return;
+    }
+
+    // We set the id to zero instead of freeing it here, since we still need
+    // rl_next from it.
+    rln->rl_id = 0;
+    rettv->vval.v_number = 1;
+}
+
+/*
+ * Invoke the on_start callbacks.
+ */
+    static void
+invoke_redraw_listener_start_or_end(bool start)
+{
+    typval_T argv[1];
+    typval_T rettv;
+
+    argv[0].v_type = VAR_UNKNOWN;
+
+    if (start)
+	inside_redraw_on_start_cb = true;
+
+    redraw_cb_in_progress = true;
+    for (redraw_listener_T *rln = redraw_listeners; rln != NULL; rln = rln->rl_next)
+    {
+	if (rln->rl_id == 0)
+	    // Listener has been removed, skip
+	    continue;
+	if (start && rln->rl_callbacks.on_start.cb_name != NULL)
+	{
+	    call_callback(&rln->rl_callbacks.on_start, -1, &rettv, 0, argv);
+	    clear_tv(&rettv);
+	}
+	else if (rln->rl_callbacks.on_end.cb_name != NULL)
+	{
+	    call_callback(&rln->rl_callbacks.on_end, -1, &rettv, 0, argv);
+	    clear_tv(&rettv);
+	}
+    }
+    redraw_cb_in_progress = false;
+
+    if (start)
+	inside_redraw_on_start_cb = false;
+}
+#endif // FEAT_EVAL

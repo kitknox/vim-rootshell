@@ -684,8 +684,8 @@ event_name2nr(char_u *start, char_u **end)
     char_u	*p;
     keyvalue_T target;
     keyvalue_T *entry;
-    static keyvalue_T *bufnewfile = &event_tab[BUFNEWFILE_INDEX];
-    static keyvalue_T *bufread = &event_tab[BUFREAD_INDEX];
+    static __thread keyvalue_T *bufnewfile = &event_tab[BUFNEWFILE_INDEX];
+    static __thread keyvalue_T *bufread = &event_tab[BUFREAD_INDEX];
 
     // the event name ends with end of line, '|', a blank or a comma
     for (p = start; *p && !VIM_ISWHITE(*p) && *p != ',' && *p != '|'; ++p)
@@ -721,8 +721,8 @@ event_nr2name(event_T event)
 {
     int	    i;
 #define CACHE_SIZE 12
-    static int cache_tab[CACHE_SIZE];
-    static int cache_last_index = -1;
+    static __thread int cache_tab[CACHE_SIZE];
+    static __thread int cache_last_index = -1;
 
     if (cache_last_index < 0)
     {
@@ -859,7 +859,7 @@ check_ei(char_u *ei)
     return OK;
 }
 
-# if defined(FEAT_SYN_HL)
+#if defined(FEAT_SYN_HL)
 
 /*
  * Add "what" to 'eventignore' to skip loading syntax highlighting for every
@@ -905,7 +905,7 @@ au_event_restore(char_u *old_ei)
 	vim_free(old_ei);
     }
 }
-# endif  // FEAT_SYN_HL
+#endif  // FEAT_SYN_HL
 
 /*
  * do_autocmd() -- implements the :autocmd command.  Can be used in the
@@ -1636,7 +1636,6 @@ aucmd_prepbuf(
 
     aco->save_curwin_id = curwin->w_id;
     aco->save_prevwin_id = prevwin == NULL ? 0 : prevwin->w_id;
-    aco->save_State = State;
 #ifdef FEAT_JOB_CHANNEL
     if (bt_prompt(curbuf))
 	aco->save_prompt_insert = curbuf->b_prompt_insert;
@@ -1736,14 +1735,6 @@ aucmd_restbuf(
 	}
 win_found:
 	--curbuf->b_nwindows;
-#ifdef FEAT_JOB_CHANNEL
-	int save_stop_insert_mode = stop_insert_mode;
-	// May need to stop Insert mode if we were in a prompt buffer.
-	leaving_window(curwin);
-	// Do not stop Insert mode when already in Insert mode before.
-	if (aco->save_State & MODE_INSERT)
-	    stop_insert_mode = save_stop_insert_mode;
-#endif
 	// Remove the window and frame from the tree of frames.
 	(void)winframe_remove(curwin, &dummy, NULL, NULL);
 	win_remove(curwin, NULL);
@@ -1823,10 +1814,10 @@ win_found:
 		    && bufref_valid(&aco->new_curbuf)
 		    && aco->new_curbuf.br_buf->b_ml.ml_mfp != NULL)
 	    {
-# if defined(FEAT_SYN_HL) || defined(FEAT_SPELL)
+#if defined(FEAT_SYN_HL) || defined(FEAT_SPELL)
 		if (curwin->w_s == &curbuf->b_s)
 		    curwin->w_s = &aco->new_curbuf.br_buf->b_s;
-# endif
+#endif
 		--curbuf->b_nwindows;
 		curbuf = aco->new_curbuf.br_buf;
 		curwin->w_buffer = curbuf;
@@ -2098,7 +2089,7 @@ apply_autocmds_group(
     char_u	*save_autocmd_match;
     int		save_autocmd_busy;
     int		save_autocmd_nested;
-    static int	nesting = 0;
+    static __thread int	nesting = 0;
     AutoPatCmd_T patcmd;
     AutoPat	*ap;
     sctx_T	save_current_sctx;
@@ -2107,7 +2098,7 @@ apply_autocmds_group(
     char_u	*save_cmdarg;
     long	save_cmdbang;
 #endif
-    static int	filechangeshell_busy = FALSE;
+    static __thread int	filechangeshell_busy = FALSE;
 #ifdef FEAT_PROFILE
     proftime_T	wait_time;
 #endif
@@ -2539,14 +2530,14 @@ BYPASS_AU:
     return retval;
 }
 
-# ifdef FEAT_EVAL
+#ifdef FEAT_EVAL
 static __thread char_u	*old_termresponse = NULL;
 static __thread char_u	*old_termu7resp = NULL;
 static __thread char_u	*old_termblinkresp = NULL;
 static __thread char_u	*old_termrbgresp = NULL;
 static __thread char_u	*old_termrfgresp = NULL;
 static __thread char_u	*old_termstyleresp = NULL;
-# endif
+#endif
 
 /*
  * Block triggering autocommands until unblock_autocmd() is called.
@@ -2555,7 +2546,7 @@ static __thread char_u	*old_termstyleresp = NULL;
     void
 block_autocmds(void)
 {
-# ifdef FEAT_EVAL
+#ifdef FEAT_EVAL
     // Remember the value of v:termresponse.
     if (autocmd_blocked == 0)
     {
@@ -2566,7 +2557,7 @@ block_autocmds(void)
 	old_termrfgresp = get_vim_var_str(VV_TERMRFGRESP);
 	old_termstyleresp = get_vim_var_str(VV_TERMSTYLERESP);
     }
-# endif
+#endif
     ++autocmd_blocked;
 }
 
@@ -2575,7 +2566,7 @@ unblock_autocmds(void)
 {
     --autocmd_blocked;
 
-# ifdef FEAT_EVAL
+#ifdef FEAT_EVAL
     // When v:termresponse, etc, were set while autocommands were blocked,
     // trigger the autocommands now.  Esp. useful when executing a shell
     // command during startup (vimdiff).
@@ -2607,7 +2598,7 @@ unblock_autocmds(void)
 	    apply_autocmds(EVENT_TERMRESPONSEALL, (char_u *)"cursorshape", NULL, FALSE, curbuf);
 	}
     }
-# endif
+#endif
 }
 
     int

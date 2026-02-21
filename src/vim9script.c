@@ -1111,7 +1111,7 @@ check_script_var_type(
 
 // words that cannot be used as a variable
 // Keep this array sorted, as bsearch() is used to search this array.
-static char *reserved[] = {
+static __thread char *reserved[] = {
     "false",
     "null",
     "null_blob",

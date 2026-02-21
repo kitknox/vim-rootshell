@@ -25,7 +25,7 @@
 #define SPO_LC_OFF	6	// leading context offset
 #define SPO_COUNT	7
 
-static char *(spo_name_tab[SPO_COUNT]) =
+static __thread char *(spo_name_tab[SPO_COUNT]) =
 	    {"ms=", "me=", "hs=", "he=", "rs=", "re=", "lc="};
 
 /*
@@ -363,7 +363,7 @@ syntax_start(win_T *wp, linenr_T lnum)
     linenr_T	parsed_lnum;
     linenr_T	first_stored;
     int		dist;
-    static varnumber_T changedtick = 0;	// remember the last change ID
+    static __thread varnumber_T changedtick = 0;	// remember the last change ID
 
 #ifdef FEAT_CONCEAL
     current_sub_char = NUL;
@@ -3958,7 +3958,7 @@ syn_list_one(
     int		idx;
     int		did_header = FALSE;
     synpat_T	*spp;
-    static keyvalue_T namelist1[] =
+    static __thread keyvalue_T namelist1[] =
 		{
 		    KEYVALUE_ENTRY(HL_DISPLAY, "display"),
 		    KEYVALUE_ENTRY(HL_CONTAINED, "contained"),
@@ -3974,7 +3974,7 @@ syn_list_one(
 		    KEYVALUE_ENTRY(HL_CONCEALENDS, "concealends")
 #endif
 		};
-    static keyvalue_T namelist2[] =
+    static __thread keyvalue_T namelist2[] =
 		{
 		    KEYVALUE_ENTRY(HL_SKIPWHITE, "skipwhite"),
 		    KEYVALUE_ENTRY(HL_SKIPNL, "skipnl"),
@@ -4150,7 +4150,7 @@ put_pattern(
     long	n;
     int		mask;
     int		first;
-    static char	*sepchars = "/+=-#@\"|'^&";
+    static __thread char	*sepchars = "/+=-#@\"|'^&";
     int		i;
 
     // May have to write "matchgroup=group"
@@ -4525,7 +4525,7 @@ get_syn_options(
 		    {"cCoOnNtTaAiInNeEdDiInN",	2,	0},
 		    {"nNeExXtTgGrRoOuUpP",	3,	0},
 		};
-    static char *first_letters = "cCoOkKeEtTsSgGdDfFnN";
+    static __thread char *first_letters = "cCoOkKeEtTsSgGdDfFnN";
 
     if (arg == NULL)		// already detected error
 	return NULL;
@@ -6229,7 +6229,7 @@ struct subcommand
     void    (*func)(exarg_T *, int);	// function to call
 };
 
-static struct subcommand subcommands[] =
+static __thread struct subcommand subcommands[] =
 {
     {"case",		syn_cmd_case},
     {"clear",		syn_cmd_clear},
@@ -6352,7 +6352,7 @@ syntax_present(win_T *win)
 }
 
 
-static __thread enum
+static enum
 {
     EXP_SUBCMD,	    // expand ":syn" sub-commands
     EXP_CASE,	    // expand ":syn case" arguments
@@ -6447,18 +6447,18 @@ get_syntax_name(expand_T *xp, int idx)
 	    return (char_u *)subcommands[idx].name;
 	case EXP_CASE:
 	{
-	    static char *case_args[] = {"match", "ignore", NULL};
+	    static __thread char *case_args[] = {"match", "ignore", NULL};
 	    return (char_u *)case_args[idx];
 	}
 	case EXP_SPELL:
 	{
-	    static char *spell_args[] =
+	    static __thread char *spell_args[] =
 		{"toplevel", "notoplevel", "default", NULL};
 	    return (char_u *)spell_args[idx];
 	}
 	case EXP_SYNC:
 	{
-	    static char *sync_args[] =
+	    static __thread char *sync_args[] =
 		{"ccomment", "clear", "fromstart",
 		 "linebreaks=", "linecont", "lines=", "match",
 		 "maxlines=", "minlines=", "region", NULL};

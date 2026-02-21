@@ -233,7 +233,7 @@ enum
 };
 
 // Keep in sync with classchars.
-static int nfa_classcodes[] = {
+static __thread int nfa_classcodes[] = {
     NFA_ANY, NFA_IDENT, NFA_SIDENT, NFA_KWORD,NFA_SKWORD,
     NFA_FNAME, NFA_SFNAME, NFA_PRINT, NFA_SPRINT,
     NFA_WHITE, NFA_NWHITE, NFA_DIGIT, NFA_NDIGIT,
@@ -244,18 +244,18 @@ static int nfa_classcodes[] = {
 };
 
 // Variables only used in nfa_regcomp() and descendants.
-static __thread int nfa_re_flags = 0; // re_flags passed to nfa_regcomp()
-static __thread int *post_start = NULL;  // holds the postfix form of r.e.
-static __thread int *post_end = NULL;
-static __thread int *post_ptr = NULL;
+static __thread int nfa_re_flags; // re_flags passed to nfa_regcomp()
+static __thread int *post_start;  // holds the postfix form of r.e.
+static __thread int *post_end;
+static __thread int *post_ptr;
 
 // Set when the pattern should use the NFA engine.
 // E.g. [[:upper:]] only allows 8bit characters for BT engine,
 // while NFA engine handles multibyte characters correctly.
-// NOTE: wants_nfa is defined in regexp.c (which #includes this file)
+static __thread int wants_nfa;
 
-static __thread int nstate = 0;	// Number of states in the NFA.
-static __thread int istate = 0;	// Index in the state vector, used in alloc_state()
+static __thread int nstate;	// Number of states in the NFA.
+static __thread int istate;	// Index in the state vector, used in alloc_state()
 
 // If not NULL match must end at this position
 static __thread save_se_T *nfa_endp = NULL;
@@ -544,14 +544,14 @@ realloc_post_list(void)
     static int
 nfa_recognize_char_class(char_u *start, char_u *end, int extra_newl)
 {
-#   define CLASS_not		0x80
-#   define CLASS_af		0x40
-#   define CLASS_AF		0x20
-#   define CLASS_az		0x10
-#   define CLASS_AZ		0x08
-#   define CLASS_o7		0x04
-#   define CLASS_o9		0x02
-#   define CLASS_underscore	0x01
+#define CLASS_not		0x80
+#define CLASS_af		0x40
+#define CLASS_AF		0x20
+#define CLASS_az		0x10
+#define CLASS_AZ		0x08
+#define CLASS_o7		0x04
+#define CLASS_o9		0x02
+#define CLASS_underscore	0x01
 
     int		newl = FALSE;
     char_u	*p;
@@ -2600,7 +2600,7 @@ nfa_set_code(int c)
 	case NFA_BACKREF7:  STRCPY(code, "NFA_BACKREF7"); break;
 	case NFA_BACKREF8:  STRCPY(code, "NFA_BACKREF8"); break;
 	case NFA_BACKREF9:  STRCPY(code, "NFA_BACKREF9"); break;
-#ifdef FEAT_SYN_HL
+# ifdef FEAT_SYN_HL
 	case NFA_ZREF1:	    STRCPY(code, "NFA_ZREF1"); break;
 	case NFA_ZREF2:	    STRCPY(code, "NFA_ZREF2"); break;
 	case NFA_ZREF3:	    STRCPY(code, "NFA_ZREF3"); break;
@@ -2610,7 +2610,7 @@ nfa_set_code(int c)
 	case NFA_ZREF7:	    STRCPY(code, "NFA_ZREF7"); break;
 	case NFA_ZREF8:	    STRCPY(code, "NFA_ZREF8"); break;
 	case NFA_ZREF9:	    STRCPY(code, "NFA_ZREF9"); break;
-#endif
+# endif
 	case NFA_SKIP:	    STRCPY(code, "NFA_SKIP"); break;
 
 	case NFA_PREV_ATOM_NO_WIDTH:
@@ -2676,7 +2676,7 @@ nfa_set_code(int c)
 	    STRCPY(code, "NFA_MCLOSE(x)");
 	    code[11] = c - NFA_MCLOSE + '0';
 	    break;
-#ifdef FEAT_SYN_HL
+# ifdef FEAT_SYN_HL
 	case NFA_ZOPEN:
 	case NFA_ZOPEN1:
 	case NFA_ZOPEN2:
@@ -2703,7 +2703,7 @@ nfa_set_code(int c)
 	    STRCPY(code, "NFA_ZCLOSE(x)");
 	    code[11] = c - NFA_ZCLOSE + '0';
 	    break;
-#endif
+# endif
 	case NFA_EOL:		STRCPY(code, "NFA_EOL "); break;
 	case NFA_BOL:		STRCPY(code, "NFA_BOL "); break;
 	case NFA_EOW:		STRCPY(code, "NFA_EOW "); break;
@@ -2803,8 +2803,8 @@ nfa_set_code(int c)
 
 }
 
-#ifdef ENABLE_LOG
-static __thread FILE *log_fd = NULL;
+# ifdef ENABLE_LOG
+static __thread FILE *log_fd;
 static char_u e_log_open_failed[] = N_("Could not open temporary log file for writing, displaying on stderr... ");
 
 /*
@@ -2891,16 +2891,16 @@ nfa_print_state2(FILE *debugf, nfa_state_T *state, garray_T *indent)
     // grow indent for state->out
     indent->ga_len -= 1;
     if (state->out1)
-	ga_concat(indent, (char_u *)"| ");
+	ga_concat_len(indent, (char_u *)"| ", 2);
     else
-	ga_concat(indent, (char_u *)"  ");
+	ga_concat_len(indent, (char_u *)"  ", 2);
     ga_append(indent, NUL);
 
     nfa_print_state2(debugf, state->out, indent);
 
     // replace last part of indent for state->out1
     indent->ga_len -= 3;
-    ga_concat(indent, (char_u *)"  ");
+    ga_concat_len(indent, (char_u *)"  ", 2);
     ga_append(indent, NUL);
 
     nfa_print_state2(debugf, state->out1, indent);
@@ -2933,7 +2933,7 @@ nfa_dump(nfa_regprog_T *prog)
 
     fclose(debugf);
 }
-#endif	    // ENABLE_LOG
+# endif	    // ENABLE_LOG
 #endif	    // DEBUG
 
 /*
@@ -2958,7 +2958,7 @@ re2post(void)
  * If c < 256, labeled arrow with character c to out.
  */
 
-static __thread nfa_state_T	*state_ptr = NULL; // points to nfa_prog->state
+static __thread nfa_state_T	*state_ptr; // points to nfa_prog->state
 
 /*
  * Allocate and initialize nfa_state_T.
@@ -4072,7 +4072,7 @@ log_subexpr(regsub_T *sub)
     static char *
 pim_info(nfa_pim_T *pim)
 {
-    static char buf[30];
+    static __thread char buf[30];
 
     if (pim == NULL || pim->result == NFA_PIM_UNUSED)
 	buf[0] = NUL;
@@ -5878,9 +5878,9 @@ nfa_regmatch(
 	++rex.nfa_listid;
 	if (prog->re_engine == AUTOMATIC_ENGINE
 		&& (rex.nfa_listid >= NFA_MAX_STATES
-# ifdef FEAT_EVAL
+#ifdef FEAT_EVAL
 		    || nfa_fail_for_testing
-# endif
+#endif
 		    ))
 	{
 	    // too many states, retry with old engine

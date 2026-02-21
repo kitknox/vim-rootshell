@@ -69,7 +69,7 @@ typedef struct pointer_entry	PTR_EN;	    // block/line-count pair
 #define BLOCK0_ID1_C4  's'		    // block 0 id 1 'cm' 4
 
 #if defined(FEAT_CRYPT)
-static int id1_codes[] = {
+static __thread int id1_codes[] = {
     BLOCK0_ID1_C0,  // CRYPT_M_ZIP
     BLOCK0_ID1_C1,  // CRYPT_M_BF
     BLOCK0_ID1_C2,  // CRYPT_M_BF2
@@ -516,10 +516,10 @@ ml_set_crypt_key(
 	return;  // no memfile yet, nothing to do
     old_method = crypt_method_nr_from_name(old_cm);
 
-#ifdef FEAT_CRYPT
+# ifdef FEAT_CRYPT
     if (crypt_may_close_swapfile(buf, buf->b_p_key, crypt_get_method_nr(buf)))
 	return;
-#endif
+# endif
 
     // First make sure the swapfile is in a consistent state, using the old
     // key and method.
@@ -1136,7 +1136,7 @@ add_b0_fenc(
     static int
 swapfile_process_running(ZERO_BL *b0p, char_u *swap_fname UNUSED)
 {
-#if defined(HAVE_SYSINFO) && defined(HAVE_SYSINFO_UPTIME)
+# if defined(HAVE_SYSINFO) && defined(HAVE_SYSINFO_UPTIME)
     stat_T	    st;
     struct sysinfo  sinfo;
 
@@ -2404,11 +2404,11 @@ recov_file_names(char_u **names, char_u *path, int prepend_dot)
      */
     char_u	*p;
     int		i;
-# ifndef MSWIN
+#ifndef MSWIN
     int	    shortname = curbuf->b_shortname;
 
     curbuf->b_shortname = FALSE;
-# endif
+#endif
 
     num_names = 0;
 
@@ -2449,16 +2449,16 @@ recov_file_names(char_u **names, char_u *path, int prepend_dot)
     else
 	++num_names;
 
-# ifndef MSWIN
+#ifndef MSWIN
     /*
      * Also try with 'shortname' set, in case the file is on a DOS filesystem.
      */
     curbuf->b_shortname = TRUE;
-#ifdef VMS
+# ifdef VMS
     names[num_names] = modname(path, (char_u *)"_sw%", FALSE);
-#else
+# else
     names[num_names] = modname(path, (char_u *)".sw?", FALSE);
-#endif
+# endif
     if (names[num_names] == NULL)
 	goto end;
 
@@ -2473,12 +2473,12 @@ recov_file_names(char_u **names, char_u *path, int prepend_dot)
 	vim_free(names[num_names]);
     else
 	++num_names;
-# endif
+#endif
 
 end:
-# ifndef MSWIN
+#ifndef MSWIN
     curbuf->b_shortname = shortname;
-# endif
+#endif
 
     return num_names;
 }
@@ -2941,7 +2941,7 @@ ml_append_int(
     int		line_count;	// number of indexes in current block
     int		offset;
     int		from, to;
-    int		space_needed;	// space needed for new line
+    long	space_needed;	// space needed for new line
     int		page_size;
     int		page_count;
     int		db_idx;		// index for lnum in data block
@@ -3018,7 +3018,7 @@ ml_append_int(
  * - not appending to the last line in the file
  * insert in front of the next block.
  */
-    if ((int)dp->db_free < space_needed && db_idx == line_count - 1
+    if ((long)dp->db_free < space_needed && db_idx == line_count - 1
 					    && lnum < buf->b_ml.ml_line_count)
     {
 	/*
@@ -3041,7 +3041,7 @@ ml_append_int(
 
     ++buf->b_ml.ml_line_count;
 
-    if ((int)dp->db_free >= space_needed)	// enough room in data block
+    if ((long)dp->db_free >= space_needed)	// enough room in data block
     {
 	/*
 	 * Insert the new line in an existing data block, or in the data block
@@ -3142,7 +3142,7 @@ ml_append_int(
 		data_moved = ((dp->db_index[db_idx]) & DB_INDEX_MASK) -
 							    dp->db_txt_start;
 		total_moved = data_moved + lines_moved * INDEX_SIZE;
-		if ((int)dp->db_free + total_moved >= space_needed)
+		if ((long)dp->db_free + total_moved >= space_needed)
 		{
 		    in_left = TRUE;	// put new line in left block
 		    space_needed = total_moved;
@@ -4138,7 +4138,7 @@ ml_flush_line(buf_T *buf)
     int		start;
     int		count;
     int		i;
-    static int  entered = FALSE;
+    static __thread int  entered = FALSE;
 
     if (buf->b_ml.ml_line_lnum == 0 || buf->b_ml.ml_mfp == NULL)
 	return;		// nothing to do
@@ -5678,8 +5678,8 @@ ml_crypt_prepare(memfile_T *mfp, off_T offset, int reading)
 
 #if defined(FEAT_BYTEOFF)
 
-#define MLCS_MAXL 800	// max no of lines in chunk
-#define MLCS_MINL 400   // should be half of MLCS_MAXL
+# define MLCS_MAXL 800	// max no of lines in chunk
+# define MLCS_MINL 400   // should be half of MLCS_MAXL
 
 /*
  * Keep information for finding byte offset of a line, updtype may be one of:
@@ -5695,10 +5695,10 @@ ml_updatechunk(
     long	len,
     int		updtype)
 {
-    static buf_T	*ml_upd_lastbuf = NULL;
-    static linenr_T	ml_upd_lastline;
-    static linenr_T	ml_upd_lastcurline;
-    static int		ml_upd_lastcurix;
+    static __thread buf_T	*ml_upd_lastbuf = NULL;
+    static __thread linenr_T	ml_upd_lastline;
+    static __thread linenr_T	ml_upd_lastcurline;
+    static __thread int		ml_upd_lastcurix;
 
     linenr_T		curline = ml_upd_lastcurline;
     int			curix = ml_upd_lastcurix;
@@ -5822,7 +5822,7 @@ ml_updatechunk(
 		    end_idx = count - 1;
 		    linecnt += rest;
 		}
-#ifdef FEAT_PROP_POPUP
+# ifdef FEAT_PROP_POPUP
 		if (buf->b_has_textprop)
 		{
 		    int i;
@@ -5835,7 +5835,7 @@ ml_updatechunk(
 				      + (dp->db_index[i] & DB_INDEX_MASK)) + 1;
 		}
 		else
-#endif
+# endif
 		{
 		    if (idx == 0) // first line in block, text at the end
 			text_end = dp->db_txt_end;
@@ -5995,9 +5995,9 @@ ml_find_line_or_offset(buf_T *buf, linenr_T lnum, long *offp)
 
     while ((lnum != 0 && curline < lnum) || (offset != 0 && size < offset))
     {
-#ifdef FEAT_PROP_POPUP
+# ifdef FEAT_PROP_POPUP
 	size_t textprop_total = 0;
-#endif
+# endif
 
 	if (curline > buf->b_ml.ml_line_count
 		|| (hp = ml_find_line(buf, curline, ML_FIND)) == NULL)
@@ -6023,7 +6023,7 @@ ml_find_line_or_offset(buf_T *buf, linenr_T lnum, long *offp)
 	    extra = 0;
 	    for (;;)
 	    {
-#ifdef FEAT_PROP_POPUP
+# ifdef FEAT_PROP_POPUP
 		size_t textprop_size = 0;
 
 		if (buf->b_has_textprop)
@@ -6036,20 +6036,20 @@ ml_find_line_or_offset(buf_T *buf, linenr_T lnum, long *offp)
 				  : ((dp->db_index[idx - 1]) & DB_INDEX_MASK));
 		    textprop_size = (l2 - l1) - (STRLEN(l1) + 1);
 		}
-#endif
+# endif
 		if (!(offset >= size
 			+ text_end - (int)((dp->db_index[idx]) & DB_INDEX_MASK)
-#ifdef FEAT_PROP_POPUP
+# ifdef FEAT_PROP_POPUP
 			- (long)(textprop_total + textprop_size)
-#endif
+# endif
 			+ ffdos))
 		    break;
 
 		if (ffdos)
 		    size++;
-#ifdef FEAT_PROP_POPUP
+# ifdef FEAT_PROP_POPUP
 		textprop_total += textprop_size;
-#endif
+# endif
 		if (idx == count - 1)
 		{
 		    extra = 1;
@@ -6058,7 +6058,7 @@ ml_find_line_or_offset(buf_T *buf, linenr_T lnum, long *offp)
 		idx++;
 	    }
 	}
-#ifdef FEAT_PROP_POPUP
+# ifdef FEAT_PROP_POPUP
 	if (buf->b_has_textprop && lnum != 0)
 	{
 	    int i;
@@ -6073,11 +6073,11 @@ ml_find_line_or_offset(buf_T *buf, linenr_T lnum, long *offp)
 	    }
 	}
 	else
-#endif
+# endif
 	    len = text_end - ((dp->db_index[idx]) & DB_INDEX_MASK)
-#ifdef FEAT_PROP_POPUP
+# ifdef FEAT_PROP_POPUP
 				- (long)textprop_total
-#endif
+# endif
 				;
 	size += len;
 	if (offset != 0 && size >= offset)
@@ -6089,9 +6089,9 @@ ml_find_line_or_offset(buf_T *buf, linenr_T lnum, long *offp)
 	    else
 		*offp = offset - size + len
 		     - (text_end - ((dp->db_index[idx - 1]) & DB_INDEX_MASK))
-#ifdef FEAT_PROP_POPUP
+# ifdef FEAT_PROP_POPUP
 		     + (long)textprop_total
-#endif
+# endif
 		     ;
 	    curline += idx - start_idx + extra;
 	    if (curline > buf->b_ml.ml_line_count)

@@ -221,7 +221,7 @@
 #endif
 #ifdef FEAT_ARABIC
 # ifndef FEAT_RIGHTLEFT
-#   define FEAT_RIGHTLEFT
+#  define FEAT_RIGHTLEFT
 # endif
 #endif
 
@@ -508,7 +508,7 @@
 /*
  * GUI dark theme variant
  */
-#if defined(FEAT_GUI_GTK) && defined(USE_GTK3)
+#if (defined(FEAT_GUI_GTK) && defined(USE_GTK3)) || defined(FEAT_GUI_MSWIN)
 # define FEAT_GUI_DARKTHEME
 #endif
 
@@ -974,9 +974,8 @@
 /*
  * +socketserver	 Use UNIX domain sockets for clientserver communication
  */
-#if defined(UNIX) && (defined(WANT_SOCKETSERVER) || \
-	(defined(MAYBE_SOCKETSERVER) && !defined(HAVE_X11)))
-#define FEAT_SOCKETSERVER
+#if defined(UNIX) && defined(WANT_SOCKETSERVER)
+# define FEAT_SOCKETSERVER
 #endif
 
 /*

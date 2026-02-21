@@ -37,6 +37,7 @@ screen_zindex = 0;
 #endif
 screen_Rows = 0;
 screen_Columns = 0;
+screen_opacity_popup = NULL;
 
 // Key modifiers
 mod_mask = 0;
@@ -270,6 +271,8 @@ diff_need_scrollbind = FALSE;
 // Screen update flags
 updating_screen = FALSE;
 redraw_not_allowed = FALSE;
+redraw_listeners = NULL;
+inside_redraw_on_start_cb = false;
 
 #ifdef MESSAGE_QUEUE
 dont_parse_messages = FALSE;
@@ -310,6 +313,7 @@ clip_autoselect_star = FALSE;
 clip_autoselect_plus = FALSE;
 clip_autoselectml = FALSE;
 clip_html = FALSE;
+clip_provider = NULL;
 clip_exclude_prog = NULL;
 clip_unnamed_saved = 0;
 #endif
@@ -559,6 +563,7 @@ msg_silent = 0;
 emsg_silent = 0;
 #ifdef FEAT_EVAL
 emsg_silent_def = 0;
+silence_w23_w24_msg = 0;
 #endif
 emsg_noredir = 0;
 cmd_silent = FALSE;

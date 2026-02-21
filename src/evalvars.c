@@ -168,6 +168,7 @@ static __thread struct vimvar
     {VV_NAME("termda1",		 VAR_STRING), NULL, VV_RO},
     {VV_NAME("termosc",	 VAR_STRING), NULL, VV_RO},
     {VV_NAME("vim_did_init",	 VAR_NUMBER), NULL, VV_RO},
+    {VV_NAME("clipproviders",	 VAR_DICT), NULL, VV_RO},
 };
 
 // shorthand
@@ -417,7 +418,7 @@ eval_charconvert(
     return OK;
 }
 
-# if defined(FEAT_POSTSCRIPT)
+#if defined(FEAT_POSTSCRIPT)
     int
 eval_printexpr(char_u *fname, char_u *args)
 {
@@ -445,9 +446,9 @@ eval_printexpr(char_u *fname, char_u *args)
     }
     return OK;
 }
-# endif
+#endif
 
-# if defined(FEAT_DIFF)
+#if defined(FEAT_DIFF)
     void
 eval_diff(
     char_u	*origfile,
@@ -503,7 +504,7 @@ eval_patch(
     set_vim_var_string(VV_FNAME_OUT, NULL, -1);
     current_sctx = saved_sctx;
 }
-# endif
+#endif
 
 #if defined(FEAT_SPELL)
 /*
@@ -2257,7 +2258,7 @@ report_lockvar_member(char *msg, lval_T *lp)
     int did_alloc = FALSE;
     char_u *vname = (char_u *)"";
     char_u *class_name = lp->ll_class != NULL
-				    ? lp->ll_class->class_name : (char_u *)"";
+				    ? lp->ll_class->class_name.string : (char_u *)"";
     if (lp->ll_name != NULL)
     {
 	if (lp->ll_name_end == NULL)
@@ -2985,7 +2986,7 @@ reset_reg_var(void)
 
     // Adjust the register according to 'clipboard', so that when
     // "unnamed" is present it becomes '*' or '+' instead of '"'.
-#ifdef FEAT_CLIPBOARD
+#ifdef HAVE_CLIPMETHOD
     adjust_clip_reg(&regname);
 #endif
     set_reg_var(regname);

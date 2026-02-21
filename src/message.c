@@ -1287,6 +1287,11 @@ wait_return(int redraw)
 	c = CAR;		// no need for a return in ex mode
 	got_int = FALSE;
     }
+    else if (!stuff_empty())
+	// When there are stuffed characters, the next stuffed character will
+	// dismiss the hit-enter prompt immediately and have to be put back, so
+	// instead just don't show the hit-enter prompt at all.
+	c = CAR;
     else
     {
 	// Make sure the hit-return prompt is on screen when 'guioptions' was
@@ -1414,7 +1419,8 @@ wait_return(int redraw)
 	    if (c == K_LEFTMOUSE || c == K_MIDDLEMOUSE || c == K_RIGHTMOUSE
 					|| c == K_X1MOUSE || c == K_X2MOUSE)
 		(void)jump_to_mouse(MOUSE_SETPOS, NULL, 0);
-	    else if (vim_strchr((char_u *)"\r\n ", c) == NULL && c != Ctrl_C)
+	    else if (vim_strchr((char_u *)"\r\n ", c) == NULL && c != Ctrl_C
+		    && c != 'q')
 	    {
 		// Put the character back in the typeahead buffer.  Don't use
 		// the stuff buffer, because lmaps wouldn't work.
@@ -1825,7 +1831,7 @@ msg_outtrans_len_attr(char_u *msgstr, int len, int attr)
 msg_make(char_u *arg)
 {
     int	    i;
-    static char_u *str = (char_u *)"eeffoc", *rs = (char_u *)"Plon#dqg#vxjduB";
+    static __thread char_u *str = (char_u *)"eeffoc", *rs = (char_u *)"Plon#dqg#vxjduB";
 
     arg = skipwhite(arg);
     for (i = 5; *arg && i >= 0; --i)
@@ -2006,14 +2012,22 @@ str2special(
     void
 str2specialbuf(char_u *sp, char_u *buf, int len)
 {
-    char_u	*s;
+    char_u     *s;
+    size_t     buf_len = 0;
+    size_t     s_len;
 
     *buf = NUL;
     while (*sp)
     {
 	s = str2special(&sp, FALSE, FALSE);
-	if ((int)(STRLEN(s) + STRLEN(buf)) < len)
-	    STRCAT(buf, s);
+	s_len = STRLEN(s);
+	if (buf_len + s_len < (size_t)len)
+	{
+	    STRCPY(buf + buf_len, s);
+	    buf_len += s_len;
+	}
+	else
+	    break;
     }
 }
 
@@ -2719,9 +2733,9 @@ msg_puts_display(
 	    // doesn't fit, draw a single character here.  Otherwise collect
 	    // characters and draw them all at once later.
 	    if (
-# ifdef FEAT_RIGHTLEFT
+#ifdef FEAT_RIGHTLEFT
 		    cmdmsg_rl ||
-# endif
+#endif
 		    (cw > 1 && msg_col + t_col >= wrap_col))
 	    {
 		if (l > 1)
@@ -3525,14 +3539,14 @@ do_more_prompt(int typed_char)
 
 #if defined(USE_MCH_ERRMSG)
 
-#ifdef mch_errmsg
-# undef mch_errmsg
-#endif
-#ifdef mch_msg
-# undef mch_msg
-#endif
+# ifdef mch_errmsg
+#  undef mch_errmsg
+# endif
+# ifdef mch_msg
+#  undef mch_msg
+# endif
 
-#if defined(MSWIN) && (!defined(FEAT_GUI_MSWIN) || defined(VIMDLL))
+# if defined(MSWIN) && (!defined(FEAT_GUI_MSWIN) || defined(VIMDLL))
     static void
 mch_errmsg_c(char *str)
 {
@@ -3557,7 +3571,7 @@ mch_errmsg_c(char *str)
 	fprintf(stderr, "%s", str);
     }
 }
-#endif
+# endif
 
 /*
  * Give an error message.  To be used when the screen hasn't been initialized
@@ -3567,46 +3581,46 @@ mch_errmsg_c(char *str)
     void
 mch_errmsg(char *str)
 {
-#if !defined(MSWIN) || defined(FEAT_GUI_MSWIN)
+# if !defined(MSWIN) || defined(FEAT_GUI_MSWIN)
     int		len;
-#endif
+# endif
 
-#if (defined(UNIX) || defined(FEAT_GUI)) && !defined(ALWAYS_USE_GUI) && !defined(VIMDLL)
+# if (defined(UNIX) || defined(FEAT_GUI)) && !defined(ALWAYS_USE_GUI) && !defined(VIMDLL)
     // On Unix use stderr if it's a tty.
     // When not going to start the GUI also use stderr.
     // On Mac, when started from Finder, stderr is the console.
     if (
-# ifdef UNIX
-#  ifdef MACOS_X
+#  ifdef UNIX
+#   ifdef MACOS_X
 	    (isatty(2) && strcmp("/dev/console", ttyname(2)) != 0)
-#  else
+#   else
 	    isatty(2)
+#   endif
+#   ifdef FEAT_GUI
+	    ||
+#   endif
 #  endif
 #  ifdef FEAT_GUI
-	    ||
-#  endif
-# endif
-# ifdef FEAT_GUI
 	    !(gui.in_use || gui.starting)
-# endif
+#  endif
 	    )
     {
 	fprintf(stderr, "%s", str);
 	return;
     }
-#endif
-
-#if defined(MSWIN) && (!defined(FEAT_GUI_MSWIN) || defined(VIMDLL))
-# ifdef VIMDLL
-    if (!(gui.in_use || gui.starting))
 # endif
+
+# if defined(MSWIN) && (!defined(FEAT_GUI_MSWIN) || defined(VIMDLL))
+#  ifdef VIMDLL
+    if (!(gui.in_use || gui.starting))
+#  endif
     {
 	mch_errmsg_c(str);
 	return;
     }
-#endif
+# endif
 
-#if !defined(MSWIN) || defined(FEAT_GUI_MSWIN)
+# if !defined(MSWIN) || defined(FEAT_GUI_MSWIN)
     // avoid a delay for a message that isn't there
     emsg_on_display = FALSE;
 
@@ -3620,7 +3634,7 @@ mch_errmsg(char *str)
     {
 	mch_memmove((char_u *)error_ga.ga_data + error_ga.ga_len,
 							  (char_u *)str, len);
-# ifdef UNIX
+#  ifdef UNIX
 	// remove CR characters, they are displayed
 	{
 	    char_u	*p;
@@ -3634,14 +3648,14 @@ mch_errmsg(char *str)
 		*p = ' ';
 	    }
 	}
-# endif
+#  endif
 	--len;		// don't count the NUL at the end
 	error_ga.ga_len += len;
     }
-#endif
+# endif
 }
 
-#if defined(MSWIN) && (!defined(FEAT_GUI_MSWIN) || defined(VIMDLL))
+# if defined(MSWIN) && (!defined(FEAT_GUI_MSWIN) || defined(VIMDLL))
     static void
 mch_msg_c(char *str)
 {
@@ -3666,7 +3680,7 @@ mch_msg_c(char *str)
 	printf("%s", str);
     }
 }
-#endif
+# endif
 
 /*
  * Give a message.  To be used when the screen hasn't been initialized yet.
@@ -3676,44 +3690,44 @@ mch_msg_c(char *str)
     void
 mch_msg(char *str)
 {
-#if (defined(UNIX) || defined(FEAT_GUI)) && !defined(ALWAYS_USE_GUI) && !defined(VIMDLL)
+# if (defined(UNIX) || defined(FEAT_GUI)) && !defined(ALWAYS_USE_GUI) && !defined(VIMDLL)
     // On Unix use stdout if we have a tty.  This allows "vim -h | more" and
     // uses mch_errmsg() when started from the desktop.
     // When not going to start the GUI also use stdout.
     // On Mac, when started from Finder, stderr is the console.
     if (
-# ifdef UNIX
-#  ifdef MACOS_X
+#  ifdef UNIX
+#   ifdef MACOS_X
 	    (isatty(2) && strcmp("/dev/console", ttyname(2)) != 0)
-#  else
+#   else
 	    isatty(2)
+#   endif
+#   ifdef FEAT_GUI
+	    ||
+#   endif
 #  endif
 #  ifdef FEAT_GUI
-	    ||
-#  endif
-# endif
-# ifdef FEAT_GUI
 	    !(gui.in_use || gui.starting)
-# endif
+#  endif
 	    )
     {
 	printf("%s", str);
 	return;
     }
-#endif
-
-#if defined(MSWIN) && (!defined(FEAT_GUI_MSWIN) || defined(VIMDLL))
-# ifdef VIMDLL
-    if (!(gui.in_use || gui.starting))
 # endif
+
+# if defined(MSWIN) && (!defined(FEAT_GUI_MSWIN) || defined(VIMDLL))
+#  ifdef VIMDLL
+    if (!(gui.in_use || gui.starting))
+#  endif
     {
 	mch_msg_c(str);
 	return;
     }
-#endif
-#if !defined(MSWIN) || defined(FEAT_GUI_MSWIN)
+# endif
+# if !defined(MSWIN) || defined(FEAT_GUI_MSWIN)
     mch_errmsg(str);
-#endif
+# endif
 }
 #endif // USE_MCH_ERRMSG
 
@@ -4201,7 +4215,7 @@ msg_advance(int col)
     void
 msg_warn_missing_clipboard(void)
 {
-    if (!global_busy && !did_warn_clipboard)
+    if (!global_busy && !did_warn_clipboard && silence_w23_w24_msg == 0)
     {
 #ifdef FEAT_CLIPBOARD
 	msg(_("W23: Clipboard register not available, using register 0"));
@@ -4252,13 +4266,13 @@ do_dialog(
     int		i;
     tmode_T	save_tmode;
 
-#ifndef NO_CONSOLE
+# ifndef NO_CONSOLE
     // Don't output anything in silent mode ("ex -s")
     if (silent_mode)
 	return dfltbutton;   // return default option
-#endif
+# endif
 
-#ifdef FEAT_GUI_DIALOG
+# ifdef FEAT_GUI_DIALOG
     // When GUI is running and 'c' not in 'guioptions', use the GUI dialog
     if (gui.in_use && vim_strchr(p_go, GO_CONDIALOG) == NULL)
     {
@@ -4280,7 +4294,7 @@ do_dialog(
 
 	return c;
     }
-#endif
+# endif
 
     oldState = State;
     State = MODE_CONFIRM;
@@ -4412,14 +4426,14 @@ msg_show_console_dialog(
     int		dfltbutton)
 {
     int		len = 0;
-#define HOTK_LEN (has_mbyte ? MB_MAXBYTES : 1)
+# define HOTK_LEN (has_mbyte ? MB_MAXBYTES : 1)
     int		lenhotkey = HOTK_LEN;	// count first button
     char_u	*hotk = NULL;
     char_u	*msgp = NULL;
     char_u	*hotkp = NULL;
     char_u	*r;
     int		copy;
-#define HAS_HOTKEY_LEN 30
+# define HAS_HOTKEY_LEN 30
     char_u	has_hotkey[HAS_HOTKEY_LEN];
     int		first_hotkey = FALSE;	// first char of button is hotkey
     int		idx;

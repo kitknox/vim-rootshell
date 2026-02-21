@@ -43,7 +43,7 @@ static __thread int next_sign_typenr = 1;
 static void sign_list_defined(sign_T *sp);
 static void sign_undefine(sign_T *sp, sign_T *sp_prev);
 
-static char *cmds[] = { "define",
+static __thread char *cmds[] = { "define",
 # define SIGNCMD_DEFINE 0
                         "undefine",
 # define SIGNCMD_UNDEFINE 1
@@ -1159,6 +1159,7 @@ sign_list_by_name(char_u *name)
 static void
 may_force_numberwidth_recompute(buf_T *buf, int unplace)
 {
+# if defined(FEAT_LINEBREAK)
     tabpage_T *tp = NULL;
     win_T *wp = NULL;
 
@@ -1169,6 +1170,7 @@ may_force_numberwidth_recompute(buf_T *buf, int unplace)
             (*wp->w_p_scl == 'n' && *(wp->w_p_scl + 1) == 'u'))
             wp->w_nrwidth_line_count = 0;
     }
+# endif
 }
 
 /*
@@ -2070,7 +2072,7 @@ free_signs(void)
 #endif
 }
 
-static __thread enum
+static enum
 {
     EXP_SUBCMD, // expand :sign sub-commands
     EXP_DEFINE, // expand :sign define {name} args

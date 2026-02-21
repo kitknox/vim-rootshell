@@ -684,6 +684,12 @@ static tcap_entry_T builtin_kitty[] = {
     // have been used.
     {(int)KS_CTE,	"\033[>4;m\033[=0;1u"},
 
+    // t_RF request terminal foreground color
+    {(int)KS_RFG,	"\033]10;?\033\\"},
+
+    // t_RB request terminal background color
+    {(int)KS_RBG,	"\033]11;?\033\\"},
+
     {(int)KS_NAME,	NULL}  // end marker
 };
 
@@ -702,7 +708,7 @@ static tcap_entry_T builtin_rgb[] = {
 #endif
 
 #ifdef HAVE_TGETENT
-static tcap_entry_T special_term[] = {
+static __thread tcap_entry_T special_term[] = {
     // These are printf strings, not terminal codes.
     {(int)KS_CF,	"\033[%dm"},
     {(int)KS_NAME,	NULL}  // end marker
@@ -1807,7 +1813,7 @@ term_strings_not_set(enum SpecialKey idx)
     static void
 get_term_entries(int *height, int *width)
 {
-    static struct {
+    static __thread struct {
 		    enum SpecialKey dest; // index in term_strings[]
 		    char *name;		  // termcap name for string
 		  } string_names[] =
@@ -1849,7 +1855,7 @@ get_term_entries(int *height, int *width)
     // iOS: TLS to support multiple vim sessions on the same thread
     static __thread char_u   tstrbuf[TBUFSZ];
 #else
-    static char_u   tstrbuf[TBUFSZ];
+    static __thread char_u   tstrbuf[TBUFSZ];
 #endif
     char_u	    *tp = tstrbuf;
 
@@ -2708,7 +2714,7 @@ term_is_gui(char_u *name)
     char_u *
 tltoa(unsigned long i)
 {
-    static char_u buf[16];
+    static __thread char_u buf[16];
     char_u	*p;
 
     p = buf + 15;
@@ -2734,7 +2740,7 @@ tltoa(unsigned long i)
     static char *
 tgoto(char *cm, int x, int y)
 {
-    static char buf[30];
+    static __thread char buf[30];
     char *p, *s, *e;
 
     if (!cm)
@@ -3720,9 +3726,9 @@ win_new_shellsize(void)
     static __thread int	old_Columns = 0;
     static __thread int	old_coloff = 0;
 #else
-    static int	old_Rows = 0;
-    static int	old_Columns = 0;
-    static int	old_coloff = 0;
+    static __thread int	old_Rows = 0;
+    static __thread int	old_Columns = 0;
+    static __thread int	old_coloff = 0;
 #endif
 
     if (old_Rows != Rows || old_Columns != COLUMNS_WITHOUT_TPL()
@@ -3885,8 +3891,8 @@ set_shellsize(int width, int height, int mustset)
     static __thread int	busy = FALSE;
     static __thread int	do_run = FALSE;
 #else
-    static int	busy = FALSE;
-    static int	do_run = FALSE;
+    static __thread int	busy = FALSE;
+    static __thread int	do_run = FALSE;
 #endif
 
     if (width < 0 || height < 0)    // just checking...
@@ -4459,7 +4465,7 @@ term_cursor_mode(int forced)
 #if TARGET_OS_IPHONE
     static __thread int showing_mode = -1;
 #else
-    static int showing_mode = -1;
+    static __thread int showing_mode = -1;
 #endif
     char_u *p;
 
@@ -6007,9 +6013,17 @@ check_for_color_response(char_u *resp, int len)
 static __thread oscstate_T osc_state;
 
 /*
- * Handles any OSC sequence and places the result in "v:termosc". Note that the
- * OSC identifier and terminator character(s) will not be placed in the final
- * result. Returns OK on success and FAIL on failure.
+ * Return true if currently receiving an OSC response.
+ */
+    bool
+in_osc_sequence(void)
+{
+    return osc_state.processing;
+}
+
+/*
+ * Handles any OSC sequence and places the result in "v:termosc". Returns OK on
+ * success and FAIL on failure.
  */
     static int
 handle_osc(char_u *tp, int len, char_u *key_name, int *slen)
@@ -7678,8 +7692,8 @@ swap_tcap(void)
     static __thread int		init_done = FALSE;
     static __thread cmode_T	curr_mode;
 #else
-    static int		init_done = FALSE;
-    static cmode_T	curr_mode;
+    static __thread int		init_done = FALSE;
+    static __thread cmode_T	curr_mode;
 #endif
     struct ks_tbl_S	*ks;
     cmode_T		mode;
@@ -7760,7 +7774,7 @@ static __thread const char_u ansi_table[16][3] = {
 
 # if defined(MSWIN)
 // Mapping between cterm indices < 16 and their counterpart in the ANSI palette.
-static __thread const char_u cterm_ansi_idx[] = {
+const char_u cterm_ansi_idx[] = {
     0, 4, 2, 6, 1, 5, 3, 7, 8, 12, 10, 14, 9, 13, 11, 15
 };
 # endif

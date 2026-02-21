@@ -547,10 +547,10 @@ EXTERN char e_cannot_read_from_str[]
 	INIT(= N_("E230: Cannot read from \"%s\""));
 EXTERN char e_guifontwide_invalid[]
 	INIT(= N_("E231: 'guifontwide' invalid"));
-#ifdef FEAT_BEVAL_GUI
+# ifdef FEAT_BEVAL_GUI
 EXTERN char e_cannot_create_ballooneval_with_both_message_and_callback[]
 	INIT(= "E232: Cannot create BalloonEval with both message and callback");
-#endif
+# endif
 # if defined(FEAT_GUI_GTK) || defined(FEAT_GUI_X11)
 EXTERN char e_cannot_open_display[]
 	INIT(= N_("E233: Cannot open display"));
@@ -1618,10 +1618,10 @@ EXTERN char e_missing_colon_str[]
 	INIT(= N_("E627: Missing colon: %s"));
 EXTERN char e_missing_bang_or_slash_in_str[]
 	INIT(= N_("E628: Missing ! or / in: %s"));
-#ifdef NBDEBUG
+# ifdef NBDEBUG
 EXTERN char e_bad_return_from_nb_do_cmd[]
 	INIT(= "E629: Bad return from nb_do_cmd");
-#endif
+# endif
 #endif
 #ifdef FEAT_JOB_CHANNEL
 EXTERN char e_str_write_while_not_connected[]
@@ -2167,10 +2167,10 @@ EXTERN char e_netbeans_is_not_supported_with_this_GUI[]
 	INIT(= N_("E838: NetBeans is not supported with this GUI"));
 #endif
 // E839 unused
-# ifdef FEAT_COMPL_FUNC
+#ifdef FEAT_COMPL_FUNC
 EXTERN char e_complete_function_deleted_text[]
 	INIT(= N_("E840: Completion function deleted text"));
-# endif
+#endif
 EXTERN char e_reserved_name_cannot_be_used_for_user_defined_command[]
 	INIT(= N_("E841: Reserved name, cannot be used for user defined command"));
 EXTERN char e_no_line_number_to_use_for_slnum[]
@@ -3308,22 +3308,22 @@ EXTERN char e_could_not_clear_timeout_str[]
 	INIT(= N_("E1285: Could not clear timeout: %s"));
 EXTERN char e_could_not_set_timeout_str[]
 	INIT(= N_("E1286: Could not set timeout: %s"));
-#ifndef PROF_NSEC
+# ifndef PROF_NSEC
 EXTERN char e_could_not_set_handler_for_timeout_str[]
 	INIT(= N_("E1287: Could not set handler for timeout: %s"));
 EXTERN char e_could_not_reset_handler_for_timeout_str[]
 	INIT(= N_("E1288: Could not reset handler for timeout: %s"));
 EXTERN char e_could_not_check_for_pending_sigalrm_str[]
 	INIT(= N_("E1289: Could not check for pending SIGALRM: %s"));
-#endif
+# endif
 #endif
 #ifdef FEAT_EVAL
 EXTERN char e_substitute_nesting_too_deep[]
 	INIT(= N_("E1290: substitute nesting too deep"));
-#  ifdef MSWIN
+# ifdef MSWIN
 EXTERN char e_invalid_argument_nr[]
 	INIT(= N_("E1291: Invalid argument: %ld"));
-#  endif
+# endif
 #endif
 EXTERN char e_cmdline_window_already_open[]
 	INIT(= N_("E1292: Command-line window is already open"));
@@ -3631,8 +3631,10 @@ EXTERN char e_enum_can_only_be_used_in_script[]
 	INIT(= N_("E1435: Enum can only be used in a script"));
 EXTERN char e_interface_can_only_be_used_in_script[]
 	INIT(= N_("E1436: Interface can only be used in a script"));
+EXTERN char e_can_only_compare_object_with_object[]
+	INIT(= N_("E1437: Can only compare Object with Object"));
 #endif
-// E1437 - E1499 unused (reserved for Vim9 class support)
+// E1438 - E1499 unused (reserved for Vim9 class support)
 EXTERN char e_cannot_mix_positional_and_non_positional_str[]
 	INIT(= N_("E1500: Cannot mix positional and non-positional arguments: %s"));
 EXTERN char e_fmt_arg_nr_unused_str[]
@@ -3796,4 +3798,10 @@ EXTERN char e_osc_response_timed_out[]
 #ifdef FEAT_EVAL
 EXTERN char e_cannot_add_listener_in_listener_callback[]
 	INIT(= N_("E1569: Cannot use listener_add in a listener callback"));
+#endif
+#ifdef FEAT_EVAL
+EXTERN char e_cannot_add_redraw_listener_in_listener_callback[]
+	INIT(= N_("E1570: Cannot use redraw_listener_add in a redraw listener callback"));
+EXTERN char e_no_redraw_listener_callbacks_defined[]
+	INIT(= N_("E1571: Must specify at least one callback for redraw_listener_add"));
 #endif

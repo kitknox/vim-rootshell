@@ -252,8 +252,8 @@ static __thread int	brace_count[10]; // Current counts for complex brace repeats
 static __thread int	one_exactly = FALSE;	// only do one char for EXACTLY
 
 // When making changes to classchars also change nfa_classcodes.
-static char_u	*classchars = (char_u *)".iIkKfFpPsSdDxXoOwWhHaAlLuU";
-static int	classcodes[] = {
+static __thread char_u	*classchars = (char_u *)".iIkKfFpPsSdDxXoOwWhHaAlLuU";
+static __thread int	classcodes[] = {
     ANY, IDENT, SIDENT, KWORD, SKWORD,
     FNAME, SFNAME, PRINT, SPRINT,
     WHITE, NWHITE, DIGIT, NDIGIT,
@@ -5188,11 +5188,11 @@ regdump(char_u *pattern, bt_regprog_T *r)
     char_u  *end = NULL;
     FILE    *f;
 
-#ifdef BT_REGEXP_LOG
+# ifdef BT_REGEXP_LOG
     f = fopen("bt_regexp_log.log", "a");
-#else
+# else
     f = stdout;
-#endif
+# endif
     if (f == NULL)
 	return;
     fprintf(f, "-------------------------------------\n\r\nregcomp(%s):\r\n", pattern);
@@ -5255,9 +5255,9 @@ regdump(char_u *pattern, bt_regprog_T *r)
 	fprintf(f, "must have \"%s\"", r->regmust);
     fprintf(f, "\r\n");
 
-#ifdef BT_REGEXP_LOG
+# ifdef BT_REGEXP_LOG
     fclose(f);
-#endif
+# endif
 }
 #endif	    // BT_REGEXP_DUMP
 
@@ -5269,8 +5269,8 @@ regdump(char_u *pattern, bt_regprog_T *r)
 regprop(char_u *op)
 {
     char	    *p;
-    static char	    buf[50];
-    static size_t   buflen = 0;
+    static __thread char	    buf[50];
+    static __thread size_t   buflen = 0;
 
     STRCPY(buf, ":");
     buflen = 1;
@@ -5550,7 +5550,7 @@ regprop(char_u *op)
       case NCLOSE:
 	p = "NCLOSE";
 	break;
-#ifdef FEAT_SYN_HL
+# ifdef FEAT_SYN_HL
       case ZOPEN + 1:
       case ZOPEN + 2:
       case ZOPEN + 3:
@@ -5587,7 +5587,7 @@ regprop(char_u *op)
 	buflen += sprintf(buf + buflen, "ZREF%d", OP(op) - ZREF);
 	p = NULL;
 	break;
-#endif
+# endif
       case STAR:
 	p = "STAR";
 	break;

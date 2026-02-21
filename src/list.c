@@ -765,6 +765,65 @@ list_insert(list_T *l, listitem_T *ni, listitem_T *item)
 }
 
 /*
+ * Append a new empty item into "l" based on the list item type.  Used when
+ * adding a new element to a List in Vim9script by using the current list
+ * length as the index.
+ */
+    static int
+list_append_new_item(list_T *l)
+{
+    typval_T	tv;
+
+    if (l->lv_type != NULL && l->lv_type->tt_member != NULL)
+	tv.v_type = l->lv_type->tt_member->tt_type;
+    else
+	tv.v_type = VAR_NUMBER;
+    tv.v_lock = 0;
+
+    switch (tv.v_type)
+    {
+	case VAR_BOOL: tv.vval.v_number = VVAL_FALSE; break;
+	case VAR_SPECIAL: tv.vval.v_number = 0; break;
+	case VAR_NUMBER: tv.vval.v_number = 0; break;
+	case VAR_FLOAT: tv.vval.v_float = 0; break;
+	case VAR_STRING: tv.vval.v_string = NULL; break;
+	case VAR_BLOB: tv.vval.v_blob = blob_alloc(); break;
+	case VAR_FUNC: tv.vval.v_string = NULL; break;
+	case VAR_PARTIAL: tv.vval.v_partial = NULL; break;
+	case VAR_LIST: tv.vval.v_list = list_alloc(); break;
+	case VAR_DICT: tv.vval.v_dict = dict_alloc(); break;
+#ifdef FEAT_JOB_CHANNEL
+	case VAR_JOB: tv.vval.v_job = NULL; break;
+	case VAR_CHANNEL: tv.vval.v_channel = NULL; break;
+#endif
+	case VAR_CLASS:
+	    if (l->lv_type != NULL && l->lv_type->tt_member != NULL)
+		tv.vval.v_class = l->lv_type->tt_member->tt_class;
+	    else
+		tv.vval.v_class = NULL;
+	    break;
+	case VAR_OBJECT:
+	    if (l->lv_type != NULL && l->lv_type->tt_member != NULL)
+		tv.vval.v_object =
+		    alloc_object(l->lv_type->tt_member->tt_class);
+	    else
+		tv.vval.v_object = NULL;
+	    break;
+	case VAR_TYPEALIAS: tv.vval.v_typealias = NULL; break;
+	case VAR_TUPLE: tv.vval.v_tuple = tuple_alloc(); break;
+	default:
+	    tv.v_type = VAR_NUMBER;
+	    tv.vval.v_number = 0;
+	    break;
+    }
+
+    if (l->lv_type != NULL && l->lv_type->tt_member != NULL)
+	set_tv_type(&tv, l->lv_type->tt_member);
+
+    return list_append_tv(l, &tv);
+}
+
+/*
  * Get the list item in "l" with index "n1".  "n1" is adjusted if needed.
  * In Vim9, it is at the end of the list, add an item if "can_append" is TRUE.
  * Return NULL if there is no such item.
@@ -782,7 +841,8 @@ check_range_index_one(list_T *l, long *n1, int can_append, int quiet)
     if (can_append && in_vim9script()
 	    && *n1 == l->lv_len && l->lv_lock == 0)
     {
-	list_append_number(l, 0);
+	if (list_append_new_item(l) == FAIL)
+	    return NULL;
 	li = list_find_index(l, n1);
     }
     if (li == NULL)
@@ -1265,7 +1325,21 @@ list_slice_or_index(
     {
 	// copy the item to "var1" to avoid that freeing the list makes it
 	// invalid.
-	copy_tv(&list_find(list, n1)->li_tv, &var1);
+	listitem_T *li = check_range_index_one(list, (long *)&n1, TRUE, TRUE);
+	if (li == NULL)
+	    return FAIL;
+	copy_tv(&li->li_tv, &var1);
+
+	// If "var1" is a List and the List item type is not set, then set it
+	// from the declared list item type.
+	if (in_vim9script() && var1.v_type == VAR_LIST
+					&& var1.vval.v_list != NULL
+					&& var1.vval.v_list->lv_type == NULL)
+	{
+	    if (list->lv_type != NULL && list->lv_type->tt_member != NULL)
+		set_tv_type(&var1, list->lv_type->tt_member);
+	}
+
 	clear_tv(rettv);
 	*rettv = var1;
     }
@@ -1392,7 +1466,7 @@ list2string(typval_T *tv, int copyID, int restore_copyID)
 }
 
 typedef struct join_S {
-    char_u	*s;
+    string_T	s;
     char_u	*tofree;
 } join_T;
 
@@ -1408,37 +1482,39 @@ list_join_inner(
 {
     int		i;
     join_T	*p;
-    int		len;
     int		sumlen = 0;
     int		first = TRUE;
     char_u	*tofree;
     char_u	numbuf[NUMBUFLEN];
     listitem_T	*item;
-    char_u	*s;
+    string_T	s;
+    size_t	seplen;
 
     // Stringify each item in the list.
     CHECK_LIST_MATERIALIZE(l);
     for (item = l->lv_first; item != NULL && !got_int; item = item->li_next)
     {
-	s = echo_string_core(&item->li_tv, &tofree, numbuf, copyID,
+	s.string = echo_string_core(&item->li_tv, &tofree, numbuf, copyID,
 				      echo_style, restore_copyID, !echo_style);
-	if (s == NULL)
+	if (s.string == NULL)
 	    return FAIL;
 
-	len = (int)STRLEN(s);
-	sumlen += len;
+	s.length = STRLEN(s.string);
+	sumlen += (int)s.length;
 
 	(void)ga_grow(join_gap, 1);
 	p = ((join_T *)join_gap->ga_data) + (join_gap->ga_len++);
-	if (tofree != NULL || s != numbuf)
+	if (tofree != NULL || s.string != numbuf)
 	{
-	    p->s = s;
+	    p->s.string = s.string;
+	    p->s.length = s.length;
 	    p->tofree = tofree;
 	}
 	else
 	{
-	    p->s = vim_strnsave(s, len);
-	    p->tofree = p->s;
+	    p->s.string = vim_strnsave(s.string, s.length);
+	    p->s.length = s.length;
+	    p->tofree = p->s.string;
 	}
 
 	line_breakcheck();
@@ -1448,8 +1524,9 @@ list_join_inner(
 
     // Allocate result buffer with its total size, avoid re-allocation and
     // multiple copy operations.  Add 2 for a tailing ']' and NUL.
+    seplen = STRLEN(sep);
     if (join_gap->ga_len >= 2)
-	sumlen += (int)STRLEN(sep) * (join_gap->ga_len - 1);
+	sumlen += (int)seplen * (join_gap->ga_len - 1);
     if (ga_grow(gap, sumlen + 2) == FAIL)
 	return FAIL;
 
@@ -1458,11 +1535,11 @@ list_join_inner(
 	if (first)
 	    first = FALSE;
 	else
-	    ga_concat(gap, sep);
+	    ga_concat_len(gap, sep, seplen);
 	p = ((join_T *)join_gap->ga_data) + i;
 
-	if (p->s != NULL)
-	    ga_concat(gap, p->s);
+	if (p->s.string != NULL)
+	    ga_concat_len(gap, p->s.string, p->s.length);
 	line_breakcheck();
     }
 
@@ -1762,8 +1839,11 @@ f_list2str(typval_T *argvars, typval_T *rettv)
 
 	FOR_ALL_LIST_ITEMS(l, li)
 	{
-	    buf[(*char2bytes)(tv_get_number(&li->li_tv), buf)] = NUL;
-	    ga_concat(&ga, buf);
+	    size_t  buflen;
+
+	    buflen = (size_t)(*char2bytes)(tv_get_number(&li->li_tv), buf);
+	    buf[buflen] = NUL;
+	    ga_concat_len(&ga, buf, buflen);
 	}
 	ga_append(&ga, NUL);
     }

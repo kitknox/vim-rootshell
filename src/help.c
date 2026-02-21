@@ -326,7 +326,7 @@ find_help_tags(
     int		i;
     // Specific tags that either have a specific replacement or won't go
     // through the generic rules.
-    static char *(except_tbl[][2]) = {
+    static __thread char *(except_tbl[][2]) = {
 	{"*",		"star"},
 	{"g*",		"gstar"},
 	{"[*",		"[star"},
@@ -369,7 +369,7 @@ find_help_tags(
 	{"s/\\9",	"s/\\\\9"},
 	{NULL, NULL}
     };
-    static char *(expr_table[]) = {"!=?", "!~?", "<=?", "<?", "==?", "=~?",
+    static __thread char *(expr_table[]) = {"!=?", "!~?", "<=?", "<?", "==?", "=~?",
 				   ">=?", ">?", "is?", "isnot?"};
     int flags;
 

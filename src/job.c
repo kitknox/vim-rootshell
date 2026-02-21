@@ -1457,7 +1457,7 @@ job_start(
 	for (i = 0; i < argc; ++i)
 	{
 	    if (i > 0)
-		ga_concat(&ga, (char_u *)"  ");
+		ga_concat_len(&ga, (char_u *)"  ", 2);
 	    ga_concat(&ga, (char_u *)argv[i]);
 	}
 	ga_append(&ga, NUL);
@@ -2024,18 +2024,18 @@ job_to_string_buf(typval_T *varp, char_u *buf)
     status = job->jv_status == JOB_FAILED ? "fail"
 		    : job->jv_status >= JOB_ENDED ? "dead"
 		    : "run";
-# ifdef UNIX
+#ifdef UNIX
     vim_snprintf((char *)buf, NUMBUFLEN,
 		"process %ld %s", (long)job->jv_pid, status);
-# elif defined(MSWIN)
+#elif defined(MSWIN)
     vim_snprintf((char *)buf, NUMBUFLEN,
 		"process %ld %s",
 		(long)job->jv_proc_info.dwProcessId,
 		status);
-# else
+#else
     // fall-back
     vim_snprintf((char *)buf, NUMBUFLEN, "process ? %s", status);
-# endif
+#endif
     return buf;
 }
 

@@ -32,8 +32,8 @@
 #if 0
 # define HT_DEBUG	// extra checks for table consistency  and statistics
 
-static long hash_count_lookup = 0;	// count number of hashtab lookups
-static long hash_count_perturb = 0;	// count number of "misses"
+static __thread long hash_count_lookup = 0;	// count number of hashtab lookups
+static __thread long hash_count_perturb = 0;	// count number of "misses"
 #endif
 
 // Magic value for algorithm that walks through the array.

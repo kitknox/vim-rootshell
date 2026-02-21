@@ -41,17 +41,19 @@ static __thread char *(p_dip_inline_values[]) = {"none", "simple", "char", "word
 #endif
 static __thread char *(p_nf_values[]) = {"bin", "octal", "hex", "alpha", "unsigned", "blank", NULL};
 static __thread char *(p_ff_values[]) = {FF_UNIX, FF_DOS, FF_MAC, NULL};
-#ifdef FEAT_CLIPBOARD
+#ifdef HAVE_CLIPMETHOD
 // Note: Keep this in sync with did_set_clipboard()
-static __thread char *(p_cb_values[]) = {"unnamed", "unnamedplus", "autoselect", "autoselectplus", "autoselectml", "html", "exclude:", NULL};
-// Note: Keep this in sync with get_clipmethod()
-static __thread char *(p_cpm_values[]) = {"wayland", "x11", NULL};
+static __thread char *(p_cb_values[]) = {"unnamed", "unnamedplus",
+# ifdef FEAT_CLIPBOARD
+    "autoselect", "autoselectplus", "autoselectml", "html", "exclude:",
+# endif
+    NULL};
 #endif
 #ifdef FEAT_CRYPT
 static __thread char *(p_cm_values[]) = {"zip", "blowfish", "blowfish2",
- # ifdef FEAT_SODIUM
+# ifdef FEAT_SODIUM
     "xchacha20", "xchacha20v2",
- # endif
+# endif
     NULL};
 #endif
 static __thread char *(p_cmp_values[]) = {"internal", "keepascii", NULL};
@@ -476,7 +478,7 @@ set_string_option_direct(
 	free_string_option(*varp);
 	*varp = empty_option;
     }
-# ifdef FEAT_EVAL
+#ifdef FEAT_EVAL
     if (set_sid != SID_NONE)
     {
 	sctx_T script_ctx;
@@ -492,7 +494,7 @@ set_string_option_direct(
 	}
 	set_option_sctx_idx(idx, opt_flags, script_ctx);
     }
-# endif
+#endif
 }
 
 #if defined(FEAT_PROP_POPUP) || (defined(FEAT_DIFF) && defined(FEAT_FOLDING))
@@ -648,7 +650,7 @@ valid_filetype(char_u *val)
 check_stl_option(char_u *s)
 {
     int		groupdepth = 0;
-    static char errbuf[ERR_BUFLEN];
+    static __thread char errbuf[ERR_BUFLEN];
     int		errbuflen = ERR_BUFLEN;
 
     while (*s)
@@ -887,9 +889,9 @@ expand_set_opt_generic(
     return ret;
 }
 
-# if defined(FEAT_GUI_MSWIN) || defined(FEAT_GUI_GTK)
-static garray_T *expand_cb_ga;
-static optexpand_T *expand_cb_args;
+#if defined(FEAT_GUI_MSWIN) || defined(FEAT_GUI_GTK)
+static __thread garray_T *expand_cb_ga;
+static __thread optexpand_T *expand_cb_args;
 
 /*
  * Callback provided to a function in expand_set_opt_callback. Will perform
@@ -1391,7 +1393,7 @@ expand_set_casemap(optexpand_T *args, int *numMatches, char_u ***matches)
 	    matches);
 }
 
-#if defined(FEAT_CLIPBOARD)
+#if defined(HAVE_CLIPMETHOD)
     int
 expand_set_clipboard(optexpand_T *args, int *numMatches, char_u ***matches)
 {
@@ -1402,7 +1404,9 @@ expand_set_clipboard(optexpand_T *args, int *numMatches, char_u ***matches)
 	    numMatches,
 	    matches);
 }
+#endif
 
+#ifdef HAVE_CLIPMETHOD
     char *
 did_set_clipmethod(optset_T *args UNUSED)
 {
@@ -1412,12 +1416,61 @@ did_set_clipmethod(optset_T *args UNUSED)
     int
 expand_set_clipmethod(optexpand_T *args, int *numMatches, char_u ***matches)
 {
-    return expand_set_opt_string(
+    // We want to expand using the predefined clipmethod values + clipboard
+    // provider names.
+    int		result;
+    char	**values;
+    int		count, pos = 0, start = 0;
+# ifdef FEAT_EVAL
+    dict_T	*providers = get_vim_var_dict(VV_CLIPPROVIDERS);
+# else
+    dict_T	*providers = NULL;
+# endif
+    hashtab_T	*ht = providers == NULL ? NULL : &providers->dv_hashtab;
+
+    count = (ht == NULL ? 0 : ht->ht_used);
+# ifdef FEAT_WAYLAND_CLIPBOARD
+    count++;
+    start++;
+# endif
+# ifdef FEAT_XCLIPBOARD
+    count++;
+    start++;
+# endif
+    values = ALLOC_MULT(char *, count + 1); // Add NULL terminator too
+
+    if (values == NULL)
+	return FAIL;
+
+# ifdef FEAT_WAYLAND_CLIPBOARD
+    values[pos++] = "wayland";
+# endif
+# ifdef FEAT_XCLIPBOARD
+    values[pos++] = "x11";
+# endif
+
+    if (ht != NULL)
+	for (long_u i = 0; i < ht->ht_mask + 1; i++)
+	{
+	    hashitem_T	*hi = ht->ht_array + i;
+
+	    if (!HASHITEM_EMPTY(hi))
+		values[pos++] = (char *)vim_strsave(hi->hi_key);
+	}
+    values[pos++] = NULL;
+
+    result = expand_set_opt_string(
 	    args,
-	    p_cpm_values,
-	    ARRAY_LENGTH(p_cpm_values) - 1,
+	    values,
+	    count,
 	    numMatches,
 	    matches);
+
+    for (int i = start; i < count; i++)
+	vim_free(values[i]);
+    vim_free(values);
+
+    return result;
 }
 #endif
 
@@ -2759,7 +2812,7 @@ expand_set_highlight(optexpand_T *args, int *numMatches, char_u ***matches)
 {
     char_u	    *p;
     expand_T	    *xp = args->oe_xp;
-    static char_u   hl_flags[HLF_COUNT] = HL_FLAGS;
+    static __thread char_u   hl_flags[HLF_COUNT] = HL_FLAGS;
     size_t	    i;
     int		    count = 0;
 
@@ -2825,7 +2878,7 @@ expand_set_highlight(optexpand_T *args, int *numMatches, char_u ***matches)
     // the returned match.
 
     // Note: Keep this in sync with highlight_changed()
-    static char_u p_hl_mode_values[] =
+    static __thread char_u p_hl_mode_values[] =
 	{':', 'b', 'i', '-', 'n', 'r', 's', 'u', 'c', '2', 'd', '=', 't'};
     size_t num_hl_modes = ARRAY_LENGTH(p_hl_mode_values);
 
@@ -3097,7 +3150,7 @@ expand_set_keyprotocol(optexpand_T *args, int *numMatches, char_u ***matches)
     }
     // Use expand_set_opt_string instead of returning FAIL so that we can
     // include the original value if args->oe_include_orig_val is set.
-    static char *(empty[]) = {NULL};
+    static __thread char *(empty[]) = {NULL};
     return expand_set_opt_string(args, empty, 0, numMatches, matches);
 }
 
@@ -3982,6 +4035,7 @@ did_set_signcolumn(optset_T *args)
 {
     char_u	**varp = (char_u **)args->os_varp;
 
+# if defined(FEAT_LINEBREAK)
     if (check_opt_strings(*varp, p_scl_values, FALSE) != OK)
 	return e_invalid_argument;
     // When changing the 'signcolumn' to or from 'number', recompute the
@@ -3990,6 +4044,7 @@ did_set_signcolumn(optset_T *args)
 		|| (*curwin->w_p_scl == 'n' && *(curwin->w_p_scl + 1) =='u'))
 	    && (curwin->w_p_nu || curwin->w_p_rnu))
 	curwin->w_nrwidth_line_count = 0;
+# endif
 
     return NULL;
 }
@@ -4839,7 +4894,7 @@ expand_set_wincolor(optexpand_T *args, int *numMatches, char_u ***matches)
     static void
 do_syntax_autocmd(int value_changed)
 {
-    static int syn_recursive = 0;
+    static __thread int syn_recursive = 0;
 
     ++syn_recursive;
     // Only pass TRUE for "force" when the value changed or not used
@@ -4862,7 +4917,7 @@ do_filetype_autocmd(char_u **varp, int opt_flags, int value_changed)
     if ((opt_flags & OPT_MODELINE) && !value_changed)
 	return;
 
-    static int  ft_recursive = 0;
+    static __thread int  ft_recursive = 0;
     int	    secure_save = secure;
 
     // Reset the secure flag, since the value of 'filetype' has

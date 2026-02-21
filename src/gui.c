@@ -146,14 +146,22 @@ gui_start(char_u *arg UNUSED)
 	    emsg(msg);
 #endif
     }
+#ifdef HAVE_CLIPMETHOD
     else
 	// Reset clipmethod to CLIPMETHOD_NONE
 	choose_clipmethod();
+#endif
 
-#ifdef FEAT_SOCKETSERVER
+#if defined(FEAT_SOCKETSERVER) && defined(FEAT_GUI_GTK)
     // Install socket server listening socket if we are running it
     if (socket_server_valid())
 	gui_gtk_init_socket_server();
+#endif
+
+#ifdef FEAT_GUI_MSWIN
+    // Enable fullscreen mode
+    if (vim_strchr(p_go, GO_FULLSCREEN) != NULL)
+       gui_mch_set_fullscreen(TRUE);
 #endif
 
     vim_free(old_term);
@@ -203,7 +211,6 @@ gui_attempt_start(void)
 	if (gui_get_x11_windis(&x11_window, &x11_display) == OK)
 	    set_vim_var_nr(VV_WINDOWID, (long)x11_window);
 # endif
-
 	// Display error messages in a dialog now.
 	display_errors();
     }
@@ -476,6 +483,9 @@ gui_init_check(void)
     result = OK;
 #else
 # ifdef FEAT_GUI_GTK
+#  ifdef GDK_WINDOWING_WAYLAND
+    gui.is_wayland = false;
+#  endif
     /*
      * Note: Don't call gtk_init_check() before fork, it will be called after
      * the fork. When calling it before fork, it make vim hang for a while.
@@ -3480,7 +3490,7 @@ static int	prev_which_scrollbars[3];
 gui_init_which_components(char_u *oldval UNUSED)
 {
 #ifdef FEAT_GUI_DARKTHEME
-    static int	prev_dark_theme = -1;
+    static int	prev_dark_theme = FALSE;
     int		using_dark_theme = FALSE;
 #endif
 #ifdef FEAT_MENU
@@ -3496,6 +3506,9 @@ gui_init_which_components(char_u *oldval UNUSED)
 #ifdef FEAT_GUI_MSWIN
     static int	prev_titlebar = FALSE;
     int		using_titlebar = FALSE;
+
+    static int	prev_fullscreen = FALSE;
+    int		using_fullscreen = FALSE;
 #endif
 #if defined(FEAT_MENU)
     static int	prev_tearoff = -1;
@@ -3570,6 +3583,9 @@ gui_init_which_components(char_u *oldval UNUSED)
 	    case GO_TITLEBAR:
 		using_titlebar = TRUE;
 		break;
+	    case GO_FULLSCREEN:
+		using_fullscreen = TRUE;
+		break;
 #endif
 #ifdef FEAT_TOOLBAR
 	    case GO_TOOLBAR:
@@ -3597,6 +3613,12 @@ gui_init_which_components(char_u *oldval UNUSED)
     {
 	gui_mch_set_titlebar_colors();
 	prev_titlebar = using_titlebar;
+    }
+
+    if (using_fullscreen != prev_fullscreen)
+    {
+	gui_mch_set_fullscreen(using_fullscreen);
+	prev_fullscreen = using_fullscreen;
     }
 #endif
 
@@ -5288,26 +5310,26 @@ gui_do_findrepl(
 
     ga_init2(&ga, 1, 100);
     if (type == FRD_REPLACEALL)
-	ga_concat(&ga, (char_u *)"%s/");
+	ga_concat_len(&ga, (char_u *)"%s/", 3);
 
-    ga_concat(&ga, (char_u *)"\\V");
+    ga_concat_len(&ga, (char_u *)"\\V", 2);
     if (flags & FRD_MATCH_CASE)
-	ga_concat(&ga, (char_u *)"\\C");
+	ga_concat_len(&ga, (char_u *)"\\C", 2);
     else
-	ga_concat(&ga, (char_u *)"\\c");
+	ga_concat_len(&ga, (char_u *)"\\c", 2);
     if (flags & FRD_WHOLE_WORD)
-	ga_concat(&ga, (char_u *)"\\<");
+	ga_concat_len(&ga, (char_u *)"\\<", 2);
     // escape slash and backslash
     p = vim_strsave_escaped(find_text, (char_u *)"/\\");
     if (p != NULL)
 	ga_concat(&ga, p);
     vim_free(p);
     if (flags & FRD_WHOLE_WORD)
-	ga_concat(&ga, (char_u *)"\\>");
+	ga_concat_len(&ga, (char_u *)"\\>", 2);
 
     if (type == FRD_REPLACEALL)
     {
-	ga_concat(&ga, (char_u *)"/");
+	ga_concat_len(&ga, (char_u *)"/", 1);
 	// Escape slash and backslash.
 	// Also escape tilde and ampersand if 'magic' is set.
 	p = vim_strsave_escaped(repl_text,
@@ -5315,7 +5337,7 @@ gui_do_findrepl(
 	if (p != NULL)
 	    ga_concat(&ga, p);
 	vim_free(p);
-	ga_concat(&ga, (char_u *)"/g");
+	ga_concat_len(&ga, (char_u *)"/g", 2);
     }
     ga_append(&ga, NUL);
 

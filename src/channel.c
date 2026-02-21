@@ -140,7 +140,7 @@ fd_close(sock_T fd)
     static char *
 strerror_win32(int eno)
 {
-    static LPVOID msgbuf = NULL;
+    static __thread LPVOID msgbuf = NULL;
     char_u *ptr;
 
     if (msgbuf)
@@ -935,13 +935,31 @@ channel_open(
 	return NULL;
     }
 
+    // Count the number of addresses for timeout distribution
+    int addr_count = 0;
     for (addr = res; addr != NULL; addr = addr->ai_next)
+	addr_count++;
+
+    // On Mac and Solaris a zero timeout almost never works.  Waiting for
+    // one millisecond already helps a lot.  Later Mac systems (using IPv6)
+    // need more time, 15 milliseconds appears to work well.
+    // Let's do it for all systems, because we don't know why this is
+    // needed.
+    if (waittime == 0)
+	waittime = 15;
+
+    int addr_index = 0;
+    for (addr = res; addr != NULL; addr = addr->ai_next, addr_index++)
     {
 	const char  *dst = hostname;
 # ifdef HAVE_INET_NTOP
 	const void  *src = NULL;
 	char	    buf[NUMBUFLEN];
 # endif
+	int	    try_waittime;
+	int	    before_waittime;
+	int	    consumed;
+	int	    remaining_addrs;
 
 	if (addr->ai_family == AF_INET6)
 	{
@@ -959,7 +977,7 @@ channel_open(
 	    sai->sin_port = htons(port);
 # ifdef HAVE_INET_NTOP
 	    src = &sai->sin_addr;
-#endif
+# endif
 	}
 # ifdef HAVE_INET_NTOP
 	if (src != NULL)
@@ -974,18 +992,44 @@ channel_open(
 
 	ch_log(channel, "Trying to connect to %s port %d", dst, port);
 
-	// On Mac and Solaris a zero timeout almost never works.  Waiting for
-	// one millisecond already helps a lot.  Later Mac systems (using IPv6)
-	// need more time, 15 milliseconds appears to work well.
-	// Let's do it for all systems, because we don't know why this is
-	// needed.
-	if (waittime == 0)
-	    waittime = 15;
+	// Distribute the timeout across addresses for better fallback behavior.
+	// This implements a simplified version of Happy Eyeballs (RFC 8305).
+	if (addr->ai_next == NULL)
+	    try_waittime = waittime;
+	else if (addr_index == 0)
+	{
+	    if (waittime > 500)
+		try_waittime = 250;
+	    else if (waittime > 30)
+		try_waittime = waittime / 2;
+	    else
+		try_waittime = waittime;
+	}
+	else
+	{
+	    remaining_addrs = addr_count - addr_index;
+	    try_waittime = waittime / remaining_addrs;
+	}
 
+	before_waittime = try_waittime;
 	sd = channel_connect(channel, addr->ai_addr, (int)addr->ai_addrlen,
-								   &waittime);
+							   &try_waittime);
+
+	// Update the overall waittime based on consumed time
+	consumed = before_waittime - try_waittime;
+	waittime -= consumed;
+	if (waittime < 0)
+	    waittime = 0;
+
 	if (sd >= 0)
 	    break;
+
+	// If we have no time left, stop trying
+	if (waittime <= 0 && addr->ai_next != NULL)
+	{
+	    ch_log(channel, "Out of time, stopping connection attempts");
+	    break;
+	}
     }
 
     freeaddrinfo(res);
@@ -1388,36 +1432,36 @@ channel_set_pipes(channel_T *channel, sock_T in, sock_T out, sock_T err)
     {
 	ch_close_part(channel, PART_IN);
 	channel->CH_IN_FD = in;
-# if defined(UNIX)
+#if defined(UNIX)
 	// Do not end the job when all output channels are closed, wait until
 	// the job ended.
 	if (mch_isatty(in))
 	    channel->ch_to_be_closed |= (1U << PART_IN);
-# endif
+#endif
     }
     if (out != INVALID_FD)
     {
-# if defined(FEAT_GUI)
+#if defined(FEAT_GUI)
 	channel_gui_unregister_one(channel, PART_OUT);
-# endif
+#endif
 	ch_close_part(channel, PART_OUT);
 	channel->CH_OUT_FD = out;
 	channel->ch_to_be_closed |= (1U << PART_OUT);
-# if defined(FEAT_GUI)
+#if defined(FEAT_GUI)
 	channel_gui_register_one(channel, PART_OUT);
-# endif
+#endif
     }
     if (err != INVALID_FD)
     {
-# if defined(FEAT_GUI)
+#if defined(FEAT_GUI)
 	channel_gui_unregister_one(channel, PART_ERR);
-# endif
+#endif
 	ch_close_part(channel, PART_ERR);
 	channel->CH_ERR_FD = err;
 	channel->ch_to_be_closed |= (1U << PART_ERR);
-# if defined(FEAT_GUI)
+#if defined(FEAT_GUI)
 	channel_gui_register_one(channel, PART_ERR);
-# endif
+#endif
     }
 }
 
@@ -1635,7 +1679,14 @@ channel_write_in(channel_T *channel)
 	ch_log(channel, "Finished writing all lines to channel");
 
 	// Close the pipe/socket, so that the other side gets EOF.
-	ch_close_part(channel, PART_IN);
+#ifdef MSWIN
+	// At this point, the input part of the conpty channel must not be
+	// closed.  If it is closed, the pipe will be destroyed, the console
+	// that was using it will be destroyed, and the process running within
+	// it will be forcibly terminated, so this needs to be prevented.
+	if (!channel->ch_anonymous_pipe)
+#endif
+	    ch_close_part(channel, PART_IN);
     }
     else
 	ch_log(channel, "Still %ld more lines to write",
@@ -3585,7 +3636,7 @@ channel_wait(channel_T *channel, sock_T fd, int timeout)
     if (timeout > 0)
 	ch_log(channel, "Waiting for up to %d msec", timeout);
 
-# ifdef MSWIN
+#ifdef MSWIN
     if (fd != channel->CH_SOCK_FD)
     {
 	DWORD	nread;
@@ -3710,7 +3761,7 @@ ch_close_part_on_error(
     // Only send "DETACH" for a netbeans channel.
     if (channel->ch_nb_close_cb != NULL)
 	channel_save(channel, PART_SOCK, (char_u *)DETACH_MSG_RAW,
-			      (int)STRLEN(DETACH_MSG_RAW), FALSE, "PUT ");
+			      (int)STRLEN_LITERAL(DETACH_MSG_RAW), FALSE, "PUT ");
 
     // When reading is not possible close this part of the channel.  Don't
     // close the channel yet, there may be something to read on another part.
@@ -4173,7 +4224,17 @@ channel_handle_events(int only_keep_open)
 	    if (fd == INVALID_FD)
 		continue;
 
-	    int r = channel_wait(channel, fd, 0);
+	    // In normal cases, a timeout of 0 is sufficient.
+	    //
+	    // But, in Windows conpty terminals, the final output of a
+	    // terminated process may be missed.  In this case, in order for
+	    // Vim to read the final output, it is necessary to set the timeout
+	    // to 1 msec or more.  It seems that the final output can be
+	    // received by calling Sleep() once within channel_wait().  Note
+	    // that ch_killing can only be TRUE in conpty terminals, so it has
+	    // no side effects in environments other than conpty.
+	    int r = channel_wait(channel, fd, (channel->ch_killing &&
+			(part == PART_OUT || part == PART_ERR)) ? 1 : 0);
 
 	    if (r == CW_READY)
 		channel_read(channel, part, "channel_handle_events");
@@ -4199,7 +4260,7 @@ channel_handle_events(int only_keep_open)
 }
 #endif
 
-# if defined(FEAT_GUI)
+#if defined(FEAT_GUI)
 /*
  * Return TRUE when there is any channel with a keep_open flag.
  */
@@ -4213,7 +4274,7 @@ channel_any_keep_open(void)
 	    return TRUE;
     return FALSE;
 }
-# endif
+#endif
 
 /*
  * Set "channel"/"part" to non-blocking.

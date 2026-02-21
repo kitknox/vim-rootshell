@@ -70,15 +70,15 @@ static int wc_use_keyname(char_u *varp, long *wcp);
 static void compatible_set(void);
 
 #if defined(FEAT_EVAL)
-static char *(p_bin_dep_opts[])    = {"textwidth", "wrapmargin", "modeline", "expandtab", NULL};
-static char *(p_paste_dep_opts[])  = {"autoindent", "expandtab", "ruler", "showmatch", "smarttab",
+static __thread char *(p_bin_dep_opts[])    = {"textwidth", "wrapmargin", "modeline", "expandtab", NULL};
+static __thread char *(p_paste_dep_opts[])  = {"autoindent", "expandtab", "ruler", "showmatch", "smarttab",
     "softtabstop", "textwidth", "wrapmargin",
-#ifdef FEAT_RIGHTLEFT
+# ifdef FEAT_RIGHTLEFT
     "hkmap", "revins",
-#endif
-#ifdef FEAT_VARTABS
+# endif
+# ifdef FEAT_VARTABS
     "varsofttabstop",
-#endif
+# endif
     NULL};
 static void didset_options_sctx(int opt_flags, char **buf);
 #endif
@@ -137,9 +137,9 @@ set_init_default_backupskip(void)
     char_u	*p;
     int		plen;
 #ifdef UNIX
-    static char	*(names[4]) = {"", "TMPDIR", "TEMP", "TMP"};
+    static __thread char	*(names[4]) = {"", "TMPDIR", "TEMP", "TMP"};
 #else
-    static char	*(names[3]) = {"TMPDIR", "TEMP", "TMP"};
+    static __thread char	*(names[3]) = {"TMPDIR", "TEMP", "TMP"};
 #endif
     garray_T	ga;
 
@@ -439,13 +439,13 @@ set_init_xdg_rtp(void)
     options[opt_idx].def_val[VI_DEFAULT] = xdg_rtp;
     p_pp = xdg_rtp;
 
-#if defined(XDG_VDIR) && defined(FEAT_SESSION)
+# if defined(XDG_VDIR) && defined(FEAT_SESSION)
     if ((opt_idx = findoption((char_u *)"viewdir")) < 0)
 	goto theend;
 
     options[opt_idx].def_val[VI_DEFAULT] = (char_u *)XDG_VDIR;
     p_vdir = (char_u *)XDG_VDIR;
-#endif
+# endif
 
 theend:
     vim_free(vimrc1);
@@ -542,16 +542,16 @@ set_init_default_encoding(void)
     char_u	*p;
     int		opt_idx;
 
-# if defined(MSWIN) || defined(__MVS__)
+#if defined(MSWIN) || defined(__MVS__)
     // MS-Windows has builtin support for conversion to and from Unicode, using
     // "utf-8" for 'encoding' should work best for most users.
     // z/OS built should default to UTF-8 mode as setlocale does not respect utf-8 environment variable locales
     p = vim_strnsave((char_u *)ENC_DFLT, STRLEN_LITERAL(ENC_DFLT));
-# else
+#else
     // enc_locale() will try to find the encoding of the current locale.
     // This works best for properly configured systems, old and new.
     p = enc_locale();
-# endif
+#endif
     if (p == NULL)
 	return;
 
@@ -718,6 +718,9 @@ set_init_1(int clean_arg)
     curbuf->b_p_initialized = TRUE;
     curbuf->b_p_ac = -1;
     curbuf->b_p_ar = -1;	// no local 'autoread' value
+#ifdef HAVE_FSYNC
+    curbuf->b_p_fs = -1;	// no local 'fsync' value
+#endif
     curbuf->b_p_ul = NO_LOCAL_UNDOLEVEL;
     check_buf_options(curbuf);
     check_win_options(curwin);
@@ -759,7 +762,7 @@ set_init_1(int clean_arg)
 #endif
 }
 
-static char_u *fencs_utf8_default = (char_u *)"ucs-bom,utf-8,default,latin1";
+static __thread char_u *fencs_utf8_default = (char_u *)"ucs-bom,utf-8,default,latin1";
 
 /*
  * Set the "fileencodings" option to the default value for when 'encoding' is
@@ -879,10 +882,10 @@ set_options_default(
 	if (!(options[i].flags & P_NODEFAULT)
 		&& (opt_flags == 0
 		    || (options[i].var != (char_u *)&p_enc
-# if defined(FEAT_CRYPT)
+#if defined(FEAT_CRYPT)
 			&& options[i].var != (char_u *)&p_cm
 			&& options[i].var != (char_u *)&p_key
-# endif
+#endif
 			)))
 	    set_option_default(i, opt_flags, p_cp);
 
@@ -1187,20 +1190,20 @@ set_init_3(void)
 		    || fnamecmp(p, "powershell.exe") == 0
 		)
 	{
-# if defined(FEAT_QUICKFIX)
+#  if defined(FEAT_QUICKFIX)
 		if (do_sp)
 		{
 		    p_sp = (char_u *)"2>&1 | Out-File -Encoding default";
 		    options[idx_sp].def_val[VI_DEFAULT] = p_sp;
 		}
-# endif
+#  endif
 		if (do_srr)
 		{
 		    p_srr = (char_u *)"2>&1 | Out-File -Encoding default";
 		    options[idx_srr].def_val[VI_DEFAULT] = p_srr;
 		}
 	}
-#endif
+# endif
 	else
 	    // Always use POSIX shell style redirection if we reach this
 	    if (       fnamecmp(p, "sh") == 0
@@ -2257,6 +2260,10 @@ do_set_option_bool(
 	    value = -1;
 	else if ((int *)varp == &curbuf->b_p_ac && opt_flags == OPT_LOCAL)
 	    value = -1;
+#ifdef HAVE_FSYNC
+	else if ((int *)varp == &curbuf->b_p_fs && opt_flags == OPT_LOCAL)
+	    value = -1;
+#endif
 	else
 	    value = *(int *)get_varp_scope(&(options[opt_idx]), OPT_GLOBAL);
     }
@@ -3140,33 +3147,33 @@ insecure_flag(win_T *wp, int opt_idx, int opt_flags)
 	switch ((int)options[opt_idx].indir)
 	{
 	    case PV_WRAP:	return &wp->w_p_wrap_flags;
-#ifdef FEAT_STL_OPT
+# ifdef FEAT_STL_OPT
 	    case PV_STL:	return &wp->w_p_stl_flags;
-#endif
-#ifdef FEAT_EVAL
-# ifdef FEAT_FOLDING
+# endif
+# ifdef FEAT_EVAL
+#  ifdef FEAT_FOLDING
 	    case PV_FDE:	return &wp->w_p_fde_flags;
 	    case PV_FDT:	return &wp->w_p_fdt_flags;
-# endif
-# ifdef FEAT_BEVAL
+#  endif
+#  ifdef FEAT_BEVAL
 	    case PV_BEXPR:	return &wp->w_buffer->b_p_bexpr_flags;
-# endif
+#  endif
 	    case PV_INDE:	return &wp->w_buffer->b_p_inde_flags;
 	    case PV_FEX:	return &wp->w_buffer->b_p_fex_flags;
-# ifdef FEAT_FIND_ID
+#  ifdef FEAT_FIND_ID
 	    case PV_INEX:	return &wp->w_buffer->b_p_inex_flags;
+#  endif
 # endif
-#endif
 	}
     else
 	// For global value of window-local options, use flags in w_allbuf_opt.
 	switch ((int)options[opt_idx].indir)
 	{
 	    case PV_WRAP:	return &wp->w_allbuf_opt.wo_wrap_flags;
-#if defined(FEAT_EVAL) && defined(FEAT_FOLDING)
+# if defined(FEAT_EVAL) && defined(FEAT_FOLDING)
 	    case PV_FDE:	return &wp->w_allbuf_opt.wo_fde_flags;
 	    case PV_FDT:	return &wp->w_allbuf_opt.wo_fdt_flags;
-#endif
+# endif
 	}
 
     // Nothing special, return global flags field.
@@ -3371,9 +3378,9 @@ did_set_arabic(optset_T *args UNUSED)
 
 	    msg_source(HL_ATTR(HLF_W));
 	    msg_attr(_(w_arabic), HL_ATTR(HLF_W));
-#ifdef FEAT_EVAL
+# ifdef FEAT_EVAL
 	    set_vim_var_string(VV_WARNINGMSG, (char_u *)_(w_arabic), -1);
-#endif
+# endif
 	}
 
 	// set 'delcombine'
@@ -3878,7 +3885,7 @@ did_set_modifiable(optset_T *args UNUSED)
 {
     // when 'modifiable' is changed, redraw the window title
 
-# ifdef FEAT_TERMINAL
+#ifdef FEAT_TERMINAL
     // Cannot set 'modifiable' when in Terminal mode.
     if (curbuf->b_p_ma && (term_in_normal_mode() || (bt_terminal(curbuf)
 		    && curbuf->b_term != NULL && !term_is_finished(curbuf))))
@@ -3886,7 +3893,7 @@ did_set_modifiable(optset_T *args UNUSED)
 	curbuf->b_p_ma = FALSE;
 	return e_cannot_make_terminal_with_running_job_modifiable;
     }
-# endif
+#endif
     redraw_titles();
 
     return NULL;
@@ -4603,10 +4610,10 @@ did_set_undofile(optset_T *args)
 		    || args->os_flags == 0)
 		&& !curbufIsChanged() && curbuf->b_ml.ml_mfp != NULL)
 	{
-#ifdef FEAT_CRYPT
+# ifdef FEAT_CRYPT
 	    if (crypt_method_is_sodium(crypt_get_method_nr(curbuf)))
 		continue;
-#endif
+# endif
 	    u_compute_hash(hash);
 	    u_read_undo(NULL, hash, curbuf->b_fname);
 	}
@@ -5411,12 +5418,12 @@ get_option_value(
 	    if ((char_u **)varp == &p_pt)	// 'pastetoggle'
 		*stringval = str2special_save(*(char_u **)(varp), FALSE,
 									FALSE);
-#ifdef FEAT_CRYPT
+# ifdef FEAT_CRYPT
 	    // never return the value of the crypt key
 	    else if ((char_u **)varp == &curbuf->b_p_key
 						&& **(char_u **)(varp) != NUL)
 		*stringval = vim_strnsave((char_u *)"*****", STRLEN_LITERAL("*****"));
-#endif
+# endif
 	    else
 		*stringval = vim_strsave(*(char_u **)(varp));
 	}
@@ -5727,7 +5734,7 @@ set_option_value(
     int		opt_idx;
     char_u	*varp;
     long_u	flags;
-    static char	errbuf[ERR_BUFLEN];
+    static __thread char	errbuf[ERR_BUFLEN];
     int		errbuflen = ERR_BUFLEN;
 
     opt_idx = findoption(name);
@@ -6520,6 +6527,11 @@ unset_global_local_option(char_u *name, void *from)
 	case PV_AR:
 	    buf->b_p_ar = -1;
 	    break;
+# ifdef HAVE_FSYNC
+	case PV_FS:
+	    buf->b_p_fs = -1;
+	    break;
+# endif
 	case PV_BKC:
 	    clear_string_option(&buf->b_p_bkc);
 	    buf->b_bkc_flags = 0;
@@ -6654,6 +6666,9 @@ get_varp_scope(struct vimoption *p, int scope)
 	switch ((int)p->indir)
 	{
 	    case PV_FP:   return (char_u *)&(curbuf->b_p_fp);
+#ifdef HAVE_FSYNC
+	    case PV_FS:	return (char_u *)&(curbuf->b_p_fs);
+#endif
 #ifdef FEAT_EVAL
 	    case PV_FFU: return (char_u *)&(curbuf->b_p_ffu);
 #endif
@@ -6778,6 +6793,10 @@ get_varp(struct vimoption *p)
 #endif
 	case PV_FP:	return *curbuf->b_p_fp != NUL
 				    ? (char_u *)&(curbuf->b_p_fp) : p->var;
+#ifdef HAVE_FSYNC
+	case PV_FS:	return curbuf->b_p_fs >= 0
+				    ? (char_u *)&(curbuf->b_p_fs) : p->var;
+#endif
 #ifdef FEAT_EVAL
 	case PV_FFU:	return *curbuf->b_p_ffu != NUL
 				    ? (char_u *)&(curbuf->b_p_ffu) : p->var;
@@ -7581,6 +7600,9 @@ buf_copy_options(buf_T *buf, int flags)
 	    // are not copied, start using the global value
 	    buf->b_p_ac = -1;
 	    buf->b_p_ar = -1;
+#ifdef HAVE_FSYNC
+	    buf->b_p_fs = -1;
+#endif
 	    buf->b_p_ul = NO_LOCAL_UNDOLEVEL;
 	    buf->b_p_bkc = empty_option;
 	    buf->b_bkc_flags = 0;
@@ -8083,7 +8105,7 @@ ExpandSettings(
     int		loop;
     int		is_term_opt;
     char_u	name_buf[MAX_KEY_NAME_LEN];
-    static char *(names[]) = {"all", "termcap"};
+    static __thread char *(names[]) = {"all", "termcap"};
     int		ic = regmatch->rm_ic;	// remember the ignore-case flag
     int		fuzzy;
     fuzmatch_str_T  *fuzmatch = NULL;

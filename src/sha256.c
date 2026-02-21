@@ -25,7 +25,7 @@
 
 #if defined(FEAT_CRYPT) || defined(FEAT_PERSISTENT_UNDO)
 
-#define GET_UINT32(n, b, i)		    \
+# define GET_UINT32(n, b, i)		    \
 {					    \
     (n) = ( (UINT32_T)(b)[(i)	 ] << 24)   \
 	| ( (UINT32_T)(b)[(i) + 1] << 16)   \
@@ -33,7 +33,7 @@
 	| ( (UINT32_T)(b)[(i) + 3]	);  \
 }
 
-#define PUT_UINT32(n,b,i)		  \
+# define PUT_UINT32(n,b,i)		  \
 {					  \
     (b)[(i)    ] = (char_u)((n) >> 24);   \
     (b)[(i) + 1] = (char_u)((n) >> 16);   \
@@ -80,25 +80,25 @@ sha256_process(context_sha256_T *ctx, char_u data[64])
     GET_UINT32(W[14], data, 56);
     GET_UINT32(W[15], data, 60);
 
-#define  SHR(x, n) (((x) & 0xFFFFFFFF) >> (n))
-#define ROTR(x, n) (SHR(x, n) | ((x) << (32 - (n))))
+# define  SHR(x, n) (((x) & 0xFFFFFFFF) >> (n))
+# define ROTR(x, n) (SHR(x, n) | ((x) << (32 - (n))))
 
-#define S0(x) (ROTR(x, 7) ^ ROTR(x, 18) ^  SHR(x, 3))
-#define S1(x) (ROTR(x, 17) ^ ROTR(x, 19) ^  SHR(x, 10))
+# define S0(x) (ROTR(x, 7) ^ ROTR(x, 18) ^  SHR(x, 3))
+# define S1(x) (ROTR(x, 17) ^ ROTR(x, 19) ^  SHR(x, 10))
 
-#define S2(x) (ROTR(x, 2) ^ ROTR(x, 13) ^ ROTR(x, 22))
-#define S3(x) (ROTR(x, 6) ^ ROTR(x, 11) ^ ROTR(x, 25))
+# define S2(x) (ROTR(x, 2) ^ ROTR(x, 13) ^ ROTR(x, 22))
+# define S3(x) (ROTR(x, 6) ^ ROTR(x, 11) ^ ROTR(x, 25))
 
-#define F0(x, y, z) (((x) & (y)) | ((z) & ((x) | (y))))
-#define F1(x, y, z) ((z) ^ ((x) & ((y) ^ (z))))
+# define F0(x, y, z) (((x) & (y)) | ((z) & ((x) | (y))))
+# define F1(x, y, z) ((z) ^ ((x) & ((y) ^ (z))))
 
-#define R(t)				\
+# define R(t)				\
 (					\
     W[t] = S1(W[(t) -  2]) + W[(t) -  7] +	\
 	   S0(W[(t) - 15]) + W[(t) - 16]	\
 )
 
-#define P(a,b,c,d,e,f,g,h,x,K)		     \
+# define P(a,b,c,d,e,f,g,h,x,K)		     \
 {					     \
     temp1 = (h) + S3(e) + F1(e, f, g) + (K) + (x); \
     temp2 = S2(a) + F0(a, b, c);	     \
@@ -226,7 +226,7 @@ sha256_update(context_sha256_T *ctx, char_u *input, UINT32_T length)
 	memcpy((void *)(ctx->buffer + left), (void *)input, length);
 }
 
-static char_u sha256_padding[64] = {
+static __thread char_u sha256_padding[64] = {
     0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -276,7 +276,7 @@ sha256_bytes(
     int    salt_len)
 {
     char_u	     sha256sum[32];
-    static char_u    hexit[65];
+    static __thread char_u    hexit[65];
     int		     j;
     context_sha256_T ctx;
 
@@ -313,13 +313,13 @@ sha256_key(
  * These are the standard FIPS-180-2 test vectors
  */
 
-static char *sha_self_test_msg[] = {
+static __thread char *sha_self_test_msg[] = {
     "abc",
     "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
     NULL
 };
 
-static char *sha_self_test_vector[] = {
+static __thread char *sha_self_test_vector[] = {
     "ba7816bf8f01cfea414140de5dae2223" \
     "b00361a396177a9cb410ff61f20015ad",
     "248d6a61d20638b8e5c026930c3e6039" \
@@ -340,9 +340,9 @@ sha256_self_test(void)
     context_sha256_T ctx;
     char_u	     buf[1000];
     char_u	     sha256sum[32];
-    static int	     failures = 0;
+    static __thread int	     failures = 0;
     char_u	     *hexit;
-    static int	     sha256_self_tested = 0;
+    static __thread int	     sha256_self_tested = 0;
 
     if (sha256_self_tested > 0)
 	return failures > 0 ? FAIL : OK;
@@ -403,7 +403,7 @@ sha2_seed(
     int    salt_len)
 {
     int		     i;
-    static char_u    random_data[1000];
+    static __thread char_u    random_data[1000];
     char_u	     sha256sum[32];
     context_sha256_T ctx;
 

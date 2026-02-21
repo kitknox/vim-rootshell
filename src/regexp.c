@@ -241,7 +241,7 @@ enum
 get_char_class(char_u **pp)
 {
     // must be sorted by the 'value' field because it is used by bsearch()!
-    static keyvalue_T char_class_tab[] =
+    static __thread keyvalue_T char_class_tab[] =
     {
 	KEYVALUE_ENTRY(CLASS_ALNUM, "alnum:]"),
 	KEYVALUE_ENTRY(CLASS_ALPHA, "alpha:]"),
@@ -272,7 +272,7 @@ get_char_class(char_u **pp)
 	keyvalue_T *entry;
 	// this function can be called repeatedly with the same value for "pp"
 	// so we cache the last found entry.
-	static keyvalue_T *last_entry = NULL;
+	static __thread keyvalue_T *last_entry = NULL;
 
 	target.key = 0;
 	target.value.string = *pp + 2;
@@ -461,7 +461,7 @@ static int nfa_regexec_nl(regmatch_T *rmp, char_u *line, colnr_T col, int line_l
 static long nfa_regexec_multi(regmmatch_T *rmp, win_T *win, buf_T *buf, linenr_T lnum, colnr_T col, int *timed_out);
 
 // Regex engine structures - single definition with initializers
-static regengine_T bt_regengine =
+static __thread regengine_T bt_regengine =
 {
     bt_regcomp,
     bt_regfree,
@@ -472,7 +472,7 @@ static regengine_T bt_regengine =
 #endif
 };
 
-static regengine_T nfa_regengine =
+static __thread regengine_T nfa_regengine =
 {
     nfa_regcomp,
     nfa_regfree,

@@ -63,7 +63,7 @@ get_locale_val(int what)
 gettext_lang(char_u *name)
 {
     int		i;
-    static char *(mtable[]) = {
+    static __thread char *(mtable[]) = {
 			"afrikaans",	"af",
 			"czech",	"cs",
 			"dutch",	"nl",

@@ -1,10 +1,8 @@
 " Test using builtin functions in the Vim9 script language.
 
 source util/screendump.vim
+source util/socketserver.vim
 import './util/vim9.vim' as v9
-
-" Socket backend for remote functions require the socket server to be running
-CheckSocketServer
 
 " Test for passing too many or too few arguments to builtin functions
 func Test_internalfunc_arg_error()
@@ -804,6 +802,10 @@ def Test_col()
   v9.CheckSourceDefAndScriptFailure(['col(true)'], ['E1013: Argument 1: type mismatch, expected string but got bool', 'E1222: String or List required for argument 1'])
   v9.CheckSourceDefAndScriptFailure(['col(".", [])'], ['E1013: Argument 2: type mismatch, expected number but got list<any>', 'E1210: Number required for argument 2'])
   v9.CheckSourceDefExecAndScriptFailure(['col("")'], 'E1209: Invalid value for a line number')
+  v9.CheckSourceDefExecAndScriptFailure(['col(".1")'], 'E1209: Invalid value for a line number')
+  v9.CheckSourceDefAndScriptSuccess(['col(".")'])
+  v9.CheckSourceDefExecAndScriptFailure(['col("\''a1")'], 'E1209: Invalid value for a line number')
+  v9.CheckSourceDefAndScriptSuccess(['col("\''a")'])
   bw!
 enddef
 
@@ -3471,6 +3473,14 @@ def Test_readfile()
   v9.CheckSourceDefExecAndScriptFailure(['readfile("")'], 'E1175: Non-empty string required for argument 1')
 enddef
 
+def Test_redraw_listener_add()
+  v9.CheckSourceDefAndScriptFailure(['redraw_listener_add("1")'], ['E1013: Argument 1: type mismatch, expected dict<any> but got string', 'E1206: Dictionary required for argument 1'])
+enddef
+
+def Test_redraw_listener_remove()
+  v9.CheckSourceDefAndScriptFailure(['redraw_listener_remove("x")'], ['E1013: Argument 1: type mismatch, expected number but got string', 'E1210: Number required for argument 1'])
+enddef
+
 def Test_reduce()
   v9.CheckSourceDefAndScriptFailure(['reduce({a: 10}, "1")'], ['E1013: Argument 1: type mismatch, expected list<any> but got dict<number>', 'E1253: String, List, Tuple or Blob required for argument 1'])
   assert_equal(6, [1, 2, 3]->reduce((r, c) => r + c, 0))
@@ -3515,12 +3525,17 @@ enddef
 
 def Test_remote_expr()
   CheckFeature clientserver
-  CheckEnv DISPLAY
+  TrySocketServer
+
+  if !g:socketserver_only
+    CheckEnv DISPLAY
+  endif
   v9.CheckSourceDefAndScriptFailure(['remote_expr(1, "b")'], ['E1013: Argument 1: type mismatch, expected string but got number', 'E1174: String required for argument 1'])
   v9.CheckSourceDefAndScriptFailure(['remote_expr("a", 2)'], ['E1013: Argument 2: type mismatch, expected string but got number', 'E1174: String required for argument 2'])
   v9.CheckSourceDefAndScriptFailure(['remote_expr("a", "b", 3)'], ['E1013: Argument 3: type mismatch, expected string but got number', 'E1174: String required for argument 3'])
   v9.CheckSourceDefAndScriptFailure(['remote_expr("a", "b", "c", "d")'], ['E1013: Argument 4: type mismatch, expected number but got string', 'E1210: Number required for argument 4'])
-  v9.CheckSourceDefExecAndScriptFailure(['remote_expr("", "")'], 'E241: Unable to send to ')
+
+    v9.CheckSourceDefExecAndScriptFailure(['remote_expr("", "")'], 'E241: Unable to send to ')
 enddef
 
 def Test_remote_foreground()
@@ -3536,7 +3551,10 @@ enddef
 
 def Test_remote_peek()
   CheckFeature clientserver
-  CheckEnv DISPLAY
+  TrySocketServer
+  if !g:socketserver_only
+    CheckEnv DISPLAY
+  endif
   v9.CheckSourceDefAndScriptFailure(['remote_peek(0z10)'], ['E1013: Argument 1: type mismatch, expected string but got blob', 'E1174: String required for argument 1'])
   v9.CheckSourceDefAndScriptFailure(['remote_peek("a5b6c7", [1])'], ['E1013: Argument 2: type mismatch, expected string but got list<number>', 'E1174: String required for argument 2'])
   v9.CheckSourceDefExecAndScriptFailure(['remote_peek("")'], 'E573: Invalid server id used')
@@ -3552,7 +3570,10 @@ enddef
 
 def Test_remote_send()
   CheckFeature clientserver
-  CheckEnv DISPLAY
+  TrySocketServer
+  if !g:socketserver_only
+    CheckEnv DISPLAY
+  endif
   v9.CheckSourceDefAndScriptFailure(['remote_send(1, "b")'], ['E1013: Argument 1: type mismatch, expected string but got number', 'E1174: String required for argument 1'])
   v9.CheckSourceDefAndScriptFailure(['remote_send("a", 2)'], ['E1013: Argument 2: type mismatch, expected string but got number', 'E1174: String required for argument 2'])
   v9.CheckSourceDefAndScriptFailure(['remote_send("a", "b", 3)'], ['E1013: Argument 3: type mismatch, expected string but got number', 'E1174: String required for argument 3'])
@@ -3561,7 +3582,10 @@ enddef
 
 def Test_remote_startserver()
   CheckFeature clientserver
-  CheckEnv DISPLAY
+  TrySocketServer
+  if !g:socketserver_only
+    CheckEnv DISPLAY
+  endif
   v9.CheckSourceDefAndScriptFailure(['remote_startserver({})'], ['E1013: Argument 1: type mismatch, expected string but got dict<any>', 'E1174: String required for argument 1'])
 enddef
 
@@ -4758,6 +4782,9 @@ def Test_term_gettty()
     CheckFeature terminal
   else
     var buf = g:Run_shell_in_terminal({})
+    if has('win32') && buf->term_getjob()->job_info()['tty_type'] == 'conpty'
+      throw 'Skipped: When using conpty, term_gettty() always returns an empty string.'
+    endif
     term_gettty(buf, true)->assert_notequal('')
     g:StopShellInTerminal(buf)
   endif

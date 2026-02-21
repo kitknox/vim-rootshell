@@ -7,7 +7,7 @@
  */
 
 #ifndef VIM__H
-# define VIM__H
+#define VIM__H
 
 #ifdef __APPLE__
 # include <TargetConditionals.h>
@@ -64,9 +64,9 @@
  * This guard will be removed once the remaining NeXT-specific code paths
  * are deleted in a future release.
  */
-#if defined(NeXT) || defined(__NeXT__)
-# error "NeXTSTEP / OPENSTEP support has been deprecated."
-#endif
+# if defined(NeXT) || defined(__NeXT__)
+#  error "NeXTSTEP / OPENSTEP support has been deprecated."
+# endif
 
 # if (defined(__linux__) && !defined(__ANDROID__)) || defined(__CYGWIN__) || defined(__GNU__)
 // Needed for strptime().  Needs to be done early, since header files can
@@ -194,7 +194,7 @@
 # endif
 #endif
 #if defined(MACOS_X) && !defined(HAVE_CONFIG_H)
-#  define VIM_SIZEOF_INT __SIZEOF_INT__
+# define VIM_SIZEOF_INT __SIZEOF_INT__
 #endif
 
 #if VIM_SIZEOF_INT < 4 && !defined(PROTO)
@@ -386,7 +386,7 @@
 #  define PATH_ESC_CHARS ((char_u *)" \t\n*?[{`$\\%#'\"|!<")
 #  define SHELL_ESC_CHARS ((char_u *)" \t\n*?[{`$\\%#'\"|!<>();&")
 # endif
-#  define BUFFER_ESC_CHARS ((char_u *)" \t\n*?[`$\\%#'\"|!<")
+# define BUFFER_ESC_CHARS ((char_u *)" \t\n*?[`$\\%#'\"|!<")
 #endif
 
 // length of a buffer to store a number in ASCII (64 bits binary + NUL)
@@ -727,6 +727,7 @@ extern int (*dyn_libintl_wputenv)(const wchar_t *envstring);
 #define POPF_INFO	0x200	// used for info of popup menu
 #define POPF_INFO_MENU	0x400	// align info popup with popup menu
 #define POPF_POSINVERT	0x800	// vertical position can be inverted
+#define POPF_OPACITY 0x1000	// popup has opacity/transparency setting
 
 // flags used in w_popup_handled
 #define POPUP_HANDLED_1	    0x01    // used by mouse_find_win()
@@ -1336,6 +1337,7 @@ extern int (*dyn_libintl_wputenv)(const wchar_t *envstring);
 #define WSP_ABOVE	0x80	// put new window above/left
 #define WSP_NEWLOC	0x100	// don't copy location list
 #define WSP_FORCE_ROOM	0x200	// ignore "not enough room" errors
+#define WSP_QUICKFIX	0x400	// creating the quickfix window
 
 /*
  * arguments for gui_set_shellsize()
@@ -1856,9 +1858,9 @@ void *vim_memset(void *, int, size_t);
 // STRICMP() only handles the system locale version, which often does not
 // handle non-ascii properly.
 
-# define MB_STRICMP(d, s)	mb_strnicmp((char_u *)(d), (char_u *)(s), (int)MAXCOL)
-# define MB_STRNICMP(d, s, n)	mb_strnicmp((char_u *)(d), (char_u *)(s), (int)(n))
-# define MB_STRNICMP2(d, s, n1, n2)	mb_strnicmp2((char_u *)(d), (char_u *)(s), (n1), (n2))
+#define MB_STRICMP(d, s)	mb_strnicmp((char_u *)(d), (char_u *)(s), (int)MAXCOL)
+#define MB_STRNICMP(d, s, n)	mb_strnicmp((char_u *)(d), (char_u *)(s), (int)(n))
+#define MB_STRNICMP2(d, s, n1, n2)	mb_strnicmp2((char_u *)(d), (char_u *)(s), (n1), (n2))
 
 #define STRCAT(d, s)	    strcat((char *)(d), (char *)(s))
 #define STRNCAT(d, s, n)    strncat((char *)(d), (char *)(s), (size_t)(n))
@@ -2053,16 +2055,26 @@ typedef enum {
  * bits elsewhere.  That causes memory corruption.  Define time_T and use it
  * for global variables to avoid that.
  */
-# ifdef MSWIN
+#ifdef MSWIN
 typedef __time64_t  time_T;
-# else
+#else
 typedef time_t	    time_T;
-# endif
+#endif
 
 #ifdef _WIN64
 typedef __int64 sock_T;
 #else
 typedef int sock_T;
+#endif
+
+// The clipboard provider feature uses clipmethod as well but should be separate
+// from the clipboard code.
+#if defined(FEAT_CLIPBOARD) || defined(FEAT_EVAL)
+# define HAVE_CLIPMETHOD
+#endif
+
+#if defined(HAVE_CLIPMETHOD) && defined(FEAT_EVAL)
+# define FEAT_CLIPBOARD_PROVIDER
 #endif
 
 // Include option.h before structs.h, because the number of window-local and
@@ -2283,7 +2295,8 @@ typedef int sock_T;
 #define VV_TERMDA1 114
 #define VV_TERMOSC 115
 #define VV_VIM_DID_INIT		116
-#define VV_LEN		117	// number of v: vars
+#define VV_CLIPPROVIDERS 117
+#define VV_LEN		118	// number of v: vars
 
 // used for v_number in VAR_BOOL and VAR_SPECIAL
 #define VVAL_FALSE	0L	// VAR_BOOL
@@ -2315,6 +2328,16 @@ typedef int sock_T;
 
 #define TABSTOP_MAX 9999
 
+#ifdef HAVE_CLIPMETHOD
+typedef enum {
+    CLIPMETHOD_FAIL,
+    CLIPMETHOD_NONE,
+    CLIPMETHOD_WAYLAND,
+    CLIPMETHOD_X11,
+    CLIPMETHOD_PROVIDER
+} clipmethod_T;
+#endif
+
 #ifdef FEAT_CLIPBOARD
 
 // VIM_ATOM_NAME is the older Vim-specific selection type for X11.  Still
@@ -2338,13 +2361,6 @@ typedef int sock_T;
 #  endif
 # endif
 
-typedef enum {
-    CLIPMETHOD_FAIL,
-    CLIPMETHOD_NONE,
-    CLIPMETHOD_WAYLAND,
-    CLIPMETHOD_X11,
-} clipmethod_T;
-
 // Info about selected text
 typedef struct
 {
@@ -2360,13 +2376,13 @@ typedef struct
     short_u	origin_end_col;
     short_u	word_start_col;
     short_u	word_end_col;
-#ifdef FEAT_PROP_POPUP
+# ifdef FEAT_PROP_POPUP
     // limits for selection inside a popup window
     short_u	min_col;
     short_u	max_col;
     short_u	min_row;
     short_u	max_row;
-#endif
+# endif
 
     pos_T	prev;		// Previous position
     short_u	state;		// Current selection state
@@ -2544,7 +2560,7 @@ typedef int (*opt_expand_cb_T)(optexpand_T *args, int *numMatches, char_u ***mat
 # define USE_MCH_ERRMSG
 #endif
 
-# if defined(FEAT_EVAL) \
+#if defined(FEAT_EVAL) \
 	&& (!defined(FEAT_GUI_MSWIN) || !defined(FEAT_MBYTE_IME))
 // Whether IME is supported by im_get_status() defined in mbyte.c.
 // For Win32 GUI it's in gui_w32.c when FEAT_MBYTE_IME is defined.
@@ -2620,21 +2636,21 @@ extern FILE* mch_fopen(const char *path, const char *mode);
 
 #ifdef _MSC_VER
 // Avoid useless warning "conversion from X to Y of greater size".
- #pragma warning(disable : 4312)
+# pragma warning(disable : 4312)
 // Avoid warning for old style function declarators
- #pragma warning(disable : 4131)
+# pragma warning(disable : 4131)
 // Avoid warning for conversion to type with smaller range
- #pragma warning(disable : 4244)
+# pragma warning(disable : 4244)
 // Avoid warning for conversion to larger size
- #pragma warning(disable : 4306)
+# pragma warning(disable : 4306)
 // Avoid warning for unreferenced formal parameter
- #pragma warning(disable : 4100)
+# pragma warning(disable : 4100)
 // Avoid warning for differs in indirection to slightly different base type
- #pragma warning(disable : 4057)
+# pragma warning(disable : 4057)
 // Avoid warning for constant conditional expression
- #pragma warning(disable : 4127)
+# pragma warning(disable : 4127)
 // Avoid warning for assignment within conditional
- #pragma warning(disable : 4706)
+# pragma warning(disable : 4706)
 #endif
 
 // Note: a NULL argument for vim_realloc() is not portable, don't use it.

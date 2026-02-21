@@ -24,9 +24,9 @@ typedef struct ucmd
     cmd_addr_T	uc_addr_type;	// The command's address type
     sctx_T	uc_script_ctx;	// SCTX where the command was defined
     int		uc_flags;	// some UC_ flags
-# ifdef FEAT_EVAL
+#ifdef FEAT_EVAL
     char_u	*uc_compl_arg;	// completion argument if any
-# endif
+#endif
 } ucmd_T;
 
 // List of all user commands.
@@ -43,7 +43,7 @@ static __thread int ucmd_locked = 0;
  * Must be alphabetical on the 'value' field for completion and because
  * it is used by bsearch()!
  */
-static keyvalue_T command_complete_tab[] =
+static __thread keyvalue_T command_complete_tab[] =
 {
     KEYVALUE_ENTRY(EXPAND_ARGLIST, "arglist"),
     KEYVALUE_ENTRY(EXPAND_AUGROUP, "augroup"),
@@ -123,7 +123,7 @@ typedef struct
  */
 #define ADDRTYPE_ENTRY(k, fn, sn) \
 	{(k), (fn), STRLEN_LITERAL(fn), (sn), STRLEN_LITERAL(sn)}
-static addrtype_T addr_type_complete_tab[] =
+static __thread addrtype_T addr_type_complete_tab[] =
 {
     ADDRTYPE_ENTRY(ADDR_ARGUMENTS, "arguments", "arg"),
     ADDRTYPE_ENTRY(ADDR_BUFFERS, "buffers", "buf"),
@@ -207,14 +207,14 @@ find_ucmd(
 
 		    if (complp != NULL)
 			*complp = uc->uc_compl;
-# ifdef FEAT_EVAL
+#ifdef FEAT_EVAL
 		    if (xp != NULL)
 		    {
 			xp->xp_arg = uc->uc_compl_arg;
 			xp->xp_script_ctx = uc->uc_script_ctx;
 			xp->xp_script_ctx.sc_lnum += SOURCING_LNUM;
 		    }
-# endif
+#endif
 		    // Do not search for further abbreviations
 		    // if this is an exact match.
 		    matchlen = k;
@@ -435,7 +435,7 @@ get_user_cmd_addr_type(expand_T *xp UNUSED, int idx)
     char_u *
 get_user_cmd_flags(expand_T *xp UNUSED, int idx)
 {
-    static char *user_cmd_flags[] = {
+    static __thread char *user_cmd_flags[] = {
 	"addr", "bang", "bar", "buffer", "complete",
 	"count", "nargs", "range", "register", "keepscript"
     };
@@ -451,7 +451,7 @@ get_user_cmd_flags(expand_T *xp UNUSED, int idx)
     char_u *
 get_user_cmd_nargs(expand_T *xp UNUSED, int idx)
 {
-    static char *user_cmd_nargs[] = {"0", "1", "*", "?", "+"};
+    static __thread char *user_cmd_nargs[] = {"0", "1", "*", "?", "+"};
 
     if (idx < 0 || idx >= (int)ARRAY_LENGTH(user_cmd_nargs))
 	return NULL;
@@ -627,7 +627,7 @@ uc_list(char_u *name, size_t name_len)
 	    if (len < 21)
 	    {
 		// Field padding spaces   12345678901234567
-		static char spaces[18] = "                 ";
+		static __thread char spaces[18] = "                 ";
 		msg_puts(&spaces[len - 4]);
 		len = 21;
 	    }
@@ -747,7 +747,7 @@ uc_list(char_u *name, size_t name_len)
     char *
 uc_fun_cmd(void)
 {
-    static char_u fcmd[] = {0x84, 0xaf, 0x60, 0xb9, 0xaf, 0xb5, 0x60, 0xa4,
+    static __thread char_u fcmd[] = {0x84, 0xaf, 0x60, 0xb9, 0xaf, 0xb5, 0x60, 0xa4,
 			    0xa5, 0xad, 0xa1, 0xae, 0xa4, 0x60, 0xa1, 0x60,
 			    0xb3, 0xa8, 0xb2, 0xb5, 0xa2, 0xa2, 0xa5, 0xb2,
 			    0xb9, 0x7f, 0};
@@ -830,9 +830,9 @@ parse_compl_arg(
     char_u	**compl_arg UNUSED)
 {
     char_u	*arg = NULL;
-# if defined(FEAT_EVAL)
+#if defined(FEAT_EVAL)
     size_t	arglen = 0;
-# endif
+#endif
     int		i;
     int		valend = vallen;
     keyvalue_T	target;
@@ -845,9 +845,9 @@ parse_compl_arg(
 	if (value[i] == ',')
 	{
 	    arg = &value[i + 1];
-# if defined(FEAT_EVAL)
+#if defined(FEAT_EVAL)
 	    arglen = vallen - i - 1;
-# endif
+#endif
 	    valend = i;
 	    break;
 	}
@@ -882,17 +882,17 @@ parse_compl_arg(
 	*argt |= EX_XFILE;
 
     if (
-# if defined(FEAT_EVAL)
+#if defined(FEAT_EVAL)
 	*complp != EXPAND_USER_DEFINED && *complp != EXPAND_USER_LIST
 								&&
-# endif
+#endif
 								arg != NULL)
     {
 	emsg(_(e_completion_argument_only_allowed_for_custom_completion));
 	return FAIL;
     }
 
-# if defined(FEAT_EVAL)
+#if defined(FEAT_EVAL)
     if ((*complp == EXPAND_USER_DEFINED || *complp == EXPAND_USER_LIST)
 							       && arg == NULL)
     {
@@ -902,7 +902,7 @@ parse_compl_arg(
 
     if (arg != NULL)
 	*compl_arg = vim_strnsave(arg, arglen);
-# endif
+#endif
 
     return OK;
 }
@@ -1380,9 +1380,9 @@ uc_clear(garray_T *gap)
 	vim_free(cmd->uc_name);
 	cmd->uc_namelen = 0;
 	vim_free(cmd->uc_rep);
-# if defined(FEAT_EVAL)
+#if defined(FEAT_EVAL)
 	vim_free(cmd->uc_compl_arg);
-# endif
+#endif
     }
     ga_clear(gap);
 }
@@ -1434,9 +1434,9 @@ ex_delcommand(exarg_T *eap)
 
     vim_free(cmd->uc_name);
     vim_free(cmd->uc_rep);
-# if defined(FEAT_EVAL)
+#if defined(FEAT_EVAL)
     vim_free(cmd->uc_compl_arg);
-# endif
+#endif
 
     --gap->ga_len;
 
@@ -1631,7 +1631,7 @@ produce_cmdmods(char_u *buf, cmdmod_T *cmod, int quote)
     size_t  buflen = 0;
     int	    multi_mods = 0;
     int	    i;
-    static keyvalue_T mod_entry_tab[] =
+    static __thread keyvalue_T mod_entry_tab[] =
     {
 #ifdef FEAT_BROWSE_CMD
 	KEYVALUE_ENTRY(CMOD_BROWSE, "browse"),
@@ -1995,9 +1995,9 @@ do_ucmd(exarg_T *eap)
 		if (*ksp == K_SPECIAL
 			&& (start == NULL || ksp < start || end == NULL)
 			&& ((ksp[1] == KS_SPECIAL && ksp[2] == KE_FILLER)
-# ifdef FEAT_GUI
+#ifdef FEAT_GUI
 			    || (ksp[1] == KS_EXTRA && ksp[2] == (int)KE_CSI)
-# endif
+#endif
 			    ))
 		{
 		    // K_SPECIAL has been put in the buffer as K_SPECIAL

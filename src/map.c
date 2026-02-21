@@ -2875,7 +2875,7 @@ struct initmap
 
 # ifdef FEAT_GUI_MSWIN
 // Use the Windows (CUA) keybindings. (GUI)
-static struct initmap initmappings[] =
+static __thread struct initmap initmappings[] =
 {
 	// paste, copy and cut
 	{(char_u *)"<S-Insert> \"*P", MODE_NORMAL},
@@ -2891,7 +2891,7 @@ static struct initmap initmappings[] =
 
 # if defined(MSWIN) && (!defined(FEAT_GUI) || defined(VIMDLL))
 // Use the Windows (CUA) keybindings. (Console)
-static struct initmap cinitmappings[] =
+static __thread struct initmap cinitmappings[] =
 {
 	{(char_u *)"\316w <C-Home>", MODE_NORMAL | VIS_SEL},
 	{(char_u *)"\316w <C-Home>", MODE_INSERT | MODE_CMDLINE},
@@ -2919,7 +2919,7 @@ static struct initmap cinitmappings[] =
 # endif
 
 # if defined(MACOS_X)
-static struct initmap initmappings[] =
+static __thread struct initmap initmappings[] =
 {
 	// Use the Standard MacOS binding.
 	// paste, copy and cut

@@ -817,7 +817,7 @@ dict2string(typval_T *tv, int copyID, int restore_copyID)
 	    if (first)
 		first = FALSE;
 	    else
-		ga_concat(&ga, (char_u *)", ");
+		ga_concat_len(&ga, (char_u *)", ", 2);
 
 	    tofree = string_quote(hi->hi_key, FALSE);
 	    if (tofree != NULL)
@@ -825,7 +825,7 @@ dict2string(typval_T *tv, int copyID, int restore_copyID)
 		ga_concat(&ga, tofree);
 		vim_free(tofree);
 	    }
-	    ga_concat(&ga, (char_u *)": ");
+	    ga_concat_len(&ga, (char_u *)": ", 2);
 	    s = echo_string_core(&HI2DI(hi)->di_tv, &tofree, numbuf, copyID,
 						 FALSE, restore_copyID, TRUE);
 	    if (s != NULL)
@@ -1038,17 +1038,13 @@ eval_dict(char_u **arg, typval_T *rettv, evalarg_T *evalarg, int literal)
 	*arg = skipwhite_and_linebreak(*arg + 1, evalarg);
 	if (eval1(arg, &tv, evalarg) == FAIL)	// recursive!
 	{
-	    if (evaluate)
-		clear_tv(&tvkey);
+	    clear_tv(&tvkey);
 	    goto failret;
 	}
 	if (check_typval_is_value(&tv) == FAIL)
 	{
-	    if (evaluate)
-	    {
-		clear_tv(&tvkey);
-		clear_tv(&tv);
-	    }
+	    clear_tv(&tvkey);
+	    clear_tv(&tv);
 	    goto failret;
 	}
 	if (evaluate)
@@ -1349,7 +1345,7 @@ dict_extend_func(
     // Check the third argument.
     if (argvars[2].v_type != VAR_UNKNOWN)
     {
-	static char *(av[]) = {"keep", "force", "error"};
+	static __thread char *(av[]) = {"keep", "force", "error"};
 
 	action = tv_get_string_chk(&argvars[2]);
 	if (action == NULL)
@@ -1610,7 +1606,7 @@ dict2list(typval_T *argvars, typval_T *rettv, dict2list_T what)
 }
 
 /*
- * "items()" function
+ * "items(dict)" function
  */
     void
 dict2items(typval_T *argvars, typval_T *rettv)
