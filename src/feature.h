@@ -587,11 +587,8 @@
 
 /*
  * +termguicolors	'termguicolors' option.
- * Disabled on iOS/visionOS because X11 color name resolution is unavailable.
  */
-#ifdef VIM_APPLE_SANDBOX
-  /* Apple sandbox targets don't have X11 color name support */
-#elif (defined(FEAT_NORMAL) && defined(FEAT_SYN_HL)) && !defined(ALWAYS_USE_GUI)
+#if (defined(FEAT_NORMAL) && defined(FEAT_SYN_HL)) && !defined(ALWAYS_USE_GUI)
 # define FEAT_TERMGUICOLORS
 #endif
 

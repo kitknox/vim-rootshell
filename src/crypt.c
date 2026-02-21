@@ -1371,7 +1371,7 @@ crypt_int_to_char(int n, char_u *s)
     }
 }
 
-    static __thread long long
+    static long long
 crypt_char_to_long_long(char_u *s)
 {
     unsigned long long    retval = 0;

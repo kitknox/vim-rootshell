@@ -215,7 +215,10 @@ func configureVim(platform: PlatformConfig, arch: String, sdkPath: String, frame
             vim_cv_tty_group=world \
             vim_cv_stat_ignores_slash=yes \
             vim_cv_getcwd_broken=no \
-            --with-features=big \
+            --with-features=huge \
+            --disable-channel \
+            --disable-terminal \
+            --disable-cscope \
             --disable-luainterp \
             --disable-pythoninterp \
             --disable-python3interp \

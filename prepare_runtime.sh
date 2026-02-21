@@ -115,6 +115,12 @@ if [ -d "$RUNTIME_SRC/colors" ]; then
     cp "$RUNTIME_SRC/colors/"*.vim "$RESOURCES_PATH/colors/" 2>/dev/null || true
 fi
 
+# Copy color name lists (needed for termguicolors color name resolution)
+mkdir -p "$RESOURCES_PATH/colors/lists"
+if [ -d "$RUNTIME_SRC/colors/lists" ]; then
+    cp "$RUNTIME_SRC/colors/lists/"*.vim "$RESOURCES_PATH/colors/lists/" 2>/dev/null || true
+fi
+
 # Syntax files - Infrastructure (required for syntax to work)
 SYNTAX_INFRA=(
     "synload.vim"

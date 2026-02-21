@@ -856,7 +856,7 @@ timer_busy = 0;
 
 #ifdef FEAT_BEVAL_TERM
 bevalexpr_due_set = FALSE;
-bevalexpr_due = 0;
+profile_zero(&bevalexpr_due);
 #endif
 
 #ifdef FEAT_EVAL
