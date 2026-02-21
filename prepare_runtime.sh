@@ -305,13 +305,11 @@ if [ -f "$RUNTIME_SRC/pack/dist/opt/netrw/syntax/netrw.vim" ]; then
     cp "$RUNTIME_SRC/pack/dist/opt/netrw/syntax/netrw.vim" "$RESOURCES_PATH/pack/dist/opt/netrw/syntax/"
 fi
 
-# Copy minimal docs (help requires tags file)
+# Copy all documentation (help files + tags)
 echo "Copying documentation..."
-if [ -f "$RUNTIME_SRC/doc/tags" ]; then
-    cp "$RUNTIME_SRC/doc/tags" "$RESOURCES_PATH/doc/"
-fi
-if [ -f "$RUNTIME_SRC/doc/help.txt" ]; then
-    cp "$RUNTIME_SRC/doc/help.txt" "$RESOURCES_PATH/doc/"
+if [ -d "$RUNTIME_SRC/doc" ]; then
+    cp "$RUNTIME_SRC/doc/"*.txt "$RESOURCES_PATH/doc/" 2>/dev/null || true
+    cp "$RUNTIME_SRC/doc/tags" "$RESOURCES_PATH/doc/" 2>/dev/null || true
 fi
 
 # Calculate and display size
@@ -327,6 +325,7 @@ echo "  Syntax files: $(ls -1 "$RESOURCES_PATH/syntax/" 2>/dev/null | wc -l | tr
 echo "  Colorschemes: $(ls -1 "$RESOURCES_PATH/colors/" 2>/dev/null | wc -l | tr -d ' ')"
 echo "  Ftplugin files: $(ls -1 "$RESOURCES_PATH/ftplugin/" 2>/dev/null | wc -l | tr -d ' ')"
 echo "  Indent files: $(ls -1 "$RESOURCES_PATH/indent/" 2>/dev/null | wc -l | tr -d ' ')"
+echo "  Doc files: $(ls -1 "$RESOURCES_PATH/doc/" 2>/dev/null | wc -l | tr -d ' ')"
 echo ""
 echo "To use in your iOS app:"
 echo "  1. Add VimRuntime.bundle to your Xcode project"
