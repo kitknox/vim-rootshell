@@ -130,3 +130,4 @@ src/cscope.out
 /compile_commands.json
 # Build Output
 .build/
+.tmp/
