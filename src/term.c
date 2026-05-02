@@ -466,6 +466,12 @@ static tcap_entry_T builtin_xterm[] = {
     {(int)KS_SO,	"\033[7m"},		// standout: reverse video (Ghostty compatible)
     {(int)KS_SE,	"\033[27m"},		// standout end: disable reverse
     {(int)KS_UE,	"\033[24m"},		// underline end (disable underline only)
+    // iOS: ghostty-ios sends DEL (0x7F) for the Backspace key (xterm convention).
+    // Without this, set_termname()'s fallback at line ~2265 defaults t_kb to ^H
+    // and t_kD to DEL, so 0x7F is matched as <Del> (forward-delete) rather than
+    // <BS>, which makes ins_del() run instead of ins_bs() in INSERT mode --
+    // appearing to behave like NORMAL-mode 'x' and beeping at end-of-line.
+    {K_BS,		"\x7f"},
 #else
     {(int)KS_ME,	"\033[m"},
 #endif
