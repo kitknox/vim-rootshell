@@ -1,10 +1,12 @@
 // Vim iOS XCFramework Build Tool
-// Usage from vim_ios root: swift run --package-path xcfs build
+// Usage from the repository root: swift run --package-path xcfs build
 
 import FMake
 import Foundation
 
 OutputLevel.default = .error
+
+let vimVersion = "9.2"
 
 // MARK: - Helper Functions
 
@@ -310,7 +312,7 @@ func createFrameworkBundle(
             <key>CFBundlePackageType</key>
             <string>FMWK</string>
             <key>CFBundleShortVersionString</key>
-            <string>9.1</string>
+            <string>\(vimVersion)</string>
             <key>CFBundleSupportedPlatforms</key>
             <array>
                 <string>\(platform.supportedPlatformKey)</string>
@@ -534,10 +536,10 @@ let releaseNotes = """
 
     ## Build Info
 
-    - Vim version: 9.1
+    - Vim version: \(vimVersion)
     - No Lua interpreter
     - No Python interpreter
-    - Features: big
+    - Features: huge
 
     """
 

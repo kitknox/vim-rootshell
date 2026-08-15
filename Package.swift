@@ -1,43 +1,27 @@
-// swift-tools-version:5.3
+// swift-tools-version: 5.9
 
 import PackageDescription
-
-// For development, use local paths. For releases, update to URLs with checksums.
-// To build xcframeworks: swift run --package-path xcfs build
-// To create runtime bundle: ./prepare_runtime.sh
 
 let package = Package(
     name: "vim",
     platforms: [
         .iOS(.v14),
         .macCatalyst(.v14),
+        .visionOS(.v1),
     ],
     products: [
-        .library(name: "vim", targets: ["vim", "xxd"])
-    ],
-    dependencies: [
+        .library(name: "vim", targets: ["vim", "xxd"]),
     ],
     targets: [
-        // Development: Use local xcframework paths
         .binaryTarget(
             name: "vim",
-            path: ".build/vim.xcframework"
+            url: "https://github.com/kitknox/vim-rootshell/releases/download/v0.1.0/vim.xcframework.zip",
+            checksum: "62ab92ca4374798141b1e3d48850686e6117ec3717fd38e87d4a9136f00fdba7"
         ),
         .binaryTarget(
             name: "xxd",
-            path: ".build/xxd.xcframework"
+            url: "https://github.com/kitknox/vim-rootshell/releases/download/v0.1.0/xxd.xcframework.zip",
+            checksum: "afa36c8993d688d77bc714596a70d0e4eea82cd93f423a85cec2a3a602b9a30f"
         ),
-
-        // Release: Uncomment and update URLs/checksums for distribution
-        // .binaryTarget(
-        //     name: "vim",
-        //     url: "https://github.com/YOUR_REPO/vim/releases/download/VERSION/vim.xcframework.zip",
-        //     checksum: "CHECKSUM_HERE"
-        // ),
-        // .binaryTarget(
-        //     name: "xxd",
-        //     url: "https://github.com/YOUR_REPO/vim/releases/download/VERSION/xxd.xcframework.zip",
-        //     checksum: "CHECKSUM_HERE"
-        // ),
     ]
 )

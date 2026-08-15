@@ -1,3 +1,55 @@
+# Vim — Rootshell fork
+
+This repository is the [Rootshell](https://www.rootshell.com)-maintained fork
+of [vim/vim](https://github.com/vim/vim). It is intended to build Vim and xxd
+as dynamic XCFrameworks for the Rootshell application on Apple platforms. The
+fork is maintained independently and does not automatically track subsequent
+upstream changes.
+
+The `vim` and `xxd` binary target names remain unchanged. Report Rootshell
+application problems in the
+[Rootshell issue tracker](https://github.com/kitknox/rootshell/issues); report
+reproducible upstream Vim problems to the upstream project.
+
+## Swift binary package
+
+The `vim` Swift package product contains both the Vim and xxd XCFrameworks and
+supports:
+
+- iOS 14 or later (arm64 device and arm64 simulator)
+- Mac Catalyst 14 or later (arm64 and x86_64)
+- visionOS 1 or later (arm64 device and arm64 simulator)
+
+Add this repository as a Swift package dependency and select the `vim` library
+product:
+
+```text
+https://github.com/kitknox/vim-rootshell.git
+```
+
+Both frameworks link `ios_system.framework` at runtime. Consumers must also
+link and embed a compatible ios_system build. Rootshell keeps the generated
+`VimRuntime.bundle` in the application resources and sets `VIMRUNTIME` before
+launching Vim.
+
+## Building a release
+
+The XCFramework build expects a sibling `ios_system` checkout with its Apple
+platform frameworks already built. From this repository's root, run:
+
+```sh
+swift run --package-path xcfs build
+```
+
+The command writes ignored XCFrameworks, zip archives, and `release.md` under
+`.build/`. For a release, update `Package.swift` with the versioned GitHub
+release URLs and checksums from `release.md`, commit and tag that manifest, and
+attach both zip archives to the matching GitHub release.
+
+To refresh the optional runtime resource bundle, run `./prepare_runtime.sh`.
+
+---
+
 # [![Vim The editor](https://github.com/vim/vim/raw/master/runtime/vimlogo.gif)](https://www.vim.org)
 
 [![Github Build status](https://github.com/vim/vim/workflows/GitHub%20CI/badge.svg)](https://github.com/vim/vim/actions?query=workflow%3A%22GitHub+CI%22)

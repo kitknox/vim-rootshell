@@ -1,23 +1,27 @@
 #!/usr/bin/env python3
 """
-Generate iOS-specific options files for Vim 9.1
+Generate iOS-specific options files for Vim.
 
 This script processes optiondefs.h and generates:
 1. An iOS section for optiondefs.h with NULL var pointers
 2. An options_init.h file for runtime initialization
 """
 
+import argparse
+from pathlib import Path
 import re
 import sys
 
-def parse_optiondefs(filepath):
+def parse_optiondefs(filepath: Path):
     """Parse optiondefs.h and extract option definitions."""
-    with open(filepath, 'r') as f:
-        content = f.read()
+    content = filepath.read_text(encoding="utf-8")
 
-    # Find the options array section
-    # Look for the start of the options array
-    start_match = re.search(r'static __thread struct vimoption options\[\] =\s*\{', content)
+    declaration = r'static __thread struct vimoption options\[\] ='
+    wrapped_start = re.search(
+        declaration + r'\s*#if !TARGET_OS_IPHONE\s*\{',
+        content,
+    )
+    start_match = wrapped_start or re.search(declaration + r'\s*\{', content)
     if not start_match:
         print("Could not find options array start", file=sys.stderr)
         return None, None, None
@@ -33,7 +37,20 @@ def parse_optiondefs(filepath):
     array_end = array_start + end_match.end()
     options_section = content[array_start:array_end]
 
-    return content[:start_match.start()], options_section, content[array_end:]
+    if wrapped_start:
+        wrapper_end = re.search(
+            r'#endif // TARGET_OS_IPHONE',
+            content[array_end:],
+        )
+        if not wrapper_end:
+            print("Could not find iOS options wrapper end", file=sys.stderr)
+            return None, None, None
+        suffix_start = array_end + wrapper_end.end()
+    else:
+        suffix_start = array_end
+
+    suffix = content[suffix_start:].lstrip("\n")
+    return content[:start_match.start()], options_section, suffix
 
 def nullify_var_pointers(options_section):
     """Replace (char_u *)&p_* with (char_u *)NULL for iOS."""
@@ -144,9 +161,25 @@ static void findoption_and_set_var(char *name, char_u *var)
     return '\n'.join(lines)
 
 def main():
-    optiondefs_path = '/Users/kit/Development/vim9_ios/src/optiondefs.h'
+    default_src_dir = Path(__file__).resolve().parent / "src"
+    parser = argparse.ArgumentParser(
+        description="Generate the iOS option table and runtime initializer."
+    )
+    parser.add_argument(
+        "--src-dir",
+        type=Path,
+        default=default_src_dir,
+        help=f"Vim source directory (default: {default_src_dir})",
+    )
+    args = parser.parse_args()
 
-    print("Parsing optiondefs.h...")
+    src_dir = args.src_dir.expanduser().resolve()
+    optiondefs_path = src_dir / "optiondefs.h"
+    options_init_path = src_dir / "options_init.h"
+    if not optiondefs_path.is_file():
+        parser.error(f"optiondefs.h not found: {optiondefs_path}")
+
+    print(f"Parsing {optiondefs_path}...")
     prefix, options_section, suffix = parse_optiondefs(optiondefs_path)
 
     if options_section is None:
@@ -160,7 +193,7 @@ def main():
 
     # Write the modified optiondefs.h with iOS conditional
     print("Writing modified optiondefs.h...")
-    with open(optiondefs_path, 'w') as f:
+    with optiondefs_path.open("w", encoding="utf-8") as f:
         f.write(prefix)
         f.write('static __thread struct vimoption options[] =\n')
         f.write('#if !TARGET_OS_IPHONE\n')
@@ -170,14 +203,14 @@ def main():
         f.write('// iOS: var pointers are NULL at compile time, set at runtime via options_init.h\n')
         f.write('{')
         f.write(ios_options)
-        f.write('\n#endif // TARGET_OS_IPHONE\n')
+        f.write('\n#endif // TARGET_OS_IPHONE\n\n\n')
         f.write(suffix)
 
     # Generate options_init.h
     print("Generating options_init.h...")
     options_init = generate_options_init(options_section)
 
-    with open('/Users/kit/Development/vim9_ios/src/options_init.h', 'w') as f:
+    with options_init_path.open("w", encoding="utf-8") as f:
         f.write(options_init)
 
     print("Done!")

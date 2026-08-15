@@ -1,202 +1,136 @@
-# Vim iOS Integration Guide
+# Vim Apple-platform integration guide
 
-This guide explains how to integrate Vim 9.1 into an iOS/macOS Catalyst/visionOS app using the ios_system framework.
+This guide describes consuming the Rootshell Vim 9.2 fork on iOS, Mac
+Catalyst, and visionOS. The release contains dynamic Vim and xxd XCFrameworks;
+both depend on a compatible `ios_system.framework` at runtime.
 
-## Prerequisites
+## 1. Add the Swift package
 
-- ios_system framework built and available
-- Vim xcframeworks built via `swift run --package-path xcfs build`
-- VimRuntime.bundle created via `./prepare_runtime.sh`
+Add the following package dependency and select its `vim` library product:
 
-## Step 1: Add Frameworks to Xcode Project
+```text
+https://github.com/kitknox/vim-rootshell.git
+```
 
-1. Drag `vim.xcframework` and `xxd.xcframework` into your project
-2. Ensure they are set to "Embed & Sign" in target settings
-3. Add `VimRuntime.bundle` to your app's resources (Copy Bundle Resources)
+Use an exact Rootshell release such as `0.1.0`. The product contains both the
+`vim` and `xxd` binary targets, and Xcode handles linking and embedding their
+dynamic frameworks. The consuming app must separately link and embed the
+compatible ios_system build used by the release.
 
-## Step 2: Configure Command Dictionary
+## 2. Register commands with ios_system
 
-Add vim commands to your app's `extraCommandsDictionary.plist`:
+Register the desired commands in the ios_system command dictionary. Both
+frameworks export `main` as their entry point. Rootshell currently registers
+Vim and vi as follows:
 
 ```xml
 <key>vim</key>
 <array>
     <string>vim.framework/vim</string>
-    <string>vim_main</string>
-    <string>-</string>
+    <string>main</string>
+    <string>bCc:dDeEfgHhi:lLmMnNoOpPqrRsSTu:UvVwW:xXyZ</string>
     <string>file</string>
 </array>
 <key>vi</key>
 <array>
     <string>vim.framework/vim</string>
-    <string>vim_main</string>
-    <string>-</string>
-    <string>file</string>
-</array>
-<key>view</key>
-<array>
-    <string>vim.framework/vim</string>
-    <string>vim_main</string>
-    <string>-</string>
-    <string>file</string>
-</array>
-<key>xxd</key>
-<array>
-    <string>xxd.framework/xxd</string>
-    <string>xxd_main</string>
-    <string>-</string>
+    <string>main</string>
+    <string>bCc:dDeEfgHhi:lLmMnNoOpPqrRsSTu:UvVwW:xXyZ</string>
     <string>file</string>
 </array>
 ```
 
-## Step 3: Set Environment Variables
+An app that exposes xxd can register `xxd.framework/xxd` with the `main`
+symbol in the same way. Command dictionary loading is an ios_system concern,
+not part of the Swift package.
 
-Before invoking vim, configure the environment:
+## 3. Bundle the Vim runtime
+
+`VimRuntime.bundle` is intentionally not part of the binary Swift package.
+Generate it from this repository with `./prepare_runtime.sh`, add it to the
+app's Copy Bundle Resources phase, and set `VIMRUNTIME` before invoking Vim:
 
 ```swift
 import ios_system
 
-func setupVimEnvironment() {
-    // Set VIMRUNTIME to point to bundled runtime files
-    if let bundlePath = Bundle.main.path(forResource: "VimRuntime", ofType: "bundle") {
-        ios_setenv("VIMRUNTIME", "\(bundlePath)/Contents/Resources/vim", 1)
-    }
-
-    // Set terminal type
-    ios_setenv("TERM", "xterm-256color", 1)
-
-    // Optional: Set home directory for .vimrc
-    if let docsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
-        ios_setenv("HOME", docsPath.path, 1)
-    }
+if let bundlePath = Bundle.main.path(forResource: "VimRuntime", ofType: "bundle") {
+    ios_setenv("VIMRUNTIME", "\(bundlePath)/Contents/Resources/vim", 1)
 }
+ios_setenv("TERM", "xterm-256color", 1)
 ```
 
-## Step 4: Execute Vim
+Rootshell keeps a synchronized copy of this bundle in its own repository so
+normal application builds do not need the Vim source checkout.
 
-Use ios_system to run vim:
+## 4. Configure the session
 
-```swift
-// Synchronous execution
-let result = ios_system("vim filename.txt")
+Set the per-session standard streams before calling `ios_system()`. The C API
+accepts `FILE *` streams:
 
-// Or with async support
-let command = ios_system_async("vim filename.txt", options)
+```c
+ios_setStreams(input, output, error);
+int status = ios_system("vim filename.txt");
 ```
 
-## Thread Safety
+Set `HOME` to an app-writable directory if users should have persistent
+`.vimrc`, swap, backup, or undo files. On sandboxed Apple platforms, writable
+locations are limited to the app container, such as Documents, Library, and
+tmp.
 
-This vim port supports multiple concurrent instances through thread-local storage:
+Vim expects an interactive terminal implementation with ANSI control
+sequences, cursor-position responses, and correctly connected stdin, stdout,
+and stderr. This fork supports true-color output through `termguicolors`.
 
-- Each vim instance runs in its own thread
-- Global state is isolated via `__thread` variables
-- I/O streams are thread-local (`thread_stdin`, `thread_stdout`, `thread_stderr`)
+## Threading and lifecycle
 
-### Running Multiple Instances
+The port isolates Vim global state and ios_system streams with thread-local
+storage. Each concurrent instance must run on its own thread with its own
+streams and ios_system session state. Do not invoke two Vim instances on the
+same thread at the same time.
 
-```swift
-// Instance 1 in thread A
-DispatchQueue.global().async {
-    ios_system("vim file1.txt")
-}
+The build enables `EXITFREE` so returning from an in-process Vim invocation
+cleans up state needed by later sessions. Arbitrary child-process creation is
+not available in the App Store sandbox; shell operations are routed through
+ios_system, while channels, Vim's terminal feature, and other fork/exec-based
+features are disabled.
 
-// Instance 2 in thread B
-DispatchQueue.global().async {
-    ios_system("vim file2.txt")
-}
+## Building from source
+
+The build expects a sibling `ios_system` checkout with Apple-platform
+frameworks already built:
+
+```bash
+swift run --package-path xcfs build
 ```
 
-## Terminal Requirements
-
-Vim expects a terminal emulator that supports:
-
-- ANSI escape sequences
-- xterm-256color capabilities
-- Proper stdin/stdout/stderr handling
-
-Set up I/O streams before execution:
-
-```swift
-ios_setStreams(inputPipe.fileHandleForReading,
-               outputPipe.fileHandleForWriting,
-               errorPipe.fileHandleForWriting)
-```
-
-## Filesystem Constraints
-
-iOS apps can only write to:
-
-- `~/Documents/` - User documents
-- `~/Library/` - App data
-- `~/tmp/` - Temporary files
-
-Configure vim to use these paths:
-
-```vim
-" In .vimrc
-set directory=~/tmp//
-set backupdir=~/tmp//
-set undodir=~/Library/vim/undo//
-```
-
-## Sandboxed Process APIs
-
-The App Store sandbox does not allow spawning arbitrary processes. This port:
-
-- Uses `ios_system()` for `:!`, `system()` and related shell execution
-- Disables fork/exec-based features (e.g. `job_start()`, channels, NetBeans integration)
-- Enables Vim's `EXITFREE` cleanup to avoid leaking state across repeated in-process runs
+Outputs are written under `.build/` and include both XCFrameworks, their zip
+archives, and `release.md`. Supported slices are iOS arm64 device and simulator,
+Mac Catalyst arm64/x86_64, and visionOS arm64 device and simulator.
 
 ## Troubleshooting
 
-### Vim hangs on startup
+### Vim hangs or input keys behave incorrectly
 
-The KS_U7 cursor position query has been disabled, but if hangs occur:
+- Confirm stdin, stdout, and stderr belong to the current ios_system session.
+- Confirm the terminal answers cursor-position queries (`CSI 6 n`).
+- Confirm `TERM` matches the terminal capabilities exposed by the app.
+- Use a build containing the fork's Backspace termcap fix.
 
-1. Ensure TERM is set correctly
-2. Check that terminal emulator handles all escape sequences
-3. Verify ios_system streams are properly configured
+### Runtime files are unavailable
 
-### Syntax highlighting not working
+- Confirm `VimRuntime.bundle` is in Copy Bundle Resources.
+- Confirm `VIMRUNTIME` points to `Contents/Resources/vim` inside that bundle.
+- Use `:scriptnames` to inspect loaded runtime scripts.
 
-1. Verify VIMRUNTIME points to valid bundle path
-2. Check that VimRuntime.bundle contains syntax/ directory
-3. Run `:scriptnames` in vim to see loaded files
+### Colors are limited
 
-### Colors not displaying
+- Set `TERM` to a true-color-capable terminal type used by the app.
+- Enable `set termguicolors` in Vim when the terminal supports 24-bit color.
 
-1. Ensure TERM=xterm-256color
-2. FEAT_TERMGUICOLORS is disabled on iOS; use 256-color themes
-3. Check terminal emulator color support
+## Current version and features
 
-## VimRuntime.bundle Contents
-
-The runtime bundle includes:
-
-- **syntax/**: 45+ language syntax definitions
-- **colors/**: 20+ color schemes
-- **ftplugin/**: Language-specific plugins
-- **indent/**: Indentation rules
-- **autoload/**: Netrw file browser, utilities
-- **plugin/**: matchparen, netrwPlugin
-
-## Building from Source
-
-```bash
-# Build xcframeworks
-swift run --package-path xcfs build
-
-# Create runtime bundle
-./prepare_runtime.sh
-
-# Output locations
-ls .build/vim.xcframework
-ls .build/xxd.xcframework
-ls VimRuntime.bundle
-```
-
-## Version Information
-
-- Vim version: 9.1.285
-- Base: Upstream Vim 9.1 with iOS adaptations
-- Features: big (no Lua/Python)
+- Base source: Vim 9.2.0038 plus upstream security fix 9.2.0272
+- Feature set: huge
+- Enabled: syntax highlighting and `termguicolors`
+- Disabled: channels, Vim terminal, cscope, Lua, Python, GUI, and X11
+- Terminal library: Vim built-in implementation rather than ncurses
