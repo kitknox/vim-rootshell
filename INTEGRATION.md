@@ -1,6 +1,6 @@
 # Vim Apple-platform integration guide
 
-This guide describes consuming the Rootshell Vim 9.2 fork on iOS, Mac
+This guide describes consuming the rootshell Vim 9.2 fork on iOS, Mac
 Catalyst, and visionOS. The release contains dynamic Vim and xxd XCFrameworks;
 both depend on a compatible `ios_system.framework` at runtime.
 
@@ -12,7 +12,7 @@ Add the following package dependency and select its `vim` library product:
 https://github.com/kitknox/vim-rootshell.git
 ```
 
-Use an exact Rootshell release such as `0.1.0`. The product contains both the
+Use an exact rootshell release such as `0.1.0`. The product contains both the
 `vim` and `xxd` binary targets, and Xcode handles linking and embedding their
 dynamic frameworks. The consuming app must separately link and embed the
 compatible ios_system build used by the release.
@@ -20,7 +20,7 @@ compatible ios_system build used by the release.
 ## 2. Register commands with ios_system
 
 Register the desired commands in the ios_system command dictionary. Both
-frameworks export `main` as their entry point. Rootshell currently registers
+frameworks export `main` as their entry point. rootshell currently registers
 Vim and vi as follows:
 
 ```xml
@@ -59,7 +59,7 @@ if let bundlePath = Bundle.main.path(forResource: "VimRuntime", ofType: "bundle"
 ios_setenv("TERM", "xterm-256color", 1)
 ```
 
-Rootshell keeps a synchronized copy of this bundle in its own repository so
+rootshell keeps a synchronized copy of this bundle in its own repository so
 normal application builds do not need the Vim source checkout.
 
 ## 4. Configure the session

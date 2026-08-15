@@ -1,14 +1,14 @@
-# Vim — Rootshell fork
+# Vim — rootshell fork
 
-This repository is the [Rootshell](https://www.rootshell.com)-maintained fork
+This repository is the [rootshell](https://www.rootshell.com)-maintained fork
 of [vim/vim](https://github.com/vim/vim). It is intended to build Vim and xxd
-as dynamic XCFrameworks for the Rootshell application on Apple platforms. The
+as dynamic XCFrameworks for the rootshell application on Apple platforms. The
 fork is maintained independently and does not automatically track subsequent
 upstream changes.
 
-The `vim` and `xxd` binary target names remain unchanged. Report Rootshell
+The `vim` and `xxd` binary target names remain unchanged. Report rootshell
 application problems in the
-[Rootshell issue tracker](https://github.com/kitknox/rootshell/issues); report
+[rootshell issue tracker](https://github.com/kitknox/rootshell/issues); report
 reproducible upstream Vim problems to the upstream project.
 
 ## Swift binary package
@@ -28,7 +28,7 @@ https://github.com/kitknox/vim-rootshell.git
 ```
 
 Both frameworks link `ios_system.framework` at runtime. Consumers must also
-link and embed a compatible ios_system build. Rootshell keeps the generated
+link and embed a compatible ios_system build. rootshell keeps the generated
 `VimRuntime.bundle` in the application resources and sets `VIMRUNTIME` before
 launching Vim.
 

@@ -1,6 +1,6 @@
 # Vim 9.2 Apple-platform port
 
-This is the Rootshell-maintained fork of Vim 9.2. It builds Vim and xxd as
+This is the rootshell-maintained fork of Vim 9.2. It builds Vim and xxd as
 dynamic XCFrameworks for iOS, iOS Simulator, Mac Catalyst, and visionOS using
 the `ios_system` framework. The Swift package is distributed from
 `kitknox/vim-rootshell` and is versioned independently from upstream Vim.
@@ -37,12 +37,12 @@ tag the manifest commit, and attach both zip files to the matching release.
 
 This refreshes the checked-in `VimRuntime.bundle` containing syntax files,
 colors, filetype plugins, autoload helpers, and Vim help. The binary Swift
-package does not include this bundle. Rootshell keeps its copy in application
+package does not include this bundle. rootshell keeps its copy in application
 resources and sets `VIMRUNTIME` before invoking Vim.
 
 ## Integration
 
-See `INTEGRATION.md` for consumer instructions. Rootshell uses the exact Swift
+See `INTEGRATION.md` for consumer instructions. rootshell uses the exact Swift
 package release, links a compatible `ios_system.framework`, registers the Vim
 and vi commands in `commandDictionary.plist`, and retains `VimRuntime.bundle`
 as an app resource.
@@ -101,5 +101,5 @@ python3 compare_tls.py --old-src /path/to/older-vim/src --new-src /path/to/new-v
 ## Current source baseline
 
 The fork is based on Vim 9.2.0038 and also carries the upstream 9.2.0272
-security fix, plus Rootshell's Apple-platform integration changes. The build
+security fix, plus rootshell's Apple-platform integration changes. The build
 uses the huge feature set without Lua or Python interpreters.
