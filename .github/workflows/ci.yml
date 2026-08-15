@@ -91,7 +91,7 @@ jobs:
 
     steps:
       - name: Checkout repository from github
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Check Filelist (for packaging)
         run: |
@@ -432,7 +432,7 @@ jobs:
 
     steps:
       - name: Checkout repository from github
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install packages
         if: matrix.features == 'huge'
@@ -615,7 +615,7 @@ jobs:
           release: false
 
       - name: Checkout repository from github
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Create a list of download URLs
         shell: cmd
