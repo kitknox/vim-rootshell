@@ -618,6 +618,9 @@ showruler(int always)
 {
     if (!always && !redrawing())
 	return;
+#ifdef VIM_APPLE_SANDBOX
+    program_status_sync();
+#endif
     if (pum_visible())
     {
 	// Don't redraw right now, do it later.

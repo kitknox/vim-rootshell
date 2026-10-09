@@ -181,6 +181,9 @@ void mbyte_im_set_active(int active_arg);
 # if defined(FEAT_PROFILE) || defined(FEAT_RELTIME)
 #  include "profiler.pro"
 # endif
+# ifdef VIM_APPLE_SANDBOX
+#  include "program_status.pro"
+# endif
 # include "quickfix.pro"
 # ifdef FEAT_WAYLAND
 #  include "wayland.pro"

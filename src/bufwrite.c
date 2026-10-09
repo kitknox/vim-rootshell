@@ -2583,6 +2583,9 @@ nofail:
 	    mch_memmove(IObuff, errnum, (size_t)numlen);
 	}
 	STRCAT(IObuff, errmsg);
+#ifdef VIM_APPLE_SANDBOX
+	program_status_write_result(IObuff);
+#endif
 	emsg((char *)IObuff);
 	if (errmsg_allocated)
 	    vim_free(errmsg);
@@ -2666,5 +2669,9 @@ nofail:
 
     got_int |= prev_got_int;
 
+#ifdef VIM_APPLE_SANDBOX
+    if (retval == OK)
+	program_status_write_result(NULL);
+#endif
     return retval;
 }

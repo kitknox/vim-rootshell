@@ -2196,6 +2196,10 @@ vgetc(void)
     // else.
     if (c != K_IGNORE)
 	state_no_longer_safe("key typed");
+#ifdef VIM_APPLE_SANDBOX
+    if (c != K_IGNORE && c != K_CURSORHOLD)
+	program_status_input();
+#endif
 
     return c;
 }

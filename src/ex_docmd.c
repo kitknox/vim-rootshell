@@ -6152,6 +6152,9 @@ ex_quit(exarg_T *eap)
 	    || check_more(TRUE, eap->forceit) == FAIL
 	    || (only_one_window() && check_changed_any(eap->forceit, TRUE)))
     {
+#ifdef VIM_APPLE_SANDBOX
+	program_status_quit_refused();
+#endif
 	not_exiting(save_exiting);
     }
     else
@@ -6224,6 +6227,9 @@ ex_quit_all(exarg_T *eap)
     exiting = TRUE;
     if (eap->forceit || !check_changed_any(FALSE, FALSE))
 	getout(0);
+#ifdef VIM_APPLE_SANDBOX
+    program_status_quit_refused();
+#endif
     not_exiting(save_exiting);
 }
 
@@ -6761,6 +6767,9 @@ ex_exit(exarg_T *eap)
 	    || check_more(TRUE, eap->forceit) == FAIL
 	    || (only_one_window() && check_changed_any(eap->forceit, FALSE)))
     {
+#ifdef VIM_APPLE_SANDBOX
+	program_status_quit_refused();
+#endif
 	not_exiting(save_exiting);
     }
     else

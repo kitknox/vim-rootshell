@@ -1871,6 +1871,9 @@ getout(int exitval)
 #ifdef MSWIN
     free_cmd_argsW();
 #endif
+#ifdef VIM_APPLE_SANDBOX
+    program_status_clear();
+#endif
 
     mch_exit(exitval);
 }

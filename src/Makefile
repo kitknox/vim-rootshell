@@ -1544,6 +1544,7 @@ BASIC_SRC = \
 	popupmenu.c \
 	popupwin.c \
 	profiler.c \
+	program_status.c \
 	pty.c \
 	quickfix.c \
 	regexp.c \
@@ -1724,6 +1725,7 @@ OBJ_COMMON = \
 	objects/popupmenu.o \
 	objects/popupwin.o \
 	objects/profiler.o \
+	objects/program_status.o \
 	objects/pty.o \
 	objects/quickfix.o \
 	objects/regexp.o \
@@ -1929,6 +1931,7 @@ PROTO_FILES = \
 	proto/popupmenu.pro \
 	proto/popupwin.pro \
 	proto/profiler.pro \
+	proto/program_status.pro \
 	proto/pty.pro \
 	proto/quickfix.pro \
 	proto/regexp.pro \
@@ -3536,6 +3539,9 @@ objects/popupwin.o: popupwin.c
 objects/profiler.o: profiler.c
 	$(CCC) -o $@ profiler.c
 
+objects/program_status.o: program_status.c
+	$(CCC) -o $@ program_status.c
+
 objects/pty.o: pty.c
 	$(CCC) -o $@ pty.c
 
@@ -4757,6 +4763,7 @@ proto/os_win32.pro: os_win32.c
 proto/popupmenu.pro: popupmenu.c
 proto/popupwin.pro: popupwin.c
 proto/profiler.pro: profiler.c
+proto/program_status.pro: program_status.c
 proto/pty.pro: pty.c
 proto/quickfix.pro: quickfix.c
 proto/regexp.pro: regexp.c

@@ -133,6 +133,7 @@ SRC_ALL =	\
 		src/popupmenu.c \
 		src/popupwin.c \
 		src/profiler.c \
+		src/program_status.c \
 		src/quickfix.c \
 		src/regexp.c \
 		src/regexp_bt.c \
@@ -331,6 +332,7 @@ SRC_ALL =	\
 		src/proto/popupmenu.pro \
 		src/proto/popupwin.pro \
 		src/proto/profiler.pro \
+		src/proto/program_status.pro \
 		src/proto/quickfix.pro \
 		src/proto/regexp.pro \
 		src/proto/register.pro \
