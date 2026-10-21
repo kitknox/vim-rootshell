@@ -36,7 +36,7 @@ cat > "$BUNDLE_PATH/Contents/Info.plist" << 'EOF'
     <key>CFBundleName</key>
     <string>VimRuntime</string>
     <key>CFBundleVersion</key>
-    <string>9.1</string>
+    <string>9.2</string>
     <key>CFBundlePackageType</key>
     <string>BNDL</string>
 </dict>
@@ -81,8 +81,16 @@ echo "Copying autoload files..."
 if [ -f "$RUNTIME_SRC/autoload/dist/ft.vim" ]; then
     cp "$RUNTIME_SRC/autoload/dist/ft.vim" "$RESOURCES_PATH/autoload/dist/"
 fi
-if [ -f "$RUNTIME_SRC/autoload/dist/script.vim" ]; then
-    cp "$RUNTIME_SRC/autoload/dist/script.vim" "$RESOURCES_PATH/autoload/dist/"
+for file in script.vim vim.vim vim9.vim vimindent.vim; do
+    if [ -f "$RUNTIME_SRC/autoload/dist/$file" ]; then
+        cp "$RUNTIME_SRC/autoload/dist/$file" "$RESOURCES_PATH/autoload/dist/"
+    fi
+done
+
+# Vim9 imports used by bundled ftplugins (help.vim)
+mkdir -p "$RESOURCES_PATH/import/dist"
+if [ -f "$RUNTIME_SRC/import/dist/vimhelp.vim" ]; then
+    cp "$RUNTIME_SRC/import/dist/vimhelp.vim" "$RESOURCES_PATH/import/dist/"
 fi
 
 # Copy autoload files required by bundled ftplugins (omnifunc completions, etc.)
@@ -102,10 +110,18 @@ AUTOLOAD_FILES=(
     "vimcomplete.vim"      # vim.vim
     "javaformat.vim"       # java.vim
     "spotbugs.vim"         # java.vim
+    "python.vim"           # python.vim indent
+    "rust.vim"             # rust.vim
+    "rust/debugging.vim"   # rust.vim
+    "rustfmt.vim"          # rust.vim
+    "cargo.vim"            # rust.vim
+    "syntaxcomplete.vim"   # sql.vim, ruby.vim fallback
+    "vimgoto.vim"          # vim.vim
 )
 for file in "${AUTOLOAD_FILES[@]}"; do
     if [ -f "$RUNTIME_SRC/autoload/$file" ]; then
-        cp "$RUNTIME_SRC/autoload/$file" "$RESOURCES_PATH/autoload/"
+        mkdir -p "$(dirname "$RESOURCES_PATH/autoload/$file")"
+        cp "$RUNTIME_SRC/autoload/$file" "$RESOURCES_PATH/autoload/$file"
     fi
 done
 
@@ -121,6 +137,15 @@ if [ -d "$RUNTIME_SRC/colors/lists" ]; then
     cp "$RUNTIME_SRC/colors/lists/"*.vim "$RESOURCES_PATH/colors/lists/" 2>/dev/null || true
 fi
 
+# Compiler plugins: ftplugins run `compiler <name>` (rust, sh, zsh, java, python)
+echo "Copying compiler plugins..."
+mkdir -p "$RESOURCES_PATH/compiler"
+cp "$RUNTIME_SRC/compiler/"*.vim "$RESOURCES_PATH/compiler/"
+
+# XML/HTML omni-completion data loaded by htmlcomplete.vim and xmlcomplete.vim
+mkdir -p "$RESOURCES_PATH/autoload/xml"
+cp "$RUNTIME_SRC/autoload/xml/"*.vim "$RESOURCES_PATH/autoload/xml/"
+
 # Syntax files - Infrastructure (required for syntax to work)
 SYNTAX_INFRA=(
     "synload.vim"
@@ -135,6 +160,8 @@ SYNTAX_INFRA=(
     "python2.vim"
     "scheme.vim"
     "tcl.vim"
+    "shared/typescriptcommon.vim" # typescript.vim, typescriptreact.vim
+    "sqloracle.vim"        # sql.vim default dialect
 )
 
 # Syntax files - Primary languages
@@ -190,7 +217,8 @@ SYNTAX_SECONDARY=(
 echo "Copying syntax files..."
 for file in "${SYNTAX_INFRA[@]}" "${SYNTAX_PRIMARY[@]}" "${SYNTAX_SECONDARY[@]}"; do
     if [ -f "$RUNTIME_SRC/syntax/$file" ]; then
-        cp "$RUNTIME_SRC/syntax/$file" "$RESOURCES_PATH/syntax/"
+        mkdir -p "$(dirname "$RESOURCES_PATH/syntax/$file")"
+        cp "$RUNTIME_SRC/syntax/$file" "$RESOURCES_PATH/syntax/$file"
     fi
 done
 
@@ -261,6 +289,7 @@ INDENT_FILES=(
     "ruby.vim"
     "php.vim"
     "perl.vim"
+    "sqlanywhere.vim"      # sql.vim default dialect
 )
 
 echo "Copying indent files..."
@@ -311,11 +340,29 @@ if [ -f "$RUNTIME_SRC/pack/dist/opt/netrw/syntax/netrw.vim" ]; then
     cp "$RUNTIME_SRC/pack/dist/opt/netrw/syntax/netrw.vim" "$RESOURCES_PATH/pack/dist/opt/netrw/syntax/"
 fi
 
-# Copy all documentation (help files + tags)
+# Copy documentation (help files + tags), minus release history and help for
+# features this build lacks; their tags are dropped so lookups fail cleanly.
+EXCLUDED_DOCS=(
+    version4.txt version5.txt version6.txt version7.txt version8.txt version9.txt
+    todo.txt develop.txt debug.txt
+    gui.txt gui_w32.txt gui_x11.txt
+    if_cscop.txt if_lua.txt if_mzsch.txt if_ole.txt if_perl.txt if_pyth.txt
+    if_ruby.txt if_sniff.txt if_tcl.txt
+    os_390.txt os_amiga.txt os_beos.txt os_dos.txt os_haiku.txt os_mint.txt
+    os_msdos.txt os_os2.txt os_qnx.txt os_risc.txt os_vms.txt os_win32.txt
+    channel.txt netbeans.txt remote.txt terminal.txt
+)
 echo "Copying documentation..."
 if [ -d "$RUNTIME_SRC/doc" ]; then
-    cp "$RUNTIME_SRC/doc/"*.txt "$RESOURCES_PATH/doc/" 2>/dev/null || true
-    cp "$RUNTIME_SRC/doc/tags" "$RESOURCES_PATH/doc/" 2>/dev/null || true
+    for path in "$RUNTIME_SRC/doc/"*.txt; do
+        name="$(basename "$path")"
+        if [[ " ${EXCLUDED_DOCS[*]} " != *" $name "* ]]; then
+            cp "$path" "$RESOURCES_PATH/doc/"
+        fi
+    done
+    awk -F'\t' -v excluded=" ${EXCLUDED_DOCS[*]} " \
+        'index(excluded, " " $2 " ") == 0' \
+        "$RUNTIME_SRC/doc/tags" > "$RESOURCES_PATH/doc/tags"
 fi
 
 # Calculate and display size
