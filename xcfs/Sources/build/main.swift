@@ -3,10 +3,12 @@
 
 import FMake
 import Foundation
+import OptionsGen
 
 OutputLevel.default = .error
 
 let vimVersion = "9.2"
+let homeDir = FileManager.default.homeDirectoryForCurrentUser.path
 
 // MARK: - Helper Functions
 
@@ -22,13 +24,14 @@ func runAndCapture(_ cmd: String) throws -> String {
     process.environment = ["PATH": ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin"]
 
     try process.run()
+    // Drain before waiting so large output cannot fill the pipe and block.
+    let data = pipe.fileHandleForReading.readDataToEndOfFile()
     process.waitUntilExit()
 
     guard process.terminationStatus == 0 else {
         throw NSError(domain: "build", code: Int(process.terminationStatus), userInfo: [NSLocalizedDescriptionKey: "Command failed: \(cmd)"])
     }
 
-    let data = pipe.fileHandleForReading.readDataToEndOfFile()
     return String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 }
 
@@ -196,7 +199,9 @@ func configureVim(platform: PlatformConfig, arch: String, sdkPath: String, frame
         catalystFlags = " -iframework \(sdkPath)/System/iOSSupport/System/Library/Frameworks -UHAVE_TERMCAP_H"
     }
 
-    let cflags = "-DEXITFREE -arch \(arch) -O2 -g \(versionFlag) -isysroot \(sdkPath)\(catalystFlags)"
+    // Keep checkout and home paths out of DWARF and __FILE__.
+    let prefixMaps = "-ffile-prefix-map=\(vimRoot)=/vim -ffile-prefix-map=\(homeDir)=~"
+    let cflags = "-DEXITFREE -arch \(arch) -O2 -g \(prefixMaps) \(versionFlag) -isysroot \(sdkPath)\(catalystFlags)"
     let ldflags = "-shared -arch \(arch) -O2 -g \(versionFlag) -isysroot \(sdkPath)\(catalystFlags) -F\(frameworkPath) -framework ios_system"
 
     print("  Configuring for \(platform.name) \(arch)...")
@@ -205,6 +210,7 @@ func configureVim(platform: PlatformConfig, arch: String, sdkPath: String, frame
     // iOS doesn't have termcap/ncurses, and Catalyst's ncurses conflicts with our termlib
     // vim_cv_tgetent=non-zero tells configure that tgetent doesn't work
     // ac_cv_search_tgetent=no prevents searching for terminal libraries
+    // PKG_CONFIG=false keeps host libraries (Homebrew pixman, cairo, pango) out of the cross build
     try sh("""
         ./configure \
             vim_cv_toupper_broken=no \
@@ -218,6 +224,9 @@ func configureVim(platform: PlatformConfig, arch: String, sdkPath: String, frame
             vim_cv_stat_ignores_slash=yes \
             vim_cv_getcwd_broken=no \
             --with-features=huge \
+            --with-compiledby=rootshell \
+            --disable-pixman \
+            PKG_CONFIG=false \
             --disable-channel \
             --disable-terminal \
             --disable-cscope \
@@ -271,6 +280,65 @@ func configureVim(platform: PlatformConfig, arch: String, sdkPath: String, frame
         sed -i '' 's/-framework AppKit/-framework UIKit -framework Foundation/g' src/auto/config.mk
         sed -i '' 's/-lncurses//g' src/auto/config.mk
         """)
+
+    // :version prints the compile and link lines; strip local paths from them.
+    print("  Sanitizing pathdef.c...")
+    try sh("make -C src auto/pathdef.c")
+    let pathdef = "src/auto/pathdef.c"
+    let parentDir = URL(fileURLWithPath: vimRoot).deletingLastPathComponent().path
+    let text = try String(contentsOfFile: pathdef, encoding: .utf8)
+        .replacingOccurrences(of: "\(parentDir)/", with: "../")
+        .replacingOccurrences(of: homeDir, with: "~")
+    try text.write(toFile: pathdef, atomically: true, encoding: .utf8)
+}
+
+/// Fails if any shipped file contains this machine's home path, user, or host names.
+func checkForLocalIdentifiers(in directories: [String]) throws {
+    var needles = Set([homeDir, "/Users/\(NSUserName())"])
+    for cmd in ["hostname", "hostname -s", "scutil --get LocalHostName", "scutil --get ComputerName"] {
+        if let name = try? runAndCapture(cmd), name.count >= 4 {
+            needles.insert(name)
+        }
+    }
+    let needleData = needles.map { ($0, Data($0.utf8)) }
+    var leaks: [String] = []
+    for directory in directories {
+        guard let walker = FileManager.default.enumerator(atPath: directory) else { continue }
+        for case let relative as String in walker {
+            let path = "\(directory)/\(relative)"
+            var isDirectory: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), !isDirectory.boolValue,
+                  let data = FileManager.default.contents(atPath: path) else { continue }
+            for (needle, bytes) in needleData where data.range(of: bytes) != nil {
+                leaks.append("\(path): contains \"\(needle)\"")
+            }
+        }
+    }
+    guard leaks.isEmpty else {
+        print("ERROR: build output contains local machine identifiers:")
+        leaks.forEach { print("  \($0)") }
+        exit(1)
+    }
+}
+
+/// Fails if a binary has writable non-TLS data not listed in xcfs/shared-data.allowlist.
+/// Vim runs concurrently on ios_system threads, so mutable state must be __thread.
+func checkSharedData(binary: String) throws {
+    let allowlistPath = "\(vimRoot)/xcfs/shared-data.allowlist"
+    let allowed = Set(try String(contentsOfFile: allowlistPath, encoding: .utf8)
+        .components(separatedBy: "\n")
+        .map { $0.trimmingCharacters(in: .whitespaces) }
+        .filter { !$0.isEmpty && !$0.hasPrefix("#") })
+    let symbols = try runAndCapture("nm -m \(binary)")
+        .components(separatedBy: "\n")
+        .filter { $0.range(of: #"\(__DATA,__(data|bss|common)\)"#, options: .regularExpression) != nil }
+        .compactMap { $0.split(separator: " ").last.map(String.init) }
+    let unexpected = Set(symbols).subtracting(allowed).sorted()
+    guard unexpected.isEmpty else {
+        print("ERROR: \(binary) has shared writable data (make it __thread or allowlist it):")
+        unexpected.forEach { print("  \($0)") }
+        exit(1)
+    }
 }
 
 func buildVim() throws {
@@ -405,6 +473,12 @@ print("")
 let vimRoot = FileManager.default.currentDirectoryPath
 let buildDir = "\(vimRoot)/.build"
 
+let staleOptions = try generateOptions(srcDir: URL(fileURLWithPath: "\(vimRoot)/src"), check: true)
+guard staleOptions.isEmpty else {
+    print("ERROR: \(staleOptions.joined(separator: ", ")) out of date; run `swift run --package-path xcfs options`")
+    exit(1)
+}
+
 // Create build directory
 try sh("mkdir -p \(buildDir)")
 
@@ -450,6 +524,8 @@ for platform in platforms {
         // Copy binaries
         try sh("cp src/vim \(archDir)/vim")
         try sh("cp src/xxd/xxd \(archDir)/xxd")
+        try checkSharedData(binary: "\(archDir)/vim")
+        try checkSharedData(binary: "\(archDir)/xxd")
 
         archBinaries.append((arch: arch, vimPath: "\(archDir)/vim", xxdPath: "\(archDir)/xxd"))
     }
@@ -483,8 +559,16 @@ for platform in platforms {
         ? "\(platformBuildDir)/xxd.framework/Versions/A/xxd"
         : "\(platformBuildDir)/xxd.framework/xxd"
 
-    try sh("dsymutil \(vimBinaryInFramework) -o \(platformBuildDir)/vim.framework.dSYM")
-    try sh("dsymutil \(xxdBinaryInFramework) -o \(platformBuildDir)/xxd.framework.dSYM")
+    // dsymutil records the binary path it was given in Relocations/*.yml, so keep it relative.
+    try cd(platformBuildDir) {
+        for name in ["vim", "xxd"] {
+            let binary = platform.isCatalyst ? "\(name).framework/Versions/A/\(name)" : "\(name).framework/\(name)"
+            try sh("dsymutil \(binary) -o \(name).framework.dSYM")
+        }
+    }
+
+    // The dSYMs carry the debug info; drop the debug map's object file paths.
+    try sh("strip -S \(vimBinaryInFramework) \(xxdBinaryInFramework)")
 
     vimFrameworkPaths.append("\(platformBuildDir)/vim.framework")
     xxdFrameworkPaths.append("\(platformBuildDir)/xxd.framework")
@@ -502,6 +586,7 @@ guard !vimFrameworkPaths.isEmpty else {
 print("Creating XCFrameworks...")
 try createXCFramework(name: "vim", frameworkPaths: vimFrameworkPaths, outputDir: buildDir)
 try createXCFramework(name: "xxd", frameworkPaths: xxdFrameworkPaths, outputDir: buildDir)
+try checkForLocalIdentifiers(in: ["\(buildDir)/vim.xcframework", "\(buildDir)/xxd.xcframework"])
 
 // Generate checksums
 print("Generating checksums...")

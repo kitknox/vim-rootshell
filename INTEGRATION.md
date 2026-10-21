@@ -129,7 +129,7 @@ Mac Catalyst arm64/x86_64, and visionOS arm64 device and simulator.
 
 ## Current version and features
 
-- Base source: Vim 9.2.0038 plus upstream security fix 9.2.0272
+- Base source: Vim 9.2.1225
 - Feature set: huge
 - Enabled: syntax highlighting and `termguicolors`
 - Disabled: channels, Vim terminal, cscope, Lua, Python, GUI, and X11

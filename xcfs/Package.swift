@@ -10,7 +10,12 @@ let package = Package(
     targets: [
         .target(
             name: "build",
-            dependencies: ["FMake"]
+            dependencies: ["FMake", "OptionsGen"]
         ),
+        .target(
+            name: "options",
+            dependencies: ["OptionsGen"]
+        ),
+        .target(name: "OptionsGen"),
     ]
 )

@@ -73,22 +73,42 @@ the thread-local ios_system `thread_stdin`, `thread_stdout`, and
 
 ## Maintenance utilities
 
-`generate_ios_options.py` refreshes `src/optiondefs.h` and
-`src/options_init.h`. It defaults to this checkout's `src` directory and can be
-pointed at another source tree with `--src-dir`.
+TLS addresses are not compile-time constants, so `src/optiondefs.h` carries a
+second, iOS copy of `options[]` with NULL var pointers, and `src/options_init.h`
+fills them in at runtime. Both are generated from the portable table:
 
 ```bash
-python3 generate_ios_options.py
-python3 generate_ios_options.py --src-dir /path/to/vim/src
+swift run --package-path xcfs options           # rewrite both files
+swift run --package-path xcfs options --check   # exit 1 if either is stale
 ```
 
-`compare_tls.py` compares thread-local markers with an older source tree. The
-baseline is explicit; the new tree defaults to this checkout's `src`.
+The build refuses to run while either file is stale.
 
-```bash
-python3 compare_tls.py --old-src /path/to/older-vim/src
-python3 compare_tls.py --old-src /path/to/older-vim/src --new-src /path/to/new-vim/src
-```
+The build also gates every slice:
+
+- Writable non-TLS data (`__DATA,__data`, `__bss`, `__common`) in `vim` or
+  `xxd` must be listed in `xcfs/shared-data.allowlist`. A new symbol there is
+  state shared between concurrent Vim sessions: mark it `__thread`, or
+  allowlist it only if it is read-only after load (such as tables referenced
+  from other static initializers, which TLS cannot hold).
+- The shipped frameworks and dSYMs must not contain the build machine's home
+  path, user name, or host names. `pathdef.c` is sanitized, DWARF paths are
+  remapped, and the binaries are stripped of their debug map.
+
+## Upstream merges
+
+1. `git merge --no-commit vX.Y.Z` from the `upstream` remote (vim/vim); keep
+   `.github/dependabot.yml` deleted.
+2. Most conflicts are `static` lines the fork marked `static __thread`: take
+   upstream's line and re-add `__thread`.
+3. `swift run --package-path xcfs options`, then add new `EXTERN` globals from
+   `src/globals.h` to `src/globals_init.h`.
+4. Build. The shared-data gate lists every new static that needs `__thread`.
+5. Review new code for fork/exec, signals, raw fds 0/1/2, `ioctl`, and
+   process-wide state; route them through ios_system or guard them with
+   `VIM_APPLE_SANDBOX`.
+6. `./prepare_runtime.sh`, and check that bundled scripts' autoload and
+   `import` targets are present.
 
 ## Supported slices
 
@@ -100,6 +120,5 @@ python3 compare_tls.py --old-src /path/to/older-vim/src --new-src /path/to/new-v
 
 ## Current source baseline
 
-The fork is based on Vim 9.2.0038 and also carries the upstream 9.2.0272
-security fix, plus rootshell's Apple-platform integration changes. The build
-uses the huge feature set without Lua or Python interpreters.
+The fork is based on Vim 9.2.1225 plus rootshell's Apple-platform integration
+changes. The build uses the huge feature set without Lua or Python interpreters.
