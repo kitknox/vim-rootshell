@@ -72,6 +72,11 @@
  * 20.08.2025  remove external library call for autoconversion on z/OS (MVS)
  * 24.08.2025  avoid NULL dereference with autoskip colorless
  * 26.11.2025  update indent in exit_with_usage()
+ * 19.03.2026  Add -t option to end output with terminating null
+ * 25.03.2026  Fix color output issues
+ * 26.04.2026  Use unsigned long for printing offsets
+ * 31.05.2026  Colorize binary output
+ * 15.06.2026  Fix UB in huntype()
  *
  * (c) 1990-1998 by Juergen Weigert (jnweiger@gmail.com)
  *
@@ -152,7 +157,7 @@ extern void perror __P((char *));
 # endif
 #endif
 
-char version[] = "xxd 2025-11-26 by Juergen Weigert et al.";
+char version[] = "xxd 2026-06-16 by Juergen Weigert et al.";
 #ifdef WIN32
 char osver[] = " (Win32)";
 #else
@@ -285,6 +290,7 @@ exit_with_usage(void)
 		  "    -g bytes    number of octets per group in normal output. Default 2 (-e: 4).\n"
 		  "    -h          print this summary.\n"
 		  "    -i          output in C include file style.\n"
+		  "    -t          append terminating zero to C include output (-i).\n"
 		  "    -l len      stop after <len> octets.\n"
 		  "    -n name     set the variable name used in C include output (-i).\n"
 		  "    -o off      add <off> to the displayed file position.\n"
@@ -440,7 +446,8 @@ huntype(
 	  bt = parse_bin_digit(c);
 	  if (bt != -1)
 	    {
-	      b = ((b << 1) | bt);
+	      /* shift via unsigned to avoid signed overflow on bad input */
+	      b = (int)(((unsigned)b << 1) | (unsigned)bt);
 	      ++bcnt;
 	    }
 	}
@@ -456,7 +463,7 @@ huntype(
 		  p = 0;
 		  continue;
 		}
-	      want_off = (want_off << 4) | n1;
+	      want_off = (long)(((unsigned long)want_off << 4) | (unsigned)n1);
 	    }
 	  else /* HEX_BITS */
 	    {
@@ -466,7 +473,7 @@ huntype(
 		  bcnt = 0;
 		  continue;
 		}
-	      want_off = (want_off << 4) | n1;
+	      want_off = (long)(((unsigned long)want_off << 4) | (unsigned)n1);
 	    }
 	  continue;
 	}
@@ -602,9 +609,7 @@ xxdline(FILE *fp, char *l, char *colors, int nz)
     {
       strcpy(z, l);
       if (colors)
-	{
 	  memcpy(z_colors, colors, strlen(z));
-	}
     }
 
   if (nz || !zero_seen++)
@@ -721,7 +726,16 @@ enable_color(void)
   mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
   return (int)SetConsoleMode(out, mode);
 #elif defined(UNIX)
-  return isatty(STDOUT_FILENO);
+  char *term;
+
+  if (!isatty(STDOUT_FILENO))
+    return 0;
+
+  term = getenv("TERM");
+  if (term == NULL || *term == '\0' || !strcmp(term, "dumb"))
+    return 0;
+
+  return 1;
 #else
   return 0;
 #endif
@@ -735,6 +749,7 @@ main(int argc, char *argv[])
   int cols = 0, colsgiven = 0, nonzero = 0, autoskip = 0, hextype = HEX_NORMAL;
   int capitalize = 0, decimal_offset = 0;
   int ebcdic = 0;
+  int termination = 0;
   int octspergrp = -1;	/* number of octets grouped in output */
   int grplen;		/* total chars per octet group excluding colors */
   long length = -1, n = 0, seekoff = 0;
@@ -745,6 +760,7 @@ main(int argc, char *argv[])
   char *varname = NULL;
   int addrlen = 9;
   int color = 0;
+  int color_forced = 0;	/* set when -R always is used */
   char *no_color;
   char cur_color = 0;
 
@@ -784,6 +800,7 @@ main(int argc, char *argv[])
       else if (!STRNCMP(pp, "-d", 2)) decimal_offset = 1;
       else if (!STRNCMP(pp, "-r", 2)) revert++;
       else if (!STRNCMP(pp, "-E", 2)) ebcdic++;
+      else if (!STRNCMP(pp, "-t", 2)) termination++;
       else if (!STRNCMP(pp, "-v", 2))
 	{
 	  fprintf(stderr, "%s%s\n", version, osver);
@@ -916,6 +933,7 @@ main(int argc, char *argv[])
 	    {
 	      (void)enable_color();
 	      color = 1;
+	      color_forced = 1;
 	    }
 	  else if (!STRNCMP(pw, "never", 5))
 	    color = 0;
@@ -1014,6 +1032,10 @@ main(int argc, char *argv[])
 	  return 3;
 	}
       rewind(fpo);
+
+      /* Disable auto color when writing to a file. */
+      if (!color_forced)
+	color = 0;
     }
 
   if (revert)
@@ -1069,8 +1091,13 @@ main(int argc, char *argv[])
 	}
 
       p = 0;
-      while ((length < 0 || p < length) && (c = getc_or_die(fp)) != EOF)
+      while ((length < 0 || p < length) && (((c = getc_or_die(fp)) != EOF) || termination))
 	{
+	  if (c == EOF)
+	    {
+	      c = 0;
+	      termination = -1;
+	    }
 	  if (hextype & HEX_BITS)
 	    {
 	      if (p == 0)
@@ -1090,6 +1117,11 @@ main(int argc, char *argv[])
 	      FPRINTF_OR_DIE((fpo, (hexx == hexxa) ? "%s0x%02x" : "%s0X%02X",
 		(p % cols) ? ", " : (!p ? "  " : ",\n  "), c));
 	      p++;
+	    }
+	  if (termination == -1)
+	    {
+	      --p;
+	      break ;
 	    }
 	}
 
@@ -1142,7 +1174,7 @@ main(int argc, char *argv[])
     {
       if (p == 0)
 	{
-	  addrlen = sprintf(l, decimal_offset ? "%08ld:" : "%08lx:",
+	  addrlen = sprintf(l, decimal_offset ? "%08lu:" : "%08lx:",
 				  ((unsigned long)(n + seekoff + displayoff)));
 	  for (c = addrlen; c < LLEN_NO_COLOR; l[c++] = ' ')
 	    ;
@@ -1163,8 +1195,15 @@ main(int argc, char *argv[])
 	}
       else /* hextype == HEX_BITS */
 	{
+	  if (color)
+	    cur_color = get_color_char(e, ebcdic);
+
 	  for (i = 7; i >= 0; i--)
-	    l[c++] = (e & (1 << i)) ? '1' : '0';
+	    {
+	      if (color)
+		colors[c] = cur_color;
+	      l[c++] = (e & (1 << i)) ? '1' : '0';
+	    }
 	}
       if (e)
 	nonzero++;

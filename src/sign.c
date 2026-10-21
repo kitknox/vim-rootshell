@@ -254,13 +254,17 @@ insert_sign(buf_T *buf, // buffer to store sign in
         buf->b_signlist = newsign;
 # ifdef FEAT_NETBEANS_INTG
         if (netbeans_active())
-            buf->b_has_sign_column = TRUE;
+            buf->b_has_sign_column = true;
 # endif
     }
     else
     {
         prev->se_next = newsign;
     }
+
+    // Remember the newly inserted sign so a following insert on a later line
+    // can resume the search from here.
+    buf->b_sign_finger = newsign;
 }
 
 /*
@@ -322,9 +326,10 @@ sign_get_info(sign_entry_T *sign)
         return NULL;
 
     dict_add_number(d, "id", sign->se_id);
-    dict_add_string(d, "group",
-                    (sign->se_group == NULL) ? (char_u *)""
-                                             : sign->se_group->sg_name);
+    if (sign->se_group == NULL)
+        dict_add_string_len(d, "group", (char_u *)"", 0);
+    else
+        dict_add_string(d, "group", sign->se_group->sg_name);
     dict_add_number(d, "lnum", sign->se_lnum);
     dict_add_string(d, "name", sign_typenr2name(sign->se_typenr));
     dict_add_number(d, "priority", sign->se_priority);
@@ -417,7 +422,16 @@ buf_addsign(buf_T *buf, // buffer to store sign in
 {
     sign_entry_T *sign = NULL; // a sign in the signlist
     sign_entry_T *prev = NULL; // the previous sign
-    FOR_ALL_SIGNS_IN_BUF(buf, sign)
+
+    // The list is sorted by line number.  When the last inserted sign is on a
+    // strictly earlier line, resume the search from there instead of the head;
+    // this makes placing many signs on distinct, ascending lines close to
+    // linear.  Signs on the same line fall back to a scan from the head.
+    if (buf->b_sign_finger != NULL && buf->b_sign_finger->se_lnum < lnum)
+        prev = buf->b_sign_finger;
+
+    for (sign = (prev == NULL) ? buf->b_signlist : prev->se_next; sign != NULL;
+         sign = sign->se_next)
     {
         if (lnum == sign->se_lnum && id == sign->se_id &&
             sign_in_group(sign, groupname))
@@ -567,6 +581,7 @@ buf_delsign(buf_T *buf, // buffer sign is stored in
             int id, // sign id
             char_u *group) // sign group
 {
+    buf->b_sign_finger = NULL; // a removal invalidates the insertion finger
     // pointer to pointer to current sign
     sign_entry_T **lastp = &buf->b_signlist;
     sign_entry_T *next = NULL; // the next sign in a b_signlist
@@ -731,6 +746,7 @@ buf_signcount(buf_T *buf, linenr_T lnum)
 void
 buf_delete_signs(buf_T *buf, char_u *group)
 {
+    buf->b_sign_finger = NULL; // a removal invalidates the insertion finger
     // When deleting the last sign need to redraw the windows to remove the
     // sign column. Not when curwin is NULL (this means we're exiting).
     if (buf->b_signlist != NULL && curwin != NULL)
@@ -828,6 +844,7 @@ sign_mark_adjust(
     long        amount,
     long        amount_after)
 {
+    curbuf->b_sign_finger = NULL; // line changes may reorder, drop the finger
     sign_entry_T *sign = NULL; // a sign in a b_signlist
     FOR_ALL_SIGNS_IN_BUF(curbuf, sign)
     {
@@ -1312,13 +1329,10 @@ sign_jump(int sign_id, char_u *sign_group, buf_T *buf)
             emsg(_(e_cannot_jump_to_buffer_that_does_not_have_name));
             return -1;
         }
-        char_u *cmd = alloc(STRLEN(buf->b_fname) + 25);
-        if (cmd == NULL)
+        setpcmark();
+        if (do_ecmd(buf->b_fnum, NULL, NULL, NULL, lnum,
+                    buf_hide(curbuf) ? ECMD_HIDE : 0, curwin) == FAIL)
             return -1;
-
-        sprintf((char *)cmd, "e +%ld %s", (long)lnum, buf->b_fname);
-        do_cmdline_cmd(cmd);
-        vim_free(cmd);
     }
 # ifdef FEAT_FOLDING
     foldOpenCursor();
@@ -1777,32 +1791,40 @@ sign_getinfo(sign_T *sp, dict_T *retdict)
     {
         char_u *p = get_highlight_name_ext(NULL, sp->sn_line_hl - 1, FALSE);
         if (p == NULL)
-            p = (char_u *)"NONE";
-        dict_add_string(retdict, "linehl", p);
+            dict_add_string_len(retdict, "linehl",
+                (char_u *)"NONE", STRLEN_LITERAL("NONE"));
+        else
+            dict_add_string(retdict, "linehl", p);
     }
 
     if (sp->sn_text_hl > 0)
     {
         char_u *p = get_highlight_name_ext(NULL, sp->sn_text_hl - 1, FALSE);
         if (p == NULL)
-            p = (char_u *)"NONE";
-        dict_add_string(retdict, "texthl", p);
+            dict_add_string_len(retdict, "texthl",
+                (char_u *)"NONE", STRLEN_LITERAL("NONE"));
+        else
+            dict_add_string(retdict, "texthl", p);
     }
 
     if (sp->sn_cul_hl > 0)
     {
         char_u *p = get_highlight_name_ext(NULL, sp->sn_cul_hl - 1, FALSE);
         if (p == NULL)
-            p = (char_u *)"NONE";
-        dict_add_string(retdict, "culhl", p);
+            dict_add_string_len(retdict, "culhl",
+                (char_u *)"NONE", STRLEN_LITERAL("NONE"));
+        else
+            dict_add_string(retdict, "culhl", p);
     }
 
     if (sp->sn_num_hl > 0)
     {
         char_u *p = get_highlight_name_ext(NULL, sp->sn_num_hl - 1, FALSE);
         if (p == NULL)
-            p = (char_u *)"NONE";
-        dict_add_string(retdict, "numhl", p);
+            dict_add_string_len(retdict, "numhl",
+                (char_u *)"NONE", STRLEN_LITERAL("NONE"));
+        else
+            dict_add_string(retdict, "numhl", p);
     }
 }
 
@@ -1829,7 +1851,10 @@ sign_getlist(char_u *name, list_T *retlist)
             return;
 
         if (list_append_dict(retlist, dict) == FAIL)
+        {
+            dict_unref(dict);
             return;
+        }
 
         sign_getinfo(sp, dict);
 
@@ -1848,8 +1873,8 @@ get_buffer_signs(buf_T *buf, list_T *l)
     FOR_ALL_SIGNS_IN_BUF(buf, sign)
     {
         dict_T *d = sign_get_info(sign);
-        if (d != NULL)
-            list_append_dict(l, d);
+        if (d != NULL && list_append_dict(l, d) == FAIL)
+            dict_unref(d);
     }
 }
 
@@ -1867,7 +1892,11 @@ sign_get_placed_in_buf(buf_T *buf,
     if (d == NULL)
         return;
 
-    list_append_dict(retlist, d);
+    if (list_append_dict(retlist, d) == FAIL)
+    {
+        dict_unref(d);
+        return;
+    }
 
     dict_add_number(d, "bufnr", (long)buf->b_fnum);
 
@@ -1875,7 +1904,11 @@ sign_get_placed_in_buf(buf_T *buf,
     if (l == NULL)
         return;
 
-    dict_add_list(d, "signs", l);
+    if (dict_add_list(d, "signs", l) == FAIL)
+    {
+        list_unref(l);
+        return;
+    }
 
     sign_entry_T *sign = NULL;
     FOR_ALL_SIGNS_IN_BUF(buf, sign)
@@ -1889,8 +1922,8 @@ sign_get_placed_in_buf(buf_T *buf,
             (lnum == sign->se_lnum && sign_id == sign->se_id))
         {
             dict_T *sdict = sign_get_info(sign);
-            if (sdict != NULL)
-                list_append_dict(l, sdict);
+            if (sdict != NULL && list_append_dict(l, sdict) == FAIL)
+                dict_unref(sdict);
         }
     }
 }

@@ -7689,6 +7689,67 @@ func Test_catch_pattern_trailing_chars()
   bw!
 endfunc
 
+" Test for long generic type name {{{1
+func Test_function_long_generic_name()
+  func TestFunc()
+    return
+  endfunc
+
+  let name = 'TestFunc<' .. repeat('T', 1100) .. '>'
+
+  call function(name)
+  call funcref(name)
+  delfunc TestFunc
+endfunc
+
+" Test using fullcommand() {{{1
+func Test_builtin_fullcommand()
+  " :hor is the minimum abbreviation of :horizontal; :ho is invalid
+  call assert_equal('', fullcommand('ho'))
+  call assert_equal('horizontal', fullcommand('hor'))
+
+  " :k takes one {a-zA-Z'} mark argument and optional whitespace
+  call assert_equal('k', fullcommand('k'))
+  call assert_equal('k', fullcommand(':k'))
+  call assert_equal('k', fullcommand('karrrrrgh!'))
+
+  " :dl is "delete and list" in a legacy Vim script scope
+  call assert_equal('delete', fullcommand('dl'))
+
+  " :s two and three letter commands
+  call assert_equal('substitute', fullcommand('sIr'))
+  call assert_equal('substitute', fullcommand('sIrarrrrrgh!'))
+
+  " :finally
+  call assert_equal('finally', fullcommand('fina'))
+    " 'final' - returns 'final', a Vim9 script-exclusive keyword
+    "         - is a valid shortening of :finally in legacy Vim script
+    call assert_equal('final', fullcommand('final'))
+  call assert_equal('finally', fullcommand('finall'))
+
+endfunc
+
+" Test that temporary directory is re-created after wipeout {{{1
+func Test_delete_temp_dir()
+  " assumes Unix has always flock/dirfd support
+  CheckUnix
+  CheckNotMac
+  if has('sun')
+    throw 'Skipped: Solaris Vim does not detect deleted tempdir without flock()'
+  endif
+  let a = tempname()
+  let dir = fnamemodify(a, ':h')
+  call delete(dir, 'rf')
+
+  let newdir = fnamemodify(tempname(), ':h')
+  call assert_notequal(dir, newdir)
+  " if the test fails (e.g. because vim has no support for flock/dirfd,
+  " recreate the directory, to prevent followup test failures
+  if dir == newdir
+    call mkdir(dir, '', 0o700)
+  endif
+endfunc
+
 "-------------------------------------------------------------------------------
 " Modelines								    {{{1
 " vim: ts=8 sw=2 sts=2 expandtab tw=80 fdm=marker

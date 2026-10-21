@@ -656,6 +656,7 @@ def Test_disassemble_list_assign()
         '\d\+ CHECKTYPE string stack\[-1\] var 2\_s*' ..
         '\d\+ STORE $1\_s*' ..
         '\d\+ SLICE 2\_s*' ..
+        '\d\+ CHECKTYPE list<any> stack\[-1\] var 3\_s*' ..
         '\d\+ STORE $2\_s*' ..
         '\d\+ RETURN void',
         res)
@@ -1061,7 +1062,9 @@ enddef
 
 " Mainly check that ENDLOOP is only produced after a closure was created.
 def Test_disassemble_closure_in_loop()
+  test_override('unreachable', 1)
   var res = execute('disass s:ClosureInLoop')
+  test_override('unreachable', 0)
   assert_match('<SNR>\d\+_ClosureInLoop\_s*' ..
         'for i in range(5)\_s*' ..
         '\d\+ STORE -1 in $0\_s*' ..
@@ -1471,6 +1474,31 @@ def Test_disassemble_lambda()
         '\d CONCAT size 2\_s*' ..
         '\d RETURN',
         instr)
+enddef
+
+def s:ScriptLocalDefForLambda()
+enddef
+
+def GlobalDefForLambda()
+enddef
+
+def s:OuterWithLambdaCalls()
+  timer_start(0, (_) => {
+    ScriptLocalDefForLambda()
+    g:GlobalDefForLambda()
+  })
+enddef
+
+def Test_disassemble_lambda_call_types()
+  # Verify that inside a lambda:
+  # - script-local def function call → ISN_UCALL (safe after re-sourcing)
+  # - global def function call → ISN_DCALL (optimal, not deleted on re-source)
+  OuterWithLambdaCalls()
+  var instr = execute('disassemble OuterWithLambdaCalls')
+  var name = substitute(instr, '.*\(<lambda>\d\+\).*', '\1', '')
+  instr = execute('disassemble ' .. name)
+  assert_match('\d UCALL <80><fd>R\d\+_ScriptLocalDefForLambda(argc 0)', instr)
+  assert_match('\d DCALL GlobalDefForLambda(argc 0)', instr)
 enddef
 
 def s:LambdaWithType(): number

@@ -42,39 +42,6 @@ static int clip_provider_is_available(char_u *provider);
 
 #  include "wayland.h"
 
-#  ifdef FEAT_WAYLAND_CLIPBOARD_FS
-
-// Structures used for focus stealing
-typedef struct {
-    struct wl_shm_pool	*pool;
-    int			fd;
-
-    struct wl_buffer	*buffer;
-    bool		available;
-
-    int			width;
-    int			height;
-    int			stride;
-    int			size;
-} clip_wl_buffer_store_T;
-
-typedef struct {
-    void		    *user_data;
-    void		    (*on_focus)(void *data, uint32_t serial);
-
-    struct wl_surface	    *surface;
-    struct wl_keyboard	    *keyboard;
-
-    struct {
-	struct xdg_surface  *surface;
-	struct xdg_toplevel *toplevel;
-    } shell;
-
-    bool got_focus;
-} clip_wl_fs_surface_T; // fs = focus steal
-
-#  endif // FEAT_WAYLAND_CLIPBOARD_FS
-
 // Represents either the regular or primary selection
 typedef struct {
     char_u		*contents;	// Non-null if we own selection,
@@ -84,10 +51,6 @@ typedef struct {
 					// else NULL if we don't.
     vwl_data_offer_T	*offer;		// Current offer for the selection
 
-#  ifdef FEAT_WAYLAND_CLIPBOARD_FS
-    bool		requires_focus;	// If focus needs to be given to us to
-					// work
-#  endif
     bool		own_success;	// Used by clip_wl_own_selection()
     bool		available;	// If selection is ready to serve/use
 
@@ -101,10 +64,6 @@ typedef struct {
 typedef struct {
     vwl_seat_T *seat;
 
-#  ifdef FEAT_WAYLAND_CLIPBOARD_FS
-    clip_wl_buffer_store_T *fs_buffer;
-#  endif
-
     clip_wl_selection_T regular;
     clip_wl_selection_T primary;
 } clip_wl_T;
@@ -113,7 +72,9 @@ typedef struct {
 // Mimes with a lower index in the array are prioritized first when we are
 // receiving data.
 static const char *supported_mimes[] = {
+    VIMENC_MIMETYPE_NAME,
     VIMENC_ATOM_NAME,
+    VIM_MIMETYPE_NAME,
     VIM_ATOM_NAME,
     "text/plain;charset=utf-8",
     "text/plain",
@@ -452,6 +413,10 @@ clip_auto_select(void)
     int
 clip_isautosel_star(void)
 {
+# ifdef FEAT_CLIPBOARD_PROVIDER
+    if (clipmethod == CLIPMETHOD_PROVIDER)
+	return false;
+# endif
 # ifdef FEAT_GUI
     if (gui.in_use)
 	return vim_strchr(p_go, GO_ASEL) != NULL
@@ -467,6 +432,10 @@ clip_isautosel_star(void)
     int
 clip_isautosel_plus(void)
 {
+# ifdef FEAT_CLIPBOARD_PROVIDER
+    if (clipmethod == CLIPMETHOD_PROVIDER)
+	return false;
+# endif
 # ifdef FEAT_GUI
     if (gui.in_use)
 	return vim_strchr(p_go, GO_ASELPLUS) != NULL;
@@ -543,7 +512,7 @@ clip_invert_rectangle(
 	gui_mch_invert_rectangle(row, col, height, width);
     else
 # endif
-	screen_draw_rectangle(row, col, height, width, invert);
+	screen_draw_rectangle(row, col, height, width, invert, FALSE);
 # ifdef FEAT_PROP_POPUP
     screen_zindex = 0;
 # endif
@@ -1186,6 +1155,8 @@ clip_copy_modeless_selection(int both UNUSED)
 	len *= 2;	// max. 2 bytes per display cell
     else if (enc_utf8)
 	len *= MB_MAXBYTES;
+    // A newline is added after each row
+    len += row2 - row1 + 2;
     buffer = alloc(len);
     if (buffer == NULL)	    // out of memory
 	return;
@@ -1262,7 +1233,6 @@ clip_copy_modeless_selection(int both UNUSED)
 	    {
 		int	off;
 		int	i;
-		int	ci;
 
 		off = LineOffset[row];
 		for (i = start_col; i < end_col; ++i)
@@ -1272,17 +1242,8 @@ clip_copy_modeless_selection(int both UNUSED)
 		    if (ScreenLinesUC[off + i] == 0)
 			*bufp++ = ScreenLines[off + i];
 		    else
-		    {
-			bufp += utf_char2bytes(ScreenLinesUC[off + i], bufp);
-			for (ci = 0; ci < Screen_mco; ++ci)
-			{
-			    // Add a composing character.
-			    if (ScreenLinesC[ci][off + i] == 0)
-				break;
-			    bufp += utf_char2bytes(ScreenLinesC[ci][off + i],
-									bufp);
-			}
-		    }
+			// Includes the composing characters.
+			bufp += utfc_char2bytes(off + i, bufp);
 		    // Skip right half of double-wide character.
 		    if (ScreenLines[off + i + 1] == 0)
 			++i;
@@ -1457,6 +1418,10 @@ open_app_context(void)
 
 static __thread Atom	vim_atom;	// Vim's own special selection format
 static __thread Atom	vimenc_atom;	// Vim's extended selection format
+static Atom	vim_mt_atom;	// Vim's own special selection format (in mime
+				// type format)
+static Atom	vimenc_mt_atom;	// Vim's extended selection format (in mime type
+				// format)
 static __thread Atom	utf8_atom;
 static __thread Atom	compound_text_atom;
 static __thread Atom	text_atom;
@@ -1468,6 +1433,8 @@ x11_setup_atoms(Display *dpy)
 {
     vim_atom	       = XInternAtom(dpy, VIM_ATOM_NAME,   False);
     vimenc_atom	       = XInternAtom(dpy, VIMENC_ATOM_NAME,False);
+    vim_mt_atom	       = XInternAtom(dpy, VIM_MIMETYPE_NAME,   False);
+    vimenc_mt_atom     = XInternAtom(dpy, VIMENC_MIMETYPE_NAME,False);
     utf8_atom	       = XInternAtom(dpy, "UTF8_STRING",   False);
     compound_text_atom = XInternAtom(dpy, "COMPOUND_TEXT", False);
     text_atom	       = XInternAtom(dpy, "TEXT",	   False);
@@ -1509,13 +1476,15 @@ clip_x11_convert_selection_cb(
     // requestor wants to know what target types we support
     if (*target == targets_atom)
     {
-	static __thread Atom array[7];
+	static Atom array[9];
 
 	*value = (XtPointer)array;
 	i = 0;
 	array[i++] = targets_atom;
 	array[i++] = vimenc_atom;
 	array[i++] = vim_atom;
+	array[i++] = vimenc_mt_atom;
+	array[i++] = vim_mt_atom;
 	if (enc_utf8)
 	    array[i++] = utf8_atom;
 	array[i++] = XA_STRING;
@@ -1532,8 +1501,10 @@ clip_x11_convert_selection_cb(
 
     if (       *target != XA_STRING
 	    && *target != vimenc_atom
+	    && *target != vimenc_mt_atom
 	    && (*target != utf8_atom || !enc_utf8)
 	    && *target != vim_atom
+	    && *target != vim_mt_atom
 	    && *target != text_atom
 	    && *target != compound_text_atom)
 	return False;
@@ -1544,11 +1515,11 @@ clip_x11_convert_selection_cb(
 	return False;
 
     // For our own format, the first byte contains the motion type
-    if (*target == vim_atom)
+    if (*target == vim_atom || *target == vim_mt_atom)
 	(*length)++;
 
     // Our own format with encoding: motion 'encoding' NUL text
-    if (*target == vimenc_atom)
+    if (*target == vimenc_atom || *target == vimenc_mt_atom)
 	*length += STRLEN(p_enc) + 2;
 
     if (save_length < *length || save_length / 2 >= *length)
@@ -1591,20 +1562,26 @@ clip_x11_convert_selection_cb(
 	save_result = (char_u *)*value;
 	save_length = *length;
     }
-    else if (*target == vimenc_atom)
+    else if (*target == vimenc_atom || *target == vimenc_mt_atom)
     {
 	int l = STRLEN(p_enc);
 
 	save_result[0] = motion_type;
 	STRCPY(save_result + 1, p_enc);
 	mch_memmove(save_result + l + 2, string, (size_t)(*length - l - 2));
-	*type = vimenc_atom;
+	if (*target == vimenc_atom)
+	    *type = vimenc_atom;
+	else
+	    *type = vimenc_mt_atom;
     }
     else
     {
 	save_result[0] = motion_type;
 	mch_memmove(save_result + 1, string, (size_t)(*length - 1));
-	*type = vim_atom;
+	if (*target == vim_atom)
+	    *type = vim_atom;
+	else
+	    *type = vim_mt_atom;
     }
     *format = 8;	    // 8 bits per char
     vim_free(string);
@@ -1714,13 +1691,13 @@ clip_x11_request_selection_cb(
     }
     p = (char_u *)value;
     len = *length;
-    if (*type == vim_atom)
+    if (*type == vim_atom || *type == vim_mt_atom)
     {
 	motion_type = *p++;
 	len--;
     }
 
-    else if (*type == vimenc_atom)
+    else if (*type == vimenc_atom || *type == vimenc_mt_atom)
     {
 	char_u		*enc;
 	vimconv_T	conv;
@@ -1798,15 +1775,17 @@ clip_x11_request_selection(
     time_t	start_time;
     int		timed_out = FALSE;
 
-    for (i = 0; i < 6; i++)
+    for (i = 0; i < 8; i++)
     {
 	switch (i)
 	{
-	    case 0:  type = vimenc_atom;	break;
-	    case 1:  type = vim_atom;		break;
-	    case 2:  type = utf8_atom;		break;
-	    case 3:  type = compound_text_atom; break;
-	    case 4:  type = text_atom;		break;
+	    case 0:  type = vimenc_mt_atom;	break;
+	    case 1:  type = vimenc_atom;	break;
+	    case 2:  type = vim_mt_atom;	break;
+	    case 3:  type = vim_atom;		break;
+	    case 4:  type = utf8_atom;		break;
+	    case 5:  type = compound_text_atom; break;
+	    case 6:  type = text_atom;		break;
 	    default: type = XA_STRING;
 	}
 	if (type == utf8_atom
@@ -1924,7 +1903,8 @@ clip_x11_set_selection(Clipboard_T *cbd UNUSED)
 
 # endif
 
-# if defined(FEAT_XCLIPBOARD) || defined(FEAT_GUI_X11) || defined(FEAT_GUI_GTK)
+# if (defined(FEAT_XCLIPBOARD) || defined(FEAT_GUI_X11) || defined(FEAT_GUI_GTK)) \
+	&& !defined(USE_GTK4)
 /*
  * Get the contents of the X CUT_BUFFER0 and put it in "cbd".
  */
@@ -2102,6 +2082,7 @@ clip_get_selection(Clipboard_T *cbd)
     pos_T	old_cursor;
     pos_T	old_visual;
     int		old_visual_mode;
+    colnr_T	old_virtcol;
     colnr_T	old_curswant;
     int		old_set_curswant;
     pos_T	old_op_start, old_op_end;
@@ -2123,6 +2104,7 @@ clip_get_selection(Clipboard_T *cbd)
 	old_y_previous = get_y_previous();
 	old_y_current = get_y_current();
 	old_cursor = curwin->w_cursor;
+	old_virtcol = curwin->w_virtcol;
 	old_curswant = curwin->w_curswant;
 	old_set_curswant = curwin->w_set_curswant;
 	old_op_start = curbuf->b_op_start;
@@ -2143,7 +2125,8 @@ clip_get_selection(Clipboard_T *cbd)
 	set_y_previous(old_y_previous);
 	set_y_current(old_y_current);
 	curwin->w_cursor = old_cursor;
-	changed_cline_bef_curs();   // need to update w_virtcol et al
+	curwin->w_virtcol = old_virtcol;
+	changed_cline_bef_curs();   // old w_virtcol et al. may be invalid
 	curwin->w_curswant = old_curswant;
 	curwin->w_set_curswant = old_set_curswant;
 	curbuf->b_op_start = old_op_start;
@@ -2184,7 +2167,7 @@ clip_yank_selection(
     str_to_reg(y_ptr, type, str, len, -1, FALSE);
 }
 
-    static int
+    int
 clip_convert_selection_offset(
 	char_u	    **str,
 	long_u	    *len,
@@ -2349,290 +2332,6 @@ clip_wl_get_selection_type(clip_wl_selection_T *sel)
     else
 	return WAYLAND_SELECTION_NONE;
 }
-
-#  ifdef FEAT_WAYLAND_CLIPBOARD_FS
-/*
- * If globals required for focus stealing method are available.
- */
-    static bool
-clip_wl_focus_stealing_available(void)
-{
-    return wayland_ct->gobjects.wl_compositor != NULL &&
-	wayland_ct->gobjects.wl_shm != NULL &&
-	wayland_ct->gobjects.xdg_wm_base != NULL;
-}
-
-/*
- * Called when compositor isn't using the buffer anymore, we can reuse it
- * again.
- */
-    static void
-wl_buffer_listener_release(
-	void		    *data,
-	struct wl_buffer    *buffer UNUSED)
-{
-    clip_wl_buffer_store_T *store = data;
-
-    store->available = true;
-}
-
-static __thread struct wl_buffer_listener    wl_buffer_listener = {
-    .release	    = wl_buffer_listener_release
-};
-
-/*
- * Destroy a buffer store structure.
- */
-    static void
-clip_wl_destroy_buffer_store(clip_wl_buffer_store_T *store)
-{
-    if (store == NULL)
-	return;
-    if (store->buffer != NULL)
-	wl_buffer_destroy(store->buffer);
-    if (store->pool != NULL)
-	wl_shm_pool_destroy(store->pool);
-
-    close(store->fd);
-
-    vim_free(store);
-}
-
-/*
- * Initialize a buffer and its backing memory pool.
- */
-    static clip_wl_buffer_store_T *
-clip_wl_init_buffer_store(int width, int height)
-{
-    int			    fd, r;
-    clip_wl_buffer_store_T  *store;
-
-    store = alloc(sizeof(*store));
-
-    if (store == NULL)
-	return NULL;
-
-    store->available = false;
-
-    store->width = width;
-    store->height = height;
-    store->stride = store->width * 4;
-    store->size = store->stride * store->height;
-
-    fd = mch_create_anon_file();
-    r = ftruncate(fd, store->size);
-
-    if (r == -1)
-    {
-	if (fd >= 0)
-	    close(fd);
-	return NULL;
-    }
-
-    store->pool = wl_shm_create_pool(
-	    wayland_ct->gobjects.wl_shm,
-	    fd,
-	    store->size);
-    store->buffer = wl_shm_pool_create_buffer(
-	    store->pool,
-	    0,
-	    store->width,
-	    store->height,
-	    store->stride,
-	    WL_SHM_FORMAT_ARGB8888);
-
-    store->fd = fd;
-
-    wl_buffer_add_listener(store->buffer, &wl_buffer_listener, store);
-
-    if (vwl_connection_roundtrip(wayland_ct) == FAIL)
-    {
-	clip_wl_destroy_buffer_store(store);
-	return NULL;
-    }
-
-    store->available = true;
-
-    return store;
-}
-
-/*
- * Configure xdg_surface
- */
-    static void
-xdg_surface_listener_configure(
-	void		    *data UNUSED,
-	struct xdg_surface  *surface,
-	uint32_t	    serial)
-{
-    xdg_surface_ack_configure(surface, serial);
-}
-
-
-static __thread struct xdg_surface_listener  xdg_surface_listener = {
-    .configure = xdg_surface_listener_configure
-};
-
-/*
- * Destroy a focus stealing structure.
- */
-    static void
-clip_wl_destroy_fs_surface(clip_wl_fs_surface_T *store)
-{
-    if (store == NULL)
-	return;
-    if (store->shell.toplevel != NULL)
-	xdg_toplevel_destroy(store->shell.toplevel);
-    if (store->shell.surface != NULL)
-	xdg_surface_destroy(store->shell.surface);
-    if (store->surface != NULL)
-	wl_surface_destroy(store->surface);
-    if (store->keyboard != NULL)
-    {
-	if (wl_keyboard_get_version(store->keyboard) >= 3)
-	    wl_keyboard_release(store->keyboard);
-	else
-	    wl_keyboard_destroy(store->keyboard);
-    }
-    vim_free(store);
-}
-
-VWL_FUNCS_DUMMY_KEYBOARD_EVENTS()
-
-/*
- * Called when the keyboard focus is on our surface
- */
-    static void
-clip_wl_fs_keyboard_listener_enter(
-    void		*data,
-    struct wl_keyboard	*keyboard UNUSED,
-    uint32_t		serial,
-    struct wl_surface	*surface UNUSED,
-    struct wl_array	*keys UNUSED)
-{
-    clip_wl_fs_surface_T *store = data;
-
-    store->got_focus = true;
-
-    if (store->on_focus != NULL)
-	store->on_focus(store->user_data, serial);
-}
-
-
-static __thread struct wl_keyboard_listener  vwl_fs_keyboard_listener = {
-    .enter	    = clip_wl_fs_keyboard_listener_enter,
-    .key	    = clip_wl_fs_keyboard_listener_key,
-    .keymap	    = clip_wl_fs_keyboard_listener_keymap,
-    .leave	    = clip_wl_fs_keyboard_listener_leave,
-    .modifiers	    = clip_wl_fs_keyboard_listener_modifiers,
-    .repeat_info    = clip_wl_fs_keyboard_listener_repeat_info
-};
-
-/*
- * Create an invisible surface in order to gain focus and call on_focus() with
- * serial that was given.
- */
-    static int
-clip_wl_init_fs_surface(
-	vwl_seat_T		*seat,
-	clip_wl_buffer_store_T	*buffer_store,
-	void			(*on_focus)(void *, uint32_t),
-	void			*user_data)
-{
-    clip_wl_fs_surface_T    *store;
-#   ifdef ELAPSED_FUNC
-    elapsed_T		    start_tv;
-#   endif
-
-    if (wayland_ct->gobjects.wl_compositor == NULL
-	    || wayland_ct->gobjects.xdg_wm_base == NULL
-	    || buffer_store == NULL
-	    || seat == NULL)
-	return FAIL;
-
-    store = ALLOC_CLEAR_ONE(clip_wl_fs_surface_T);
-
-    if (store == NULL)
-	return FAIL;
-
-    // Get keyboard
-    store->keyboard = vwl_seat_get_keyboard(seat);
-
-    if (store->keyboard == NULL)
-	goto fail;
-
-    wl_keyboard_add_listener(store->keyboard, &vwl_fs_keyboard_listener, store);
-
-    if (vwl_connection_dispatch(wayland_ct) < 0)
-	goto fail;
-
-    store->surface = wl_compositor_create_surface(
-	    wayland_ct->gobjects.wl_compositor);
-    store->shell.surface = xdg_wm_base_get_xdg_surface(
-	    wayland_ct->gobjects.xdg_wm_base, store->surface);
-    store->shell.toplevel = xdg_surface_get_toplevel(store->shell.surface);
-
-    xdg_toplevel_set_title(store->shell.toplevel, "Vim clipboard");
-
-    xdg_surface_add_listener(store->shell.surface,
-	    &xdg_surface_listener, NULL);
-
-    wl_surface_commit(store->surface);
-
-    store->on_focus = on_focus;
-    store->user_data = user_data;
-    store->got_focus = FALSE;
-
-    if (vwl_connection_roundtrip(wayland_ct) == FAIL)
-	goto fail;
-
-    // We may get the enter event early, if we do then we will set `got_focus`
-    // to TRUE.
-    if (store->got_focus)
-	goto early_exit;
-
-    // Buffer hasn't been released yet, abort. This shouldn't happen but still
-    // check for it.
-    if (!buffer_store->available)
-	goto fail;
-
-    buffer_store->available = false;
-
-    wl_surface_attach(store->surface, buffer_store->buffer, 0, 0);
-    wl_surface_damage(store->surface, 0, 0,
-	    buffer_store->width, buffer_store->height);
-    wl_surface_commit(store->surface);
-
-    // Dispatch events until we receive the enter event. Add a max delay of
-    // 'p_wtm' when waiting for it (may be longer depending on how long we poll
-    // when dispatching events)
-#   ifdef ELAPSED_FUNC
-    ELAPSED_INIT(start_tv);
-#   endif
-
-    while (vwl_connection_dispatch(wayland_ct) >= 0)
-    {
-	if (store->got_focus)
-	    break;
-
-#   ifdef ELAPSED_FUNC
-	if (ELAPSED_FUNC(start_tv) >= p_wtm)
-	    goto fail;
-#   endif
-    }
-early_exit:
-    clip_wl_destroy_fs_surface(store);
-    vwl_connection_flush(wayland_ct);
-
-    return OK;
-fail:
-    clip_wl_destroy_fs_surface(store);
-    vwl_connection_flush(wayland_ct);
-
-    return FAIL;
-}
-
-#  endif // FEAT_WAYLAND_CLIPBOARD_FS
 
     static bool
 wl_data_offer_listener_event_offer(
@@ -2800,23 +2499,6 @@ clip_init_wayland(void)
 	clip_wl.primary.device = clip_wl.regular.device;
     }
 
-#  ifdef FEAT_WAYLAND_CLIPBOARD_FS
-    if (clip_wl.regular.available
-	    && clip_wl.regular.manager->protocol == VWL_DATA_PROTOCOL_CORE
-	    && clip_wl_focus_stealing_available())
-	clip_wl.regular.requires_focus = true;
-    if (clip_wl.primary.available
-	    && clip_wl.primary.manager->protocol == VWL_DATA_PROTOCOL_PRIMARY
-	    && clip_wl_focus_stealing_available())
-	clip_wl.primary.requires_focus = true;
-
-    if (clip_wl.regular.requires_focus || clip_wl.primary.requires_focus)
-    {
-	// Initialize buffer to use for focus stealing
-	clip_wl.fs_buffer = clip_wl_init_buffer_store(1, 1);
-    }
-#  endif
-
     if (!clip_wl.regular.available && !clip_wl.primary.available)
 	return FAIL;
 
@@ -2845,10 +2527,6 @@ clip_uninit_wayland(void)
 	if (clip_plus.owned)
 	    clip_lose_selection(&clip_plus);
     }
-
-#  ifdef FEAT_WAYLAND_CLIPBOARD_FS
-    clip_wl_destroy_buffer_store(clip_wl.fs_buffer);
-#  endif
 
     // Don't want to double free
     if (clip_wl.regular.manager != clip_wl.primary.manager)
@@ -2888,16 +2566,19 @@ clip_reset_wayland(void)
     return OK;
 }
 
+
 /*
  * Read data from a file descriptor and write it to the given clipboard.
  */
     static void
 clip_wl_receive_data(Clipboard_T *cbd, const char *mime_type, int fd)
 {
-    char_u	*start, *final, *enc;
+    char_u	*start, *final;
+    long	len;
     garray_T	buf;
     int		motion_type = MAUTO;
     ssize_t	r = 0;
+    char_u	*tofree = NULL;
 #  ifndef HAVE_SELECT
     struct pollfd   pfd;
 
@@ -2962,47 +2643,16 @@ clip_wl_receive_data(Clipboard_T *cbd, const char *mime_type, int fd)
     }
 
     final = buf.ga_data;
+    len = buf.ga_len;
 
-    if (STRCMP(mime_type, VIM_ATOM_NAME) == 0 && buf.ga_len >= 2)
-    {
-	motion_type = *final++;
-	buf.ga_len--;
-    }
-    else if (STRCMP(mime_type, VIMENC_ATOM_NAME) == 0 && buf.ga_len >= 3)
-    {
-	vimconv_T   conv;
-	int	    convlen;
-
-	// first byte is motion type
-	motion_type = *final++;
-	buf.ga_len--;
-
-	// Get encoding of selection
-	enc = final;
-
-	// Skip the encoding type including null terminator in final text
-	final += STRLEN(final) + 1;
-
-	// Subtract pointers to get length of encoding;
-	buf.ga_len -= final - enc;
-
-	conv.vc_type = CONV_NONE;
-	convert_setup(&conv, enc, p_enc);
-	if (conv.vc_type != CONV_NONE)
-	{
-	   char_u *tmp;
-
-	   convlen = buf.ga_len;
-	   tmp = string_convert(&conv, final, &convlen);
-	   buf.ga_len = convlen;
-	   if (tmp != NULL)
-		final = tmp;
-	   convert_setup(&conv, NULL, NULL);
-	}
-    }
-
-    clip_yank_selection(motion_type, final, (long)buf.ga_len, cbd);
+    if (clip_convert_data(&final, &len, &motion_type,
+	    STRCMP(mime_type, VIM_ATOM_NAME) == 0
+	    || STRCMP(mime_type, VIM_MIMETYPE_NAME) == 0,
+	    STRCMP(mime_type, VIMENC_ATOM_NAME) == 0
+	    || STRCMP(mime_type, VIMENC_MIMETYPE_NAME) == 0, &tofree) == OK)
+	clip_yank_selection(motion_type, final, len, cbd);
     ga_clear(&buf);
+    vim_free(tofree);
 }
 
 /*
@@ -3021,23 +2671,10 @@ clip_wl_request_selection(Clipboard_T *cbd)
     if (!sel->available)
 	goto clear;
 
-#  ifdef FEAT_WAYLAND_CLIPBOARD_FS
-    if (sel->requires_focus)
-    {
-	// We don't care about the on_focus callback since once we gain
-	// focus the data offer events will come immediately.
-	if (clip_wl_init_fs_surface(clip_wl.seat,
-		    clip_wl.fs_buffer, NULL, NULL) == FAIL)
-	    goto clear;
-    }
-    else
-#  endif
-    {
-	// Dispatch any events that still queued up before checking for a data
-	// offer.
-	if (vwl_connection_roundtrip(wayland_ct) == FAIL)
-	    goto clear;
-    }
+    // Dispatch any events that still queued up before checking for a data
+    // offer.
+    if (vwl_connection_roundtrip(wayland_ct) == FAIL)
+	goto clear;
 
     if (sel->offer == NULL)
 	goto clear;
@@ -3119,8 +2756,10 @@ vwl_data_source_listener_event_send(
     // format, after the first byte is the encoding type, which is null
     // terminated.
 
-    is_vimenc = STRCMP(mime_type, VIMENC_ATOM_NAME) == 0;
-    is_vim = STRCMP(mime_type, VIM_ATOM_NAME) == 0;
+    is_vimenc = STRCMP(mime_type, VIMENC_ATOM_NAME) == 0
+	|| STRCMP(mime_type, VIMENC_MIMETYPE_NAME) == 0;
+    is_vim = STRCMP(mime_type, VIM_ATOM_NAME) == 0
+	|| STRCMP(mime_type, VIM_MIMETYPE_NAME) == 0;
 
     if (is_vimenc)
 	offset += 2 + STRLEN(p_enc);
@@ -3238,16 +2877,7 @@ clip_wl_own_selection(Clipboard_T *cbd)
 	vwl_data_source_offer(sel->source, supported_mimes[i]);
 
     sel->own_success = false;
-#  ifdef FEAT_WAYLAND_CLIPBOARD_FS
-    if (sel->requires_focus)
-    {
-	if (clip_wl_init_fs_surface(clip_wl.seat, clip_wl.fs_buffer,
-		    clip_wl_do_set_selection, sel) == FAIL)
-	    goto fail;
-    }
-    else
-#  endif
-	clip_wl_do_set_selection(sel, 0);
+    clip_wl_do_set_selection(sel, 0);
 
     if (!sel->own_success)
 	goto fail;
@@ -3655,12 +3285,19 @@ did_set_clipboard(optset_T *args UNUSED)
 	vim_regfree(clip_exclude_prog);
 	clip_exclude_prog = new_exclude_prog;
 # endif
-# ifdef FEAT_GUI_GTK
+# if defined(FEAT_GUI_GTK)
 	if (gui.in_use)
 	{
+#  ifdef USE_GTK4
+	    gui_gtk_update_selection_formats(&clip_plus);
+	    gui_gtk_update_selection_formats(&clip_star);
+#  else
 	    gui_gtk_set_selection_targets((GdkAtom)GDK_SELECTION_PRIMARY);
 	    gui_gtk_set_selection_targets((GdkAtom)clip_plus.gtk_sel_atom);
+#  endif
+#  ifdef FEAT_DND
 	    gui_gtk_set_dnd_targets();
+#  endif
 	}
 # endif
     }
@@ -3778,7 +3415,6 @@ clip_provider_get_callback(
 
     // func_tv owns the function name, so we must make a copy for the callback
     set_callback(callback, &cb);
-    free_callback(&cb);
     clear_tv(&func_tv);
     return OK;
 }
@@ -3786,12 +3422,16 @@ clip_provider_get_callback(
     static void
 clip_provider_copy(char_u *reg, char_u *provider)
 {
+    static __thread bool	recursive = false;
     callback_T	callback;
     typval_T	rettv;
     typval_T	argvars[4];
     yankreg_T	*y_ptr;
     char_u	type[2 + NUMBUFLEN] = {0};
     list_T	*list = NULL;
+
+    if (recursive)
+	return;
 
     if (clip_provider_get_callback(
 		reg,
@@ -3838,7 +3478,8 @@ clip_provider_copy(char_u *reg, char_u *provider)
     }
 
     for (int i = 0; i < y_ptr->y_size; i++)
-	if (list_append_string(list, y_ptr->y_array[i].string, -1) == FAIL)
+	if (list_append_string(list, y_ptr->y_array[i].string,
+	    (int)y_ptr->y_array[i].length) == FAIL)
 	{
 	    free_callback(&callback);
 	    list_unref(list);
@@ -3854,7 +3495,9 @@ clip_provider_copy(char_u *reg, char_u *provider)
     argvars[3].v_type = VAR_UNKNOWN;
 
     textlock++;
+    recursive = true;
     call_callback(&callback, -1, &rettv, 3, argvars);
+    recursive = false;
     clear_tv(&rettv);
     textlock--;
 
@@ -3865,12 +3508,16 @@ clip_provider_copy(char_u *reg, char_u *provider)
     static void
 clip_provider_paste(char_u *reg, char_u *provider)
 {
+    static __thread bool	recursive = false;
     callback_T	callback;
     typval_T	argvars[2];
     typval_T	rettv;
     int		ret;
     char_u	*reg_type;
     list_T	*lines;
+
+    if (recursive)
+	return;
 
     if (clip_provider_get_callback(
 		reg,
@@ -3885,7 +3532,9 @@ clip_provider_paste(char_u *reg, char_u *provider)
     argvars[1].v_type = VAR_UNKNOWN;
 
     textlock++;
+    recursive = true;
     ret = call_callback(&callback, -1, &rettv, 1, argvars);
+    recursive = false;
     textlock--;
 
     if (ret == FAIL)
@@ -3956,7 +3605,7 @@ clip_provider_paste(char_u *reg, char_u *provider)
 	}
 	*curval++ = NULL;
 
-	if (*reg_type != NUL && (STRLEN(reg_type) <= 0
+	if (*reg_type != NUL && (STRLEN(reg_type) == 0
 		|| get_yank_type(&reg_type, &yank_type, &block_len) == FAIL))
 	{
 	    emsg(e_invalid_argument);
@@ -4074,3 +3723,74 @@ dec_clip_provider(void)
 }
 
 #endif // FEAT_CLIPBOARD_PROVIDER
+
+#if defined(FEAT_WAYLAND_CLIPBOARD) || (defined(FEAT_GUI_GTK) && defined(USE_GTK4))
+/*
+ * If "vim" is TRUE, then get the motion type. If "vimenc" is TRUE, then get the
+ * motion type and also convert "*buf". "buf" and "len_store" will be updated to
+ * reflect the actual contents, but should be set beforehand with the initial
+ * contents. Note that if "*tofree" is not NULL, use vim_free() on "*buf",
+ * otherwise use the free func for which "*buf" was allocated with. In both
+ * cases use vim_free() on "*tofree". Returns OK on success and FAIL on failure.
+ */
+    int
+clip_convert_data(
+	char_u	**buf,
+	long	*len_store,
+	int	*motion,
+	bool	vim,
+	bool	vimenc,
+	char_u	**tofree)
+{
+    char_u  *final = *buf;
+    char_u  *enc;
+    long    len = *len_store;
+
+    if (vim && len >= 2)
+    {
+	*motion = *final++;
+	len--;
+    }
+    else if (vimenc && len >= 3)
+    {
+	vimconv_T   conv;
+	int	    convlen;
+
+	// First byte is motion type
+	*motion = *final++;
+	len--;
+
+	// Get encoding of selection
+	enc = final;
+
+	// Skip the encoding type including null terminator in final text
+	final = memchr(final, NUL, len);
+	if (final == NULL)
+	    return FAIL;
+	final++; // Skip NUL
+
+	// Subtract pointers to get length of encoding;
+	len -= final - enc;
+
+	conv.vc_type = CONV_NONE;
+	convert_setup(&conv, enc, p_enc);
+	if (conv.vc_type != CONV_NONE)
+	{
+	   char_u *tmp;
+
+	   convlen = len;
+	   tmp = string_convert(&conv, final, &convlen);
+	   len = convlen;
+	   if (tmp != NULL)
+	   {
+		final = tmp;
+		*tofree = final;
+	   }
+	   convert_setup(&conv, NULL, NULL);
+	}
+    }
+    *buf = final;
+    *len_store = len;
+    return OK;
+}
+#endif

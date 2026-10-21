@@ -38,6 +38,14 @@ screen_zindex = 0;
 screen_Rows = 0;
 screen_Columns = 0;
 screen_opacity_popup = NULL;
+screen_pum_blend = 0;
+pum_bg_attrs = NULL;
+pum_bg_lines = NULL;
+pum_bg_linesUC = NULL;
+pum_bg_top = 0;
+pum_bg_bot = 0;
+pum_bg_cols = 0;
+p_po = 100;
 
 // Key modifiers
 mod_mask = 0;
@@ -355,6 +363,13 @@ first_tabpage = NULL;
 curtab = NULL;
 lastused_tabpage = NULL;
 redraw_tabline = FALSE;
+redraw_vseps = FALSE;
+tabline_stl_click = NULL;
+tabline_stl_click_count = 0;
+tabpanel_stl_click = NULL;
+tabpanel_stl_click_count = 0;
+fallback_fg_rgb = INVALCOLOR;
+fallback_bg_rgb = INVALCOLOR;
 
 #if defined(FEAT_TABPANEL)
 redraw_tabpanel = FALSE;
@@ -863,6 +878,14 @@ profile_zero(&bevalexpr_due);
 time_for_testing = 0;
 did_echo_string_emsg = FALSE;
 eval_lavars_used = NULL;
+disable_syn_idlist_cache_for_testing = FALSE;
+ga_init2(&last_insert_ga, 1, 64);
+add_last_insert = 0;
+#endif
+
+#if defined(FEAT_IMAGE) || defined(FEAT_EVAL)
+cell_width = 8;
+cell_height = 16;
 #endif
 
 #ifdef MSWIN
@@ -872,4 +895,5 @@ g_hinst = NULL;
 
 #if defined(FEAT_JOB_CHANNEL)
 did_repeated_msg = 0;
+use_stdio_channel = FALSE;
 #endif

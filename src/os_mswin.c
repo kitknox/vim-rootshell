@@ -16,7 +16,6 @@
 #include "vim.h"
 
 #include <sys/types.h>
-#include <signal.h>
 #include <limits.h>
 
 #include <process.h>
@@ -106,12 +105,42 @@ mch_exit_g(int r)
 
 
 /*
+ * Get version number including build number
+ */
+typedef BOOL (WINAPI *PfnRtlGetVersion)(LPOSVERSIONINFOW);
+DWORD win_version;
+    static void
+win_version_init(void)
+{
+    OSVERSIONINFOW	osver;
+    HMODULE		hNtdll;
+    PfnRtlGetVersion	pRtlGetVersion;
+
+    hNtdll = GetModuleHandle("ntdll.dll");
+    if (hNtdll == NULL)
+	return;
+
+    pRtlGetVersion =
+	(PfnRtlGetVersion) GetProcAddress(hNtdll, "RtlGetVersion");
+    if (pRtlGetVersion == NULL)
+	return;
+
+    osver.dwOSVersionInfoSize = sizeof(OSVERSIONINFOW);
+    pRtlGetVersion(&osver);
+    win_version = MAKE_VER(min(osver.dwMajorVersion, 0xFF),
+	    min(osver.dwMinorVersion, 0xFF),
+	    min(osver.dwBuildNumber, 0xFFFF));
+}
+
+/*
  * Init the tables for toupper() and tolower().
  */
     void
 mch_early_init(void)
 {
     int		i;
+
+    win_version_init();
 
     PlatformId();
 
@@ -425,6 +454,28 @@ mswin_stat_impl(const WCHAR *name, stat_T *stp, const int resolve)
 	return _wstat(name, stp);
 #endif
 
+    // Only reparse points need a directory query to identify symbolic links.
+    // In particular, avoid enumerating the directory for each missing file
+    // while searching 'runtimepath'.
+    attr = GetFileAttributesW(name);
+    if (attr == INVALID_FILE_ATTRIBUTES)
+    {
+	DWORD error = GetLastError();
+
+	// A missing file or path cannot provide stat information.  Other
+	// errors and UNC paths still need the CRT fallback.
+	if ((error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND)
+		&& !((name[0] == L'\\' || name[0] == L'/')
+		    && (name[1] == L'\\' || name[1] == L'/')))
+	{
+	    errno = ENOENT;
+	    return -1;
+	}
+	return _wstat(name, stp);
+    }
+    if (!(attr & FILE_ATTRIBUTE_REPARSE_POINT))
+	return _wstat(name, stp);
+
     hFind = FindFirstFileW(name, &findDataW);
     if (hFind != INVALID_HANDLE_VALUE)
     {
@@ -550,6 +601,12 @@ mch_new_shellsize(void)
     // never used
 }
 
+    void
+mch_calc_cell_size(struct cellsize *cs_out UNUSED)
+{
+    // never used
+}
+
 #endif
 
 /*
@@ -635,13 +692,7 @@ mch_has_wildcard(char_u *p)
 {
     for ( ; *p; MB_PTR_ADV(p))
     {
-	if (vim_strchr((char_u *)
-#ifdef VIM_BACKTICK
-				    "?*$[`"
-#else
-				    "?*$["
-#endif
-						, *p) != NULL
+	if (vim_strchr((char_u *)"?*$[`", *p) != NULL
 		|| (*p == '~' && p[1] != NUL))
 	    return TRUE;
     }
@@ -1169,8 +1220,6 @@ AbortProc(HDC hdcPrn UNUSED, int iCode UNUSED)
     return !*bUserAbort;
 }
 
-# if !defined(FEAT_GUI) || defined(VIMDLL)
-
     static UINT_PTR CALLBACK
 PrintHookProc(
 	HWND hDlg,	// handle to dialog box
@@ -1223,7 +1272,6 @@ PrintHookProc(
 
     return FALSE;
 }
-# endif
 
     void
 mch_print_cleanup(void)
@@ -1239,7 +1287,7 @@ mch_print_cleanup(void)
 
     if (prt_dlg.hDC != NULL)
 	DeleteDC(prt_dlg.hDC);
-    if (!*bUserAbort)
+    if (!*bUserAbort && hDlgPrint != NULL)
 	SendMessage(hDlgPrint, WM_COMMAND, 0, 0);
 }
 
@@ -1377,18 +1425,11 @@ mch_print_init(prt_settings_T *psettings, char_u *jobname, int forceit)
 	prt_dlg.hDevMode = stored_dm;
 	prt_dlg.hDevNames = stored_devn;
 	prt_dlg.lCustData = stored_nCopies; // work around bug in print dialog
-# if !defined(FEAT_GUI) || defined(VIMDLL)
-#  ifdef VIMDLL
-	if (!gui.in_use)
-#  endif
-	{
-	    /*
-	     * Use hook to prevent console window being sent to back
-	     */
-	    prt_dlg.lpfnPrintHook = PrintHookProc;
-	    prt_dlg.Flags |= PD_ENABLEPRINTHOOK;
-	}
-# endif
+	/*
+	 * Use hook to prevent print dialog being sent to back.
+	 */
+	prt_dlg.lpfnPrintHook = PrintHookProc;
+	prt_dlg.Flags |= PD_ENABLEPRINTHOOK;
 	prt_dlg.Flags |= stored_nFlags;
     }
 
@@ -1605,7 +1646,7 @@ mch_print_begin(prt_settings_T *psettings)
 mch_print_end(prt_settings_T *psettings UNUSED)
 {
     EndDoc(prt_dlg.hDC);
-    if (!*bUserAbort)
+    if (!*bUserAbort && hDlgPrint != NULL)
 	SendMessage(hDlgPrint, WM_COMMAND, 0, 0);
 }
 
@@ -2034,10 +2075,15 @@ Messaging_WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 	    // Remember who sent this, for <client>
 	    clientWindow = sender;
 
-	    // Add the received keys to the input buffer.  The loop waiting
-	    // for the user to do something should check the input buffer.
+	    // Add the received keys to the input buffer.
 	    str = serverConvert(client_enc, (char_u *)data->lpData, &tofree);
-	    server_to_input_buf(str);
+# ifdef FEAT_GUI
+	    if (gui.in_use)
+		// The GUI may get here re-entrantly, so insert the keys later.
+		server_add_input(str);
+	    else
+# endif
+		server_to_input_buf(str);
 	    vim_free(tofree);
 
 # ifdef FEAT_GUI
@@ -2237,16 +2283,14 @@ enumWindowsGetServer(HWND hwnd, LPARAM lparam)
     static BOOL CALLBACK
 enumWindowsGetNames(HWND hwnd, LPARAM lparam)
 {
-    garray_T	*ga = (garray_T *)lparam;
+    list_T	*list = (list_T *)lparam;
     char	server[MAX_PATH];
 
     // Get the title of the window
     if (getVimServerName(hwnd, server, sizeof(server)) == 0)
 	return TRUE;
 
-    // Add the name to the list
-    ga_concat(ga, (char_u *)server);
-    ga_concat_len(ga, (char_u *)"\n", 1);
+    list_append_string(list, (char_u *)server, -1);
     return TRUE;
 }
 
@@ -2352,17 +2396,17 @@ serverSetName(char_u *name)
     }
 }
 
-    char_u *
+    list_T *
 serverGetVimNames(void)
 {
-    garray_T ga;
+    list_T *list = list_alloc();
 
-    ga_init2(&ga, 1, 100);
+    if (list == NULL)
+	return NULL;
 
-    enum_windows(enumWindowsGetNames, (LPARAM)(&ga));
-    ga_append(&ga, NUL);
+    enum_windows(enumWindowsGetNames, (LPARAM)list);
 
-    return ga.ga_data;
+    return list;
 }
 
     int
@@ -2645,32 +2689,30 @@ struct charset_pair
     BYTE	charset;
 };
 
-# define STRING_INIT(s) \
-    {(char_u *)(s), STRLEN_LITERAL(s)}
 static struct charset_pair
 charset_pairs[] =
 {
-    {STRING_INIT("ANSI"),		ANSI_CHARSET},
-    {STRING_INIT("CHINESEBIG5"),	CHINESEBIG5_CHARSET},
-    {STRING_INIT("DEFAULT"),		DEFAULT_CHARSET},
-    {STRING_INIT("HANGEUL"),		HANGEUL_CHARSET},
-    {STRING_INIT("OEM"),		OEM_CHARSET},
-    {STRING_INIT("SHIFTJIS"),		SHIFTJIS_CHARSET},
-    {STRING_INIT("SYMBOL"),		SYMBOL_CHARSET},
-    {STRING_INIT("ARABIC"),		ARABIC_CHARSET},
-    {STRING_INIT("BALTIC"),		BALTIC_CHARSET},
-    {STRING_INIT("EASTEUROPE"),		EASTEUROPE_CHARSET},
-    {STRING_INIT("GB2312"),		GB2312_CHARSET},
-    {STRING_INIT("GREEK"),		GREEK_CHARSET},
-    {STRING_INIT("HEBREW"),		HEBREW_CHARSET},
-    {STRING_INIT("JOHAB"),		JOHAB_CHARSET},
-    {STRING_INIT("MAC"),		MAC_CHARSET},
-    {STRING_INIT("RUSSIAN"),		RUSSIAN_CHARSET},
-    {STRING_INIT("THAI"),		THAI_CHARSET},
-    {STRING_INIT("TURKISH"),		TURKISH_CHARSET}
+    {STR_LITERAL_INIT("ANSI"),		ANSI_CHARSET},
+    {STR_LITERAL_INIT("CHINESEBIG5"),	CHINESEBIG5_CHARSET},
+    {STR_LITERAL_INIT("DEFAULT"),	DEFAULT_CHARSET},
+    {STR_LITERAL_INIT("HANGEUL"),	HANGEUL_CHARSET},
+    {STR_LITERAL_INIT("OEM"),		OEM_CHARSET},
+    {STR_LITERAL_INIT("SHIFTJIS"),	SHIFTJIS_CHARSET},
+    {STR_LITERAL_INIT("SYMBOL"),	SYMBOL_CHARSET},
+    {STR_LITERAL_INIT("ARABIC"),	ARABIC_CHARSET},
+    {STR_LITERAL_INIT("BALTIC"),	BALTIC_CHARSET},
+    {STR_LITERAL_INIT("EASTEUROPE"),	EASTEUROPE_CHARSET},
+    {STR_LITERAL_INIT("GB2312"),	GB2312_CHARSET},
+    {STR_LITERAL_INIT("GREEK"),		GREEK_CHARSET},
+    {STR_LITERAL_INIT("HEBREW"),	HEBREW_CHARSET},
+    {STR_LITERAL_INIT("JOHAB"),		JOHAB_CHARSET},
+    {STR_LITERAL_INIT("MAC"),		MAC_CHARSET},
+    {STR_LITERAL_INIT("RUSSIAN"),	RUSSIAN_CHARSET},
+    {STR_LITERAL_INIT("THAI"),		THAI_CHARSET},
+    {STR_LITERAL_INIT("TURKISH"),	TURKISH_CHARSET}
 # ifdef VIETNAMESE_CHARSET
     ,
-    {STRING_INIT("VIETNAMESE"),		VIETNAMESE_CHARSET}
+    {STR_LITERAL_INIT("VIETNAMESE"),	VIETNAMESE_CHARSET}
 # endif
 };
 
@@ -2683,23 +2725,22 @@ struct quality_pair
 static struct quality_pair
 quality_pairs[] = {
 # ifdef CLEARTYPE_QUALITY
-    {STRING_INIT("CLEARTYPE"),		CLEARTYPE_QUALITY},
+    {STR_LITERAL_INIT("CLEARTYPE"),	CLEARTYPE_QUALITY},
 # endif
 # ifdef ANTIALIASED_QUALITY
-    {STRING_INIT("ANTIALIASED"),	ANTIALIASED_QUALITY},
+    {STR_LITERAL_INIT("ANTIALIASED"),	ANTIALIASED_QUALITY},
 # endif
 # ifdef NONANTIALIASED_QUALITY
-    {STRING_INIT("NONANTIALIASED"),	NONANTIALIASED_QUALITY},
+    {STR_LITERAL_INIT("NONANTIALIASED"), NONANTIALIASED_QUALITY},
 # endif
 # ifdef PROOF_QUALITY
-    {STRING_INIT("PROOF"),		PROOF_QUALITY},
+    {STR_LITERAL_INIT("PROOF"),		PROOF_QUALITY},
 # endif
 # ifdef DRAFT_QUALITY
-    {STRING_INIT("DRAFT"),		DRAFT_QUALITY},
+    {STR_LITERAL_INIT("DRAFT"),		DRAFT_QUALITY},
 # endif
-    {STRING_INIT("DEFAULT"),		DEFAULT_QUALITY}
+    {STR_LITERAL_INIT("DEFAULT"),	DEFAULT_QUALITY}
 };
-# undef STRING_INIT
 
 /*
  * Convert a charset ID to a name.
@@ -3196,6 +3237,12 @@ get_logfont(
 			vim_free(s);
 		    }
 		}
+		break;
+	    case L'f':
+		// Font features (e.g., "fss19=1").
+		// Parsed separately by gui_mch_init_font(); skip here.
+		while (*p && *p != L':')
+		    p++;
 		break;
 	    case L'q':
 		for (i = 0; i < (int)ARRAY_LENGTH(quality_pairs); ++i)

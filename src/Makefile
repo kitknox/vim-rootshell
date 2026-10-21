@@ -597,13 +597,19 @@ CClink = $(CC)
 #CFLAGS = -O -Olimit 2000
 #CFLAGS = -O -FOlimit,2000
 
+# Add $(FORTIFY_CFLAGS) to optimizing example lines below: at higher levels
+# (the compiler default with -O) the buffer overflow check aborts Vim on the
+# "x[1] but actually longer" struct-hack arrays (e.g. dictitem di_key).
+# configure adds this automatically; these examples bypass it.
+FORTIFY_CFLAGS = -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1
+
 # Often used for GCC: mixed optimizing, lot of optimizing, debugging
-#CFLAGS = -g -O2 -fno-strength-reduce -Wall -Wshadow -Wmissing-prototypes
-#CFLAGS = -g -O2 -fno-strength-reduce -Wall -Wmissing-prototypes
+#CFLAGS = -g -O2 -fno-strength-reduce -Wall -Wshadow -Wmissing-prototypes $(FORTIFY_CFLAGS)
+#CFLAGS = -g -O2 -fno-strength-reduce -Wall -Wmissing-prototypes $(FORTIFY_CFLAGS)
 #CFLAGS = -g -Wall -Wmissing-prototypes
-#CFLAGS = -O6 -fno-strength-reduce -Wall -Wshadow -Wmissing-prototypes
+#CFLAGS = -O6 -fno-strength-reduce -Wall -Wshadow -Wmissing-prototypes $(FORTIFY_CFLAGS)
 #CFLAGS = -g -DDEBUG -Wall -Wshadow -Wmissing-prototypes
-#CFLAGS = -g -O2 '-DSTARTUPTIME="vimstartup"' -fno-strength-reduce -Wall -Wmissing-prototypes
+#CFLAGS = -g -O2 '-DSTARTUPTIME="vimstartup"' -fno-strength-reduce -Wall -Wmissing-prototypes $(FORTIFY_CFLAGS)
 
 # Use this with GCC to check for mistakes, unused arguments, etc.
 # Note: If you use -Wextra and get warnings in GTK code about function
@@ -1232,6 +1238,33 @@ GTK_MAN_TARGETS = yes
 GTK_TESTTARGET  = gui
 GTK_BUNDLE	=
 
+### GTK4 GUI
+GTK4_SRC	= gui.c gui_gtk4.c gui_gtk4_f.c \
+			gui_gtk4_cb.c \
+			gui_gtk4_da.c \
+			gui_beval.o \
+			gui_gtk4_tb.c \
+			gui_gtk4_menu.c \
+			$(GRESOURCE_SRC)
+GTK4_OBJ	= objects/gui.o objects/gui_gtk4.o \
+			objects/gui_gtk4_f.o \
+			objects/gui_gtk4_cb.o \
+			objects/gui_gtk4_da.o \
+			objects/gui_beval.o \
+			objects/gui_gtk4_tb.o \
+			objects/gui_gtk4_menu.o \
+			$(GRESOURCE_OBJ)
+GTK4_DEFS	= -DFEAT_GUI_GTK $(NARROW_PROTO)
+GTK4_IPATH	= $(GUI_INC_LOC)
+GTK4_LIBS_DIR	= $(GUI_LIB_LOC)
+GTK4_LIBS1	=
+GTK4_LIBS2	= $(GTK_LIBNAME)
+GTK4_INSTALL	= install_normal install_gui_extra
+GTK4_TARGETS	= installglinks
+GTK4_MAN_TARGETS = yes
+GTK4_TESTTARGET	= gui
+GTK4_BUNDLE	=
+
 ### Motif GUI
 MOTIF_SRC	= gui.c gui_motif.c gui_x11.c gui_beval.c \
 			gui_xmdlg.c gui_xmebw.c
@@ -1243,7 +1276,7 @@ MOTIF_IPATH	= $(GUI_INC_LOC)
 MOTIF_LIBS_DIR	= $(GUI_LIB_LOC)
 MOTIF_LIBS1	=
 MOTIF_LIBS2	= $(MOTIF_LIBNAME) -lXt
-MOTIF_INSTALL   = install_normal install_gui_extra
+MOTIF_INSTALL	= install_normal install_gui_extra
 MOTIF_TARGETS	= installglinks
 MOTIF_MAN_TARGETS = yes
 MOTIF_TESTTARGET = gui
@@ -1289,8 +1322,8 @@ HAIKUGUI_TESTTARGET = gui
 HAIKUGUI_BUNDLE =
 
 # All GUI files
-ALL_GUI_SRC  = gui.c gui_gtk.c gui_gtk_f.c gui_motif.c gui_xmdlg.c gui_xmebw.c gui_gtk_x11.c gui_x11.c gui_haiku.cc
-ALL_GUI_PRO  = proto/gui.pro proto/gui_gtk.pro proto/gui_motif.pro proto/gui_xmdlg.pro proto/gui_gtk_x11.pro proto/gui_x11.pro proto/gui_w32.pro proto/gui_photon.pro
+ALL_GUI_SRC  = gui.c gui_gtk.c gui_gtk_f.c gui_gtk4.c gui_gtk4_f.c gui_gtk4_cb.c gui_gtk4_da.c gui_gtk4_tb.c gui_gtk4_menu.c gui_motif.c gui_xmdlg.c gui_xmebw.c gui_gtk_x11.c gui_x11.c gui_haiku.cc
+ALL_GUI_PRO  = proto/gui.pro proto/gui_gtk.pro proto/gui_gtk4.pro proto/gui_motif.pro proto/gui_xmdlg.pro proto/gui_gtk_x11.pro proto/gui_x11.pro proto/gui_w32.pro proto/gui_photon.pro
 
 # }}}
 
@@ -1356,7 +1389,7 @@ MKDIR_P = $(SHELL) install-sh -c -d
 VTERM_CFLAGS = -Ilibvterm/include
 
 PRE_DEFS = -Iproto $(DEFS) $(GUI_DEFS) $(GUI_IPATH) $(CPPFLAGS) $(EXTRA_IPATHS)
-POST_DEFS = $(X_CFLAGS) $(MZSCHEME_CFLAGS) $(EXTRA_DEFS)
+POST_DEFS = $(X_CFLAGS) $(MZSCHEME_CFLAGS) $(EXTRA_DEFS) $(PIXMAN_CFLAGS) $(PIXMAN_CPPFLAGS)
 
 ALL_CFLAGS = $(PRE_DEFS) $(CFLAGS) $(PROFILE_CFLAGS) $(SANITIZER_CFLAGS) $(LEAK_CFLAGS) $(ABORT_CFLAGS) $(POST_DEFS)
 
@@ -1384,6 +1417,9 @@ ALL_LIBS = \
 	   $(X_PRE_LIBS) \
 	   $(X_LIBS) \
 	   $(WAYLAND_LIBS) \
+	   $(CAIRO_LIBS) \
+	   $(PANGO_LIBS) \
+	   $(PIXMAN_LIBS) \
 	   $(X_EXTRA_LIBS) \
 	   $(MZSCHEME_LIBS) \
 	   $(LIBS) \
@@ -1510,11 +1546,16 @@ BASIC_SRC = \
 	gc.c \
 	gui_xim.c \
 	hardcopy.c \
+	hardcopy_pango.c \
+	hardcopy_postscript.c \
 	hashtab.c \
 	help.c \
 	highlight.c \
 	if_cscope.c \
 	if_xcmdsrv.c \
+	image.c \
+	image_kitty.c \
+	image_sixel.c \
 	indent.c \
 	insexpand.c \
 	json.c \
@@ -1555,6 +1596,7 @@ BASIC_SRC = \
 	session.c \
 	sha256.c \
 	sign.c \
+	socketserver.c \
 	sound.c \
 	spell.c \
 	spellfile.c \
@@ -1617,8 +1659,6 @@ genwaylandproto:
 # Needed for parallel jobs to work
 auto/wayland/ext-data-control-v1.h: auto/wayland/ext-data-control-v1.c
 auto/wayland/wlr-data-control-unstable-v1.h: auto/wayland/wlr-data-control-unstable-v1.c
-auto/wayland/primary-selection-unstable-v1.h: auto/wayland/primary-selection-unstable-v1.c
-auto/wayland/xdg-shell.h: auto/wayland/xdg-shell.c
 
 # Unittest files
 JSON_TEST_SRC = json_test.c
@@ -1695,11 +1735,16 @@ OBJ_COMMON = \
 	objects/gc.o \
 	objects/gui_xim.o \
 	objects/hardcopy.o \
+	objects/hardcopy_pango.o \
+	objects/hardcopy_postscript.o \
 	objects/hashtab.o \
 	objects/help.o \
 	objects/highlight.o \
 	objects/if_cscope.o \
 	objects/if_xcmdsrv.o \
+	objects/image.o \
+	objects/image_kitty.o \
+	objects/image_sixel.o \
 	objects/indent.o \
 	objects/insexpand.o \
 	objects/linematch.o \
@@ -1736,6 +1781,7 @@ OBJ_COMMON = \
 	objects/session.o \
 	objects/sha256.o \
 	objects/sign.o \
+	objects/socketserver.o \
 	objects/sound.o \
 	objects/spell.o \
 	objects/spellfile.o \
@@ -1881,9 +1927,10 @@ PROTO_FILES = \
 	proto/gc.pro \
 	proto/getchar.pro \
 	proto/gui_beval.pro \
-	proto/gui_gtk_gresources.pro \
 	proto/gui_xim.pro \
 	proto/hardcopy.pro \
+	proto/hardcopy_pango.pro \
+	proto/hardcopy_postscript.pro \
 	proto/hashtab.pro \
 	proto/help.pro \
 	proto/highlight.pro \
@@ -1978,6 +2025,7 @@ PROTO_FILES = \
 	proto/wayland.pro \
 	proto/winclip.pro \
 	proto/window.pro \
+	$(GRESOURCE_PRO) \
 	$(ALL_GUI_PRO)
 
 # Default target is making the executable and tools
@@ -2157,15 +2205,17 @@ proto/%.pro: %.c
 	@$(PYTHON) $(GEN_PROTO_CMD) $< $(GEN_PROTO_ARG)
 
 proto/gui_gtk_gresources.pro: auto/gui_gtk_gresources.c
-	@$(PYTHON) $(GEN_PROTO_CMD) $< $(GEN_PROTO_ARG)
+	@if test -n "$(GLIB_COMPILE_RESOURCES)"; then \
+		$(PYTHON) $(GEN_PROTO_CMD) $< $(GEN_PROTO_ARG) ; \
+	fi
 
 notags:
-	-rm -f tags
+	$(MAKE) -f Make_tags.mak notags
 
-# Note: tags is made for the currently configured version.
+# Configure sets portable TAGPRG, else modern ctags is used.
 # You can ignore error messages for missing files.
 tags TAGS: notags
-	$(TAGPRG) $(TAGS_FILES)
+	$(MAKE) -f Make_tags.mak tags
 
 # Build the cscope database.
 # This may search more files than necessary.
@@ -3180,7 +3230,9 @@ GUI_GTK_RES_INPUTS = \
 	../pixmaps/stock_vim_window_split_vertical.png
 
 auto/gui_gtk_gresources.c: gui_gtk_res.xml $(GUI_GTK_RES_INPUTS)
-	$(GLIB_COMPILE_RESOURCES) --target=$@ --sourcedir=../pixmaps --generate --c-name=gui_gtk --manual-register gui_gtk_res.xml
+	if test -z "$(GLIB_COMPILE_RESOURCES)"; then touch $@; else \
+		$(GLIB_COMPILE_RESOURCES) --target=$@ --sourcedir=../pixmaps --generate --c-name=gui_gtk --manual-register gui_gtk_res.xml; \
+	fi
 auto/gui_gtk_gresources.h: gui_gtk_res.xml $(GUI_GTK_RES_INPUTS)
 	if test -z "$(GLIB_COMPILE_RESOURCES)"; then touch $@; else \
 		$(GLIB_COMPILE_RESOURCES) --target=$@ --sourcedir=../pixmaps --generate --c-name=gui_gtk --manual-register gui_gtk_res.xml; \
@@ -3246,7 +3298,7 @@ objects/clientserver.o: clientserver.c
 	$(CCC) -o $@ clientserver.c
 
 objects/clipboard.o: clipboard.c $(WAYLAND_SRC)
-	$(CCC) -o $@ clipboard.c
+	$(CCC) $(WAYLAND_CFLAGS) $(WAYLAND_CPPFLAGS) -o $@ clipboard.c
 
 objects/cmdexpand.o: cmdexpand.c
 	$(CCC) -o $@ cmdexpand.c
@@ -3338,6 +3390,12 @@ objects/gc.o: gc.c
 objects/hardcopy.o: hardcopy.c
 	$(CCC) -o $@ hardcopy.c
 
+objects/hardcopy_pango.o: hardcopy_pango.c
+	$(CCC) $(CAIRO_CFLAGS) $(CAIRO_CPPFLAGS) $(PANGO_CFLAGS) $(PANGO_CPPFLAGS) -o $@ hardcopy_pango.c
+
+objects/hardcopy_postscript.o: hardcopy_postscript.c
+	$(CCC) -o $@ hardcopy_postscript.c
+
 objects/hashtab.o: hashtab.c
 	$(CCC) -o $@ hashtab.c
 
@@ -3364,6 +3422,25 @@ objects/gui_gtk_gresources.o: auto/gui_gtk_gresources.c
 
 objects/gui_gtk_x11.o: gui_gtk_x11.c
 	$(CCC) -o $@ gui_gtk_x11.c
+
+objects/gui_gtk4.o: gui_gtk4.c
+	$(CCC) -o $@ gui_gtk4.c
+
+objects/gui_gtk4_f.o: gui_gtk4_f.c
+	$(CCC) -o $@ gui_gtk4_f.c
+
+objects/gui_gtk4_cb.o: gui_gtk4_cb.c
+	$(CCC) -o $@ gui_gtk4_cb.c
+
+objects/gui_gtk4_da.o: gui_gtk4_da.c
+	$(CCC) -o $@ gui_gtk4_da.c
+
+objects/gui_gtk4_tb.o: gui_gtk4_tb.c
+	$(CCC) -o $@ gui_gtk4_tb.c
+
+objects/gui_gtk4_menu.o: gui_gtk4_menu.c
+	$(CCC) -o $@ gui_gtk4_menu.c
+
 
 objects/gui_haiku.o: gui_haiku.cc
 	$(CCC) -o $@ gui_haiku.cc
@@ -3418,6 +3495,15 @@ objects/if_ruby.o: if_ruby.c
 
 objects/if_tcl.o: if_tcl.c
 	$(CCC_NF) $(TCL_CFLAGS) $(ALL_CFLAGS) $(TCL_CFLAGS_EXTRA) -o $@ if_tcl.c
+
+objects/image.o: image.c
+	$(CCC) -o $@ image.c
+
+objects/image_kitty.o: image_kitty.c
+	$(CCC) -o $@ image_kitty.c
+
+objects/image_sixel.o: image_sixel.c
+	$(CCC) -o $@ image_sixel.c
 
 objects/indent.o: indent.c
 	$(CCC) -o $@ indent.c
@@ -3572,6 +3658,9 @@ objects/sha256.o: sha256.c
 objects/sign.o: sign.c
 	$(CCC) -o $@ sign.c
 
+objects/socketserver.o: socketserver.c
+	$(CCC) -o $@ socketserver.c
+
 objects/sound.o: sound.c
 	$(CCC) -o $@ sound.c
 
@@ -3679,12 +3768,6 @@ objects/wlr-data-control-unstable-v1.o: auto/wayland/wlr-data-control-unstable-v
 
 objects/ext-data-control-v1.o: auto/wayland/ext-data-control-v1.c
 	$(CCC) $(WAYLAND_CFLAGS) $(WAYLAND_CPPFLAGS) -o $@ auto/wayland/ext-data-control-v1.c
-
-objects/xdg-shell.o: auto/wayland/xdg-shell.c
-	$(CCC) $(WAYLAND_CFLAGS) $(WAYLAND_CPPFLAGS) -o $@ auto/wayland/xdg-shell.c
-
-objects/primary-selection-unstable-v1.o: auto/wayland/primary-selection-unstable-v1.c
-	$(CCC) $(WAYLAND_CFLAGS) $(WAYLAND_CPPFLAGS) -o $@ auto/wayland/primary-selection-unstable-v1.c
 
 objects/netbeans.o: netbeans.c
 	$(CCC) -o $@ netbeans.c
@@ -4032,7 +4115,17 @@ objects/hardcopy.o: auto/osdef.h hardcopy.c vim.h protodef.h auto/config.h featu
  ascii.h keymap.h termdefs.h macros.h option.h beval.h \
  structs.h regexp.h gui.h libvterm/include/vterm.h \
  libvterm/include/vterm_keycodes.h alloc.h ex_cmds.h spell.h proto.h \
- globals.h errors.h version.h
+ globals.h errors.h version.h hardcopy.h hardcopy_postscript.h
+objects/hardcopy_pango.o: auto/osdef.h hardcopy_pango.c vim.h protodef.h auto/config.h feature.h os_unix.h \
+ ascii.h keymap.h termdefs.h macros.h option.h beval.h \
+ structs.h regexp.h gui.h libvterm/include/vterm.h \
+ libvterm/include/vterm_keycodes.h alloc.h ex_cmds.h spell.h proto.h \
+ globals.h errors.h hardcopy.h
+objects/hardcopy_postscript.o: auto/osdef.h hardcopy_postscript.c vim.h protodef.h auto/config.h feature.h os_unix.h \
+ ascii.h keymap.h termdefs.h macros.h option.h beval.h \
+ structs.h regexp.h gui.h libvterm/include/vterm.h \
+ libvterm/include/vterm_keycodes.h alloc.h ex_cmds.h spell.h proto.h \
+ globals.h errors.h version.h hardcopy.h hardcopy_postscript.h
 objects/hashtab.o: auto/osdef.h hashtab.c vim.h protodef.h auto/config.h feature.h os_unix.h \
  ascii.h keymap.h termdefs.h macros.h option.h beval.h \
  structs.h regexp.h gui.h libvterm/include/vterm.h \
@@ -4058,6 +4151,21 @@ objects/if_xcmdsrv.o: auto/osdef.h if_xcmdsrv.c vim.h protodef.h auto/config.h f
  beval.h structs.h regexp.h gui.h \
  libvterm/include/vterm.h libvterm/include/vterm_keycodes.h alloc.h \
  ex_cmds.h spell.h proto.h globals.h errors.h version.h
+objects/image.o: auto/osdef.h image.c vim.h protodef.h auto/config.h feature.h os_unix.h \
+ ascii.h keymap.h termdefs.h macros.h option.h beval.h \
+ structs.h regexp.h gui.h libvterm/include/vterm.h \
+ libvterm/include/vterm_keycodes.h alloc.h ex_cmds.h spell.h proto.h \
+ globals.h errors.h image.h
+objects/image_kitty.o: auto/osdef.h image_kitty.c vim.h protodef.h auto/config.h feature.h os_unix.h \
+ ascii.h keymap.h termdefs.h macros.h option.h beval.h \
+ structs.h regexp.h gui.h libvterm/include/vterm.h \
+ libvterm/include/vterm_keycodes.h alloc.h ex_cmds.h spell.h proto.h \
+ globals.h errors.h image.h
+objects/image_sixel.o: auto/osdef.h image_sixel.c vim.h protodef.h auto/config.h feature.h os_unix.h \
+ ascii.h keymap.h termdefs.h macros.h option.h beval.h \
+ structs.h regexp.h gui.h libvterm/include/vterm.h \
+ libvterm/include/vterm_keycodes.h alloc.h ex_cmds.h spell.h proto.h \
+ globals.h errors.h image.h
 objects/indent.o: auto/osdef.h indent.c vim.h protodef.h auto/config.h feature.h os_unix.h \
  ascii.h keymap.h termdefs.h macros.h option.h beval.h \
  structs.h regexp.h gui.h libvterm/include/vterm.h \
@@ -4253,6 +4361,11 @@ objects/sign.o: auto/osdef.h sign.c vim.h protodef.h auto/config.h feature.h os_
  structs.h regexp.h gui.h libvterm/include/vterm.h \
  libvterm/include/vterm_keycodes.h alloc.h ex_cmds.h spell.h proto.h \
  globals.h errors.h
+objects/socketserver.o: socketserver.c vim.h protodef.h auto/config.h feature.h \
+ os_unix.h auto/osdef.h ascii.h keymap.h termdefs.h macros.h option.h \
+ beval.h structs.h regexp.h gui.h libvterm/include/vterm.h \
+ libvterm/include/vterm_keycodes.h xdiff/xdiff.h xdiff/../vim.h alloc.h \
+ ex_cmds.h spell.h proto.h globals.h errors.h
 objects/sound.o: auto/osdef.h sound.c vim.h protodef.h auto/config.h feature.h os_unix.h \
  ascii.h keymap.h termdefs.h macros.h option.h beval.h \
  structs.h regexp.h gui.h libvterm/include/vterm.h \
@@ -4433,6 +4546,37 @@ objects/gui_gtk.o: auto/osdef.h gui_gtk.c vim.h protodef.h auto/config.h feature
  structs.h regexp.h gui.h libvterm/include/vterm.h \
  libvterm/include/vterm_keycodes.h alloc.h ex_cmds.h spell.h proto.h \
  globals.h errors.h gui_gtk_f.h
+objects/gui_gtk4.o: auto/osdef.h gui_gtk4.c vim.h protodef.h auto/config.h feature.h os_unix.h \
+ ascii.h keymap.h termdefs.h macros.h option.h beval.h \
+ structs.h regexp.h gui.h libvterm/include/vterm.h \
+ libvterm/include/vterm_keycodes.h alloc.h ex_cmds.h spell.h proto.h \
+ globals.h errors.h gui_gtk4_f.h \
+ gui_gtk4_cb.h gui_gtk4_da.h gui_gtk4_tb.h gui_gtk4_menu.h
+objects/gui_gtk4_f.o: auto/osdef.h gui_gtk4_f.c vim.h protodef.h auto/config.h feature.h \
+ os_unix.h ascii.h keymap.h termdefs.h macros.h option.h \
+ beval.h structs.h regexp.h gui.h \
+ libvterm/include/vterm.h libvterm/include/vterm_keycodes.h alloc.h \
+ ex_cmds.h spell.h proto.h globals.h errors.h gui_gtk4_f.h
+objects/gui_gtk4_cb.o: auto/osdef.h gui_gtk4_cb.c vim.h protodef.h auto/config.h feature.h \
+ os_unix.h ascii.h keymap.h termdefs.h macros.h option.h \
+ beval.h structs.h regexp.h gui.h \
+ libvterm/include/vterm.h libvterm/include/vterm_keycodes.h alloc.h \
+ ex_cmds.h spell.h proto.h globals.h errors.h gui_gtk4_cb.h
+objects/gui_gtk4_da.o: auto/osdef.h gui_gtk4_da.c vim.h protodef.h auto/config.h feature.h \
+ os_unix.h ascii.h keymap.h termdefs.h macros.h option.h \
+ beval.h structs.h regexp.h gui.h \
+ libvterm/include/vterm.h libvterm/include/vterm_keycodes.h alloc.h \
+ ex_cmds.h spell.h proto.h globals.h errors.h gui_gtk4_da.h
+objects/gui_gtk4_tb.o: auto/osdef.h gui_gtk4_tb.c vim.h protodef.h auto/config.h feature.h \
+ os_unix.h ascii.h keymap.h termdefs.h macros.h option.h \
+ beval.h structs.h regexp.h gui.h \
+ libvterm/include/vterm.h libvterm/include/vterm_keycodes.h alloc.h \
+ ex_cmds.h spell.h proto.h globals.h errors.h gui_gtk4_tb.h
+objects/gui_gtk4_menu.o: auto/osdef.h gui_gtk4_menu.c vim.h protodef.h auto/config.h feature.h \
+ os_unix.h ascii.h keymap.h termdefs.h macros.h option.h \
+ beval.h structs.h regexp.h gui.h \
+ libvterm/include/vterm.h libvterm/include/vterm_keycodes.h alloc.h \
+ ex_cmds.h spell.h proto.h globals.h errors.h gui_gtk4_menu.h
 objects/gui_gtk_f.o: auto/osdef.h gui_gtk_f.c vim.h protodef.h auto/config.h feature.h \
  os_unix.h ascii.h keymap.h termdefs.h macros.h option.h \
  beval.h structs.h regexp.h gui.h \
@@ -4475,8 +4619,8 @@ objects/gui_gtk_x11.o: auto/osdef.h gui_gtk_x11.c vim.h protodef.h auto/config.h
  beval.h structs.h regexp.h gui.h \
  libvterm/include/vterm.h libvterm/include/vterm_keycodes.h alloc.h \
  ex_cmds.h spell.h proto.h globals.h errors.h auto/gui_gtk_gresources.h \
- gui_gtk_f.h ../runtime/vim16x16.xpm ../runtime/vim32x32.xpm \
- ../runtime/vim48x48.xpm
+ gui_gtk_f.h ../runtime/vim16x16_png.h ../runtime/vim32x32_png.h \
+ ../runtime/vim48x48_png.h
 objects/gui_x11.o: auto/osdef.h gui_x11.c vim.h protodef.h auto/config.h feature.h os_unix.h \
  ascii.h keymap.h termdefs.h macros.h option.h beval.h \
  structs.h regexp.h gui.h libvterm/include/vterm.h \
@@ -4567,17 +4711,13 @@ objects/gui_gtk_gresources.o: auto/gui_gtk_gresources.c
 objects/wlr-data-control-unstable-v1.o: \
  auto/wayland/wlr-data-control-unstable-v1.c
 objects/ext-data-control-v1.o: auto/wayland/ext-data-control-v1.c
-objects/xdg-shell.o: auto/wayland/xdg-shell.c
-objects/primary-selection-unstable-v1.o: \
- auto/wayland/primary-selection-unstable-v1.c
 objects/wayland.o: auto/osdef.h wayland.c vim.h protodef.h auto/config.h feature.h os_unix.h \
  ascii.h keymap.h termdefs.h macros.h option.h beval.h \
  structs.h regexp.h gui.h libvterm/include/vterm.h \
  libvterm/include/vterm_keycodes.h alloc.h \
  ex_cmds.h spell.h proto.h globals.h errors.h wayland.h \
  auto/wayland/wlr-data-control-unstable-v1.h \
- auto/wayland/ext-data-control-v1.h auto/wayland/xdg-shell.h \
- auto/wayland/primary-selection-unstable-v1.h
+ auto/wayland/ext-data-control-v1.h
 objects/vterm_encoding.o: auto/osdef.h libvterm/src/encoding.c libvterm/src/vterm_internal.h \
  libvterm/include/vterm.h libvterm/include/vterm_keycodes.h \
  libvterm/src/encoding/DECdrawing.inc libvterm/src/encoding/uk.inc
@@ -4716,6 +4856,8 @@ proto/gui_beval.pro: gui_beval.c
 proto/gui_gtk_gresources.pro: auto/gui_gtk_gresources.c
 proto/gui_xim.pro: gui_xim.c
 proto/hardcopy.pro: hardcopy.c
+proto/hardcopy_pango.pro: hardcopy_pango.c
+proto/hardcopy_postscript.pro: hardcopy_postscript.c
 proto/hashtab.pro: hashtab.c
 proto/help.pro: help.c
 proto/highlight.pro: highlight.c
@@ -4727,6 +4869,9 @@ proto/if_python3.pro: if_python3.c
 proto/if_ruby.pro: if_ruby.c
 proto/if_tcl.pro: if_tcl.c
 proto/if_xcmdsrv.pro: if_xcmdsrv.c
+proto/image.pro: image.c
+proto/image_kitty.pro: image_kitty.c
+proto/image_sixel.pro: image_sixel.c
 proto/indent.pro: indent.c
 proto/insexpand.pro: insexpand.c
 proto/job.pro: job.c
@@ -4774,6 +4919,7 @@ proto/search.pro: search.c
 proto/session.pro: session.c
 proto/sha256.pro: sha256.c
 proto/sign.pro: sign.c
+proto/socketserver.pro: socketserver.c
 proto/sound.pro: sound.c
 proto/spell.pro: spell.c
 proto/spellfile.pro: spellfile.c
@@ -4812,6 +4958,7 @@ proto/winclip.pro: winclip.c
 proto/window.pro: window.c
 proto/gui.pro: gui.c
 proto/gui_gtk.pro: gui_gtk.c
+proto/gui_gtk4.pro: gui_gtk4.c
 proto/gui_motif.pro: gui_motif.c
 proto/gui_xmdlg.pro: gui_xmdlg.c
 proto/gui_gtk_x11.pro: gui_gtk_x11.c

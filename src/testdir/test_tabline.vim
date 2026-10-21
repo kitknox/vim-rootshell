@@ -158,6 +158,20 @@ func Test_mouse_click_in_tab()
   call RunVim([], [], "-e -s -S Xclickscript -c qa")
 endfunc
 
+func Test_tabline_TabPageIdxs_overflow()
+  " Regression: TabPageIdxs[] overflow when closing a tab with custom
+  " 'tabline' and showtabpanel=1 (firstwin->w_wincol + topframe->fr_width
+  " could exceed Columns).
+  CheckFeature tabpanel
+  let before = [
+      \ 'set showtabpanel=1',
+      \ 'set tabline=foo',
+      \ 'call feedkeys(":qa!\<CR>")',
+      \ ]
+  call RunVim(before, [], '-p Xtabline_overflow_a Xtabline_overflow_b')
+  call assert_equal(0, v:shell_error, 'Vim subprocess must not crash (TabPageIdxs overflow)')
+endfunc
+
 func Test_tabline_showcmd()
   CheckScreendump
 
@@ -199,6 +213,24 @@ func Test_tabline_showcmd()
   call StopVimInTerminal(buf)
 endfunc
 
+func Test_tabline_showcmd_redraw_tabline()
+  CheckRunVimInTerminal
+
+  let lines =<< trim END
+    set showcmd showcmdloc=tabline showtabline=2 tabline=%S timeoutlen=0
+    nnoremap g :redraw<CR>
+    nnoremap gc <Nop>
+  END
+  call writefile(lines, 'XTest_tabline_showcmd_redraw', 'D')
+
+  let buf = RunVimInTerminal('-S XTest_tabline_showcmd_redraw', #{rows: 6, cols: 40})
+  call term_sendkeys(buf, 'g')
+  call WaitForAssert({-> assert_match(':redraw', term_getline(buf, 6))})
+  call WaitForAssert({-> assert_notmatch('^:', term_getline(buf, 1))})
+
+  call StopVimInTerminal(buf)
+endfunc
+
 func TruncTabLine()
   return '%1T口口%2Ta' .. repeat('b', &columns - 4) .. '%999X%#TabLine#c'
 endfunc
@@ -234,6 +266,16 @@ func Test_tabline_mouse_enable()
     redraw
     call assert_match('X$', Screenline(1))
   endfor
+endfunc
+
+func Test_tabline_empty()
+  set showtabline=2 tabline=%!'%{}%'
+  try
+    redraw!
+  catch
+  endtry
+  set showtabline&
+  set tabline&
 endfunc
 
 " vim: shiftwidth=2 sts=2 expandtab

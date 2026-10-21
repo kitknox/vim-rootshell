@@ -241,31 +241,6 @@ hasFoldingWin(
     return TRUE;
 }
 
-// foldLevel() {{{2
-# ifdef FEAT_EVAL
-/*
- * Return fold level at line number "lnum" in the current window.
- */
-    static int
-foldLevel(linenr_T lnum)
-{
-    // While updating the folds lines between invalid_top and invalid_bot have
-    // an undefined fold level.  Otherwise update the folds first.
-    if (invalid_top == (linenr_T)0)
-	checkupdate(curwin);
-    else if (lnum == prev_lnum && prev_lnum_lvl >= 0)
-	return prev_lnum_lvl;
-    else if (lnum >= invalid_top && lnum <= invalid_bot)
-	return -1;
-
-    // Return quickly when there is no folding at all in this window.
-    if (!hasAnyFolding(curwin))
-	return 0;
-
-    return foldLevelWin(curwin, lnum);
-}
-# endif
-
 // lineFolded()	{{{2
 /*
  * Low level function to check if a line is folded.  Doesn't use any caching.
@@ -501,7 +476,7 @@ newFoldLevelWin(win_T *wp)
 	fp = (fold_T *)wp->w_folds.ga_data;
 	for (i = 0; i < wp->w_folds.ga_len; ++i)
 	    fp[i].fd_flags = FD_LEVEL;
-	wp->w_fold_manual = FALSE;
+	wp->w_fold_manual = false;
     }
     changed_window_setting_win(wp);
 }
@@ -692,7 +667,7 @@ foldCreate(linenr_T start, linenr_T end)
     if (use_level && !closed && level < curwin->w_p_fdl)
 	closeFold(start, 1L);
     if (!use_level)
-	curwin->w_fold_manual = TRUE;
+	curwin->w_fold_manual = true;
     fp->fd_flags = FD_CLOSED;
     fp->fd_small = MAYBE;
 
@@ -805,7 +780,7 @@ deleteFold(
 clearFolding(win_T *win)
 {
     deleteFoldRecurse(&win->w_folds);
-    win->w_foldinvalid = FALSE;
+    win->w_foldinvalid = false;
 }
 
 // foldUpdate() {{{2
@@ -875,7 +850,7 @@ foldUpdate(win_T *wp, linenr_T top, linenr_T bot)
     void
 foldUpdateAll(win_T *win)
 {
-    win->w_foldinvalid = TRUE;
+    win->w_foldinvalid = true;
     redraw_win_later(win, UPD_NOT_VALID);
 }
 
@@ -1219,7 +1194,7 @@ checkupdate(win_T *wp)
 	return;
 
     foldUpdate(wp, (linenr_T)1, (linenr_T)MAXLNUM); // will update all
-    wp->w_foldinvalid = FALSE;
+    wp->w_foldinvalid = false;
 }
 
 // setFoldRepeat() {{{2
@@ -1387,7 +1362,7 @@ setManualFoldWin(
 	    found->fd_flags = FD_CLOSED;
 	    done |= DONE_ACTION;
 	}
-	wp->w_fold_manual = TRUE;
+	wp->w_fold_manual = true;
 	if (done & DONE_ACTION)
 	    changed_window_setting_win(wp);
 	done |= DONE_FOLD;
@@ -1730,7 +1705,7 @@ checkSmall(
     // Mark any nested folds to maybe-small
     setSmallMaybe(&fp->fd_nested);
 
-    if (fp->fd_len > curwin->w_p_fml)
+    if (fp->fd_len > wp->w_p_fml)
 	fp->fd_small = FALSE;
     else
     {
@@ -1738,7 +1713,7 @@ checkSmall(
 	for (n = 0; n < fp->fd_len; ++n)
 	{
 	    count += plines_win_nofold(wp, fp->fd_top + lnum_off + n);
-	    if (count > curwin->w_p_fml)
+	    if (count > wp->w_p_fml)
 	    {
 		fp->fd_small = FALSE;
 		return;
@@ -1950,7 +1925,7 @@ get_foldtext(
 	    level = (int)sizeof(dashes) - 1;
 	vim_memset(dashes, '-', (size_t)level);
 	dashes[level] = NUL;
-	set_vim_var_string(VV_FOLDDASHES, dashes, -1);
+	set_vim_var_string(VV_FOLDDASHES, dashes, level);
 	set_vim_var_nr(VV_FOLDLEVEL, (long)level);
 
 	// skip evaluating 'foldtext' on errors
@@ -2177,7 +2152,7 @@ foldUpdateIEMS(win_T *wp, linenr_T top, linenr_T bot)
 	// Need to update all folds.
 	top = 1;
 	bot = wp->w_buffer->b_ml.ml_line_count;
-	wp->w_foldinvalid = FALSE;
+	wp->w_foldinvalid = false;
 
 	// Mark all folds as maybe-small.
 	setSmallMaybe(&wp->w_folds);
@@ -2679,14 +2654,14 @@ foldUpdateIEMSRecurse(
 		    // The first fold depends on the containing fold.
 		    if (topflags == FD_OPEN)
 		    {
-			flp->wp->w_fold_manual = TRUE;
+			flp->wp->w_fold_manual = true;
 			fp->fd_flags = FD_OPEN;
 		    }
 		    else if (i <= 0)
 		    {
 			fp->fd_flags = topflags;
 			if (topflags != FD_LEVEL)
-			    flp->wp->w_fold_manual = TRUE;
+			    flp->wp->w_fold_manual = true;
 		    }
 		    else
 			fp->fd_flags = (fp - 1)->fd_flags;
@@ -3548,7 +3523,7 @@ put_folds(FILE *fd, win_T *wp)
     {
 	if (put_line(fd, "silent! normal! zE") == FAIL
 		|| put_folds_recurse(fd, &wp->w_folds, (linenr_T)0) == FAIL
-		|| put_line(fd, "let &fdl = &fdl") == FAIL)
+		|| put_line(fd, "&fdl = &fdl") == FAIL)
 	    return FAIL;
     }
 
@@ -3576,7 +3551,7 @@ put_folds_recurse(FILE *fd, garray_T *gap, linenr_T off)
 	// Do nested folds first, they will be created closed.
 	if (put_folds_recurse(fd, &fp->fd_nested, off + fp->fd_top) == FAIL)
 	    return FAIL;
-	if (fprintf(fd, "sil! %ld,%ldfold", fp->fd_top + off,
+	if (fprintf(fd, "sil! :%ld,%ldfold", fp->fd_top + off,
 					fp->fd_top + off + fp->fd_len - 1) < 0
 		|| put_eol(fd) == FAIL)
 	    return FAIL;
@@ -3610,7 +3585,7 @@ put_foldopen_recurse(
 	    {
 		// open nested folds while this fold is open
 		// ignore errors
-		if (fprintf(fd, "%ld", fp->fd_top + off) < 0
+		if (fprintf(fd, ":%ld", fp->fd_top + off) < 0
 			|| put_eol(fd) == FAIL
 			|| put_line(fd, "sil! normal! zo") == FAIL)
 		    return FAIL;
@@ -3651,7 +3626,7 @@ put_foldopen_recurse(
     static int
 put_fold_open_close(FILE *fd, fold_T *fp, linenr_T off)
 {
-    if (fprintf(fd, "%ld", fp->fd_top + off) < 0
+    if (fprintf(fd, ":%ld", fp->fd_top + off) < 0
 	    || put_eol(fd) == FAIL
 	    || fprintf(fd, "sil! normal! z%c",
 			   fp->fd_flags == FD_CLOSED ? 'c' : 'o') < 0
@@ -3677,16 +3652,39 @@ foldclosed_both(
     int		end UNUSED)
 {
 # ifdef FEAT_FOLDING
-    linenr_T	lnum;
+    linenr_T	lnum = 0;
     linenr_T	first, last;
+    win_T	*wp  = curwin;
 
-    if (in_vim9script() && check_for_lnum_arg(argvars, 0) == FAIL)
+    if (in_vim9script()
+	    && (check_for_lnum_arg(argvars, 0) == FAIL
+		|| check_for_opt_number_arg(argvars, 1) == FAIL))
 	return;
 
-    lnum = tv_get_lnum(argvars);
-    if (lnum >= 1 && lnum <= curbuf->b_ml.ml_line_count)
+    if (argvars[1].v_type != VAR_UNKNOWN)
     {
-	if (hasFoldingWin(curwin, lnum, &first, &last, FALSE, NULL))
+	tabpage_T	*tp;
+	switchwin_T	switchwin;
+	// use window specified in the second argument
+	wp = win_id2wp_tp(tv_get_number(&argvars[1]), &tp);
+	if (wp != NULL && tp != NULL)
+	{
+	    if (switch_win(&switchwin, wp, tp, TRUE) == OK)
+		lnum = tv_get_lnum(argvars);
+	    restore_win(&switchwin, TRUE);
+	}
+	else
+	{
+	    rettv->vval.v_number = -2;
+	    return;
+	}
+    }
+    else
+	lnum = tv_get_lnum(argvars);
+
+    if (lnum >= 1 && lnum <= wp->w_buffer->b_ml.ml_line_count)
+    {
+	if (hasFoldingWin(wp, lnum, &first, &last, FALSE, NULL))
 	{
 	    if (end)
 		rettv->vval.v_number = (varnumber_T)last;
@@ -3717,6 +3715,30 @@ f_foldclosedend(typval_T *argvars, typval_T *rettv)
     foldclosed_both(argvars, rettv, TRUE);
 }
 
+# ifdef FEAT_FOLDING
+/*
+ * Return fold level at line number "lnum" in the current window.
+ */
+    static int
+foldLevel(linenr_T lnum)
+{
+    // While updating the folds lines between invalid_top and invalid_bot have
+    // an undefined fold level.  Otherwise update the folds first.
+    if (invalid_top == (linenr_T)0)
+	checkupdate(curwin);
+    else if (lnum == prev_lnum && prev_lnum_lvl >= 0)
+	return prev_lnum_lvl;
+    else if (lnum >= invalid_top && lnum <= invalid_bot)
+	return -1;
+
+    // Return quickly when there is no folding at all in this window.
+    if (!hasAnyFolding(curwin))
+	return 0;
+
+    return foldLevelWin(curwin, lnum);
+}
+# endif
+
 /*
  * "foldlevel()" function
  */
@@ -3725,13 +3747,37 @@ f_foldlevel(typval_T *argvars UNUSED, typval_T *rettv UNUSED)
 {
 # ifdef FEAT_FOLDING
     linenr_T	lnum;
+    switchwin_T	switchwin;
 
-    if (in_vim9script() && check_for_lnum_arg(argvars, 0) == FAIL)
+    if (in_vim9script()
+	    && (check_for_lnum_arg(argvars, 0) == FAIL
+		|| check_for_opt_number_arg(argvars, 1) == FAIL))
 	return;
 
-    lnum = tv_get_lnum(argvars);
-    if (lnum >= 1 && lnum <= curbuf->b_ml.ml_line_count)
-	rettv->vval.v_number = foldLevel(lnum);
+    if (argvars[1].v_type != VAR_UNKNOWN)
+    {
+	tabpage_T	*tp;
+	win_T	*wp;
+	wp = win_id2wp_tp(tv_get_number(&argvars[1]), &tp);
+	if (wp != NULL && tp != NULL)
+	{
+	    if (switch_win(&switchwin, wp, tp, TRUE) == OK)
+	    {
+		lnum = tv_get_lnum(argvars);
+		if (lnum >= 1 && lnum <= curbuf->b_ml.ml_line_count)
+		    rettv->vval.v_number = foldLevel(lnum);
+	    }
+	    restore_win(&switchwin, TRUE);
+	}
+	else
+	    rettv->vval.v_number = -2;
+    }
+    else
+    {
+	lnum = tv_get_lnum(argvars);
+	if (lnum >= 1 && lnum <= curbuf->b_ml.ml_line_count)
+	    rettv->vval.v_number = foldLevel(lnum);
+    }
 # endif
 }
 
@@ -3806,34 +3852,51 @@ f_foldtext(typval_T *argvars UNUSED, typval_T *rettv)
     void
 f_foldtextresult(typval_T *argvars UNUSED, typval_T *rettv)
 {
+    rettv->v_type = VAR_STRING;
+    rettv->vval.v_string = NULL;
+
 # ifdef FEAT_FOLDING
-    linenr_T	lnum;
+    linenr_T	lnum = 0;
     char_u	*text;
     char_u	buf[FOLD_TEXT_LEN];
     foldinfo_T  foldinfo;
     int		fold_count;
+    win_T	*wp  = curwin;
     static __thread int	entered = FALSE;
-# endif
-
-    rettv->v_type = VAR_STRING;
-    rettv->vval.v_string = NULL;
-
-    if (in_vim9script() && check_for_lnum_arg(argvars, 0) == FAIL)
+    if (in_vim9script()
+	    && (check_for_lnum_arg(argvars, 0) == FAIL
+		|| check_for_opt_number_arg(argvars, 1) == FAIL))
 	return;
 
-# ifdef FEAT_FOLDING
     if (entered)
 	return; // reject recursive use
     entered = TRUE;
 
-    lnum = tv_get_lnum(argvars);
+    if (argvars[1].v_type != VAR_UNKNOWN)
+    {
+	tabpage_T	*tp;
+	switchwin_T	switchwin;
+	// use window specified in the second argument
+	wp = win_id2wp_tp(tv_get_number(&argvars[1]), &tp);
+	if (wp == NULL || tp == NULL) // wrong winid
+	{
+	    entered = FALSE;
+	    return;
+	}
+	if (switch_win(&switchwin, wp, tp, TRUE) == OK)
+	    lnum = tv_get_lnum(argvars);
+	restore_win(&switchwin, TRUE);
+    }
+    else
+	lnum = tv_get_lnum(argvars);
+
     // treat illegal types and illegal string values for {lnum} the same
     if (lnum < 0)
 	lnum = 0;
-    fold_count = foldedCount(curwin, lnum, &foldinfo);
+    fold_count = foldedCount(wp, lnum, &foldinfo);
     if (fold_count > 0)
     {
-	text = get_foldtext(curwin, lnum, lnum + fold_count - 1,
+	text = get_foldtext(wp, lnum, lnum + fold_count - 1,
 							       &foldinfo, buf);
 	if (text == buf)
 	    text = vim_strsave(text);

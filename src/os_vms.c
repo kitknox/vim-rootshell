@@ -858,7 +858,12 @@ RealWaitForChar(
  * appropriate time conversion function accordingly.
  */
 #if __IEEE_FLOAT
-# define LIB_CVTX_TO_INTERNAL_TIME lib$cvts_to_internal_time // IEEE
+// allow fallback for older Alphas
+# ifdef lib$cvts_to_internal_time
+#  define LIB_CVTX_TO_INTERNAL_TIME lib$cvts_to_internal_time // IEEE
+# else
+#  define LIB_CVTX_TO_INTERNAL_TIME lib$cvtf_to_internal_time
+# endif
 #else
 # define LIB_CVTX_TO_INTERNAL_TIME lib$cvtf_to_internal_time // VAX
 #endif // __IEEE_FLOAT CVTS
@@ -1000,9 +1005,11 @@ vms_init(void)
 	    feat_value_max = decc$feature_get_value(feat_index, 3);
 
 	    if ((decc_feat_array[i].value >= feat_value_min) && (decc_feat_array[i].value <= feat_value_max))
+	    {
 		// Valid value.  Set it if necessary
 		if (feat_value != decc_feat_array[i].value)
 		    sts = decc$feature_set_value(feat_index, 1, decc_feat_array[i].value);
+	    }
 	    else
 		// Invalid DECC feature value
 		printf("INVALID DECC FEATURE VALUE, %d: %d <= %s <= %d.\n",

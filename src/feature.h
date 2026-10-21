@@ -170,10 +170,6 @@
 # define FEAT_KEYMAP
 #endif
 
-#ifdef FEAT_NORMAL
-# define VIM_BACKTICK		// internal backtick expansion
-#endif
-
 /*
  * +linebreak		'showbreak', 'breakat' and 'linebreak' options.
  *			Also 'numberwidth'.
@@ -295,9 +291,13 @@
 	&& !defined(AMIGA)
 # define FEAT_PRINTER
 #endif
-#if defined(FEAT_PRINTER) && ((defined(MSWIN) && defined(MSWINPS)) \
-	|| (!defined(MSWIN) && defined(FEAT_EVAL)))
+#if defined(FEAT_PRINTER) && !defined(FEAT_PRINT_PANGO) \
+    && ((defined(MSWIN) && defined(MSWINPS)) \
+	    || (!defined(MSWIN) && defined(FEAT_EVAL)))
 # define FEAT_POSTSCRIPT
+#endif
+#if !defined(FEAT_PRINTER) && defined(FEAT_PRINT_PANGO)
+# undef FEAT_PRINT_PANGO
 #endif
 
 /*
@@ -309,8 +309,9 @@
 #endif
 
 /*
- * +statusline		'statusline', 'rulerformat' and special format of
- *			'titlestring' and 'iconstring' options.
+ * +statusline		'statusline', 'statuslineopt', 'rulerformat' and
+ *			special format of 'titlestring' and 'iconstring'
+ *			options.
  */
 #ifdef FEAT_NORMAL
 # define FEAT_STL_OPT
@@ -439,6 +440,10 @@
 # else
 // #  define FEAT_XFONTSET
 # endif
+#else
+# if defined(USE_GTK4)
+#  undef FEAT_XFONTSET
+# endif
 #endif
 
 /*
@@ -508,7 +513,8 @@
 /*
  * GUI dark theme variant
  */
-#if (defined(FEAT_GUI_GTK) && defined(USE_GTK3)) || defined(FEAT_GUI_MSWIN)
+#if (defined(FEAT_GUI_GTK) && (defined(USE_GTK3) || defined(USE_GTK4))) \
+	|| defined(FEAT_GUI_MSWIN)
 # define FEAT_GUI_DARKTHEME
 #endif
 
@@ -824,7 +830,7 @@
  * +X11			Unix only.  Include code for xterm title saving and X
  *			clipboard.  Only works if HAVE_X11 is also defined.
  */
-#if defined(FEAT_NORMAL) || defined(FEAT_GUI_MOTIF)
+#if (defined(FEAT_NORMAL) || defined(FEAT_GUI_MOTIF)) && !defined(USE_GTK4)
 # define WANT_X11
 #endif
 
@@ -929,7 +935,8 @@
 
 #if defined(FEAT_NORMAL) \
 	&& (defined(UNIX) || defined(VMS)) \
-	&& defined(WANT_X11) && defined(HAVE_X11)
+	&& defined(WANT_X11) && defined(HAVE_X11) \
+	&& !defined(USE_GTK4)
 # define FEAT_XCLIPBOARD
 # ifndef FEAT_CLIPBOARD
 #  define FEAT_CLIPBOARD
@@ -942,13 +949,6 @@
 # ifndef FEAT_CLIPBOARD
 #  define FEAT_CLIPBOARD
 # endif
-#endif
-
-/*
- * +wayland_focus_steal	    Focus stealing support for Wayland clipboard
- */
-#if !defined(FEAT_WAYLAND_CLIPBOARD) && defined(FEAT_WAYLAND_CLIPBOARD_FS)
-# undef FEAT_WAYLAND_CLIPBOARD_FS
 #endif
 
 /*
@@ -969,9 +969,16 @@
 #endif
 
 /*
- * +socketserver	 Use UNIX domain sockets for clientserver communication
+ * The +channel feature requires +eval.
  */
-#if defined(UNIX) && defined(WANT_SOCKETSERVER)
+#if !defined(FEAT_EVAL) && defined(FEAT_JOB_CHANNEL)
+# undef FEAT_JOB_CHANNEL
+#endif
+
+/*
+ * +socketserver	 Use channels for clientserver communication
+ */
+#if (defined(UNIX) || defined(MSWIN)) && defined(FEAT_JOB_CHANNEL)
 # define FEAT_SOCKETSERVER
 #endif
 
@@ -982,6 +989,9 @@
 #if (defined(MSWIN) || defined(FEAT_XCLIPBOARD) || defined(FEAT_SOCKETSERVER)) \
     && defined(FEAT_EVAL)
 # define FEAT_CLIENTSERVER
+# if defined(FEAT_SOCKETSERVER) && (defined(FEAT_XCLIPBOARD) || defined(MSWIN))
+#  define FEAT_CLIENTSERVER_BACKENDS
+# endif
 #endif
 
 /*
@@ -1069,14 +1079,6 @@
  * +tgetent
  */
 
-
-/*
- * The +channel feature requires +eval.
- */
-#if !defined(FEAT_EVAL) && defined(FEAT_JOB_CHANNEL)
-# undef FEAT_JOB_CHANNEL
-#endif
-
 /*
  * The Netbeans feature requires +eval and +job_channel
  */
@@ -1110,6 +1112,35 @@
  */
 #if defined(FEAT_EVAL) && defined(FEAT_SYN_HL)
 # define FEAT_PROP_POPUP
+#endif
+
+
+/*
+ * +image	    Render images in the terminal and GUI
+ * +image_popup	    Render images in popup windows
+ */
+#if defined(FEAT_HUGE) && defined(FEAT_PROP_POPUP) && defined(HAVE_PIXMAN)
+# define ALLOW_IMAGE
+#endif
+
+#if defined(ALLOW_IMAGE) && !defined(ALWAYS_USE_GUI)
+# define FEAT_IMAGE_SIXEL
+# define FEAT_IMAGE_KITTY
+#endif
+
+#if defined(ALLOW_IMAGE) && ((defined(FEAT_GUI_GTK) \
+	    && (defined(USE_GTK4) || defined(USE_GTK3))) || defined(FEAT_GUI_MSWIN))
+# define FEAT_IMAGE_GUI
+#endif
+
+#if defined(FEAT_IMAGE_SIXEL) || defined(FEAT_IMAGE_KITTY) \
+    || defined(FEAT_IMAGE_GUI)
+# define FEAT_IMAGE_POPUP
+# define FEAT_IMAGE
+#endif
+
+#ifdef ALLOW_IMAGE
+# undef ALLOW_IMAGE
 #endif
 
 /*

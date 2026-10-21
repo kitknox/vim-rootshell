@@ -1,4 +1,4 @@
-/* gui_gtk_x11.c */
+// gui_gtk_x11.c
 void gui_mch_prepare(int *argc, char **argv);
 void gui_mch_free_all(void);
 int gui_mch_is_blinking(void);
@@ -8,8 +8,6 @@ void gui_mch_stop_blink(int may_call_gui_update_cursor);
 void gui_mch_start_blink(void);
 int gui_mch_early_init_check(int give_message);
 int gui_mch_init_check(void);
-void gui_gtk_init_socket_server(void);
-void gui_gtk_uninit_socket_server(void);
 void gui_mch_set_dark_theme(int dark);
 void gui_mch_show_tabline(int showit);
 int gui_mch_showing_tabline(void);
@@ -81,4 +79,10 @@ void mch_set_mouse_shape(int shape);
 void gui_mch_drawsign(int row, int col, int typenr);
 void *gui_mch_register_sign(char_u *signfile);
 void gui_mch_destroy_sign(void *sign);
-/* vim: set ft=c : */
+int image_gui_init(image_T *img);
+void image_gui_uninit(image_T *img);
+int image_placement_gui_init(image_placement_T *place);
+void image_placement_gui_uninit(image_placement_T *place);
+void image_placement_gui_draw(image_placement_T *place);
+void image_placement_gui_clear(image_placement_T *place);
+// vim: ft=c

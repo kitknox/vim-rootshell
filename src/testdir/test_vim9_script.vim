@@ -3,6 +3,7 @@
 import './util/vim9.vim' as v9
 source util/screendump.vim
 
+" Test for has('vim9script')
 def Test_vim9script_feature()
   # example from the help, here the feature is always present
   var lines =<< trim END
@@ -448,6 +449,24 @@ def Test_block_local_vars_with_func()
       assert_equal(['foo', 'bar'], Func())
   END
   v9.CheckScriptSuccess(lines)
+
+  # also when the variables are used in a lambda inside the function
+  lines =<< trim END
+      vim9script
+      if true
+        var foo = 'foo'
+        if true
+          var bar = 'bar'
+          def Func(): list<string>
+            var Lambda = () => [foo, bar]
+            return Lambda()
+          enddef
+          defcompile
+        endif
+      endif
+      assert_equal(['foo', 'bar'], Func())
+  END
+  v9.CheckScriptSuccess(lines)
 enddef
 
 " legacy func for command that's defined later
@@ -464,6 +483,47 @@ def Test_command_block()
 
   delcommand SomeCommand
   unlet g:someVar
+enddef
+
+" Test for a {} block in an :autocmd nested in another :autocmd
+def Test_nested_autocmd_block_in_def()
+  au CursorHold * autocmd BufNew *.xml {
+        g:nestedVar = 'nested'
+      }
+  doautocmd CursorHold
+  split other.xml
+  assert_equal('nested', g:nestedVar)
+
+  bwipe!
+  au! CursorHold
+  au! BufNew *.xml
+  unlet g:nestedVar
+enddef
+
+" A trailing "{" that is an argument of the command does not start a block.
+" Use a separate script, when the "{" is taken for a block the rest of this
+" file would be swallowed until a line starting with "}".
+def Test_autocmd_trailing_curly_no_block_in_def()
+  var lines =<< trim END
+      vim9script
+      def Setup()
+        au CursorHold * normal! {
+        g:afterCurly = 'reached'
+      enddef
+      Setup()
+  END
+  v9.CheckScriptSuccess(lines)
+  assert_equal('reached', g:afterCurly)
+
+  new
+  setline(1, ['one', '', 'two'])
+  cursor(3, 1)
+  doautocmd CursorHold
+  assert_equal(2, line('.'))
+
+  bwipe!
+  unlet g:afterCurly
+  au! CursorHold
 enddef
 
 " Test for using heredoc in a :command command block
@@ -576,6 +636,21 @@ def Test_command_block_heredoc()
     endtry
     delcommand SomeCommand
     unlet g:someVar
+  CODE
+  v9.CheckSourceSuccess(lines)
+enddef
+
+" A line in a :def that starts with a string is not a heredoc, even when the
+" string reads like one.
+def Test_def_line_starting_with_string_not_heredoc()
+  var lines =<< trim CODE
+    vim9script
+    def F(): list<string>
+      var l = ['a',
+        'text =<< END', 'b']
+      return l
+    enddef
+    assert_equal(['a', 'text =<< END', 'b'], F())
   CODE
   v9.CheckSourceSuccess(lines)
 enddef
@@ -1062,6 +1137,882 @@ def Test_unreachable_after()
   v9.CheckScriptFailure(lines, 'E1095: Unreachable code after :return')
 enddef
 
+" Tests for unreachable code after an if-else block.
+def Test_unreachable_after_if_basic()
+  # Both branches of a simple if-else return.
+  var lines =<< trim END
+    vim9script
+    def SimpleReturn(n: number): string
+      if n > 10
+        return 'a'
+      else
+        return 'b'
+      endif
+      var x = 1
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 6)
+
+  # Both branches of a simple if-else throw.
+  lines =<< trim END
+    vim9script
+    def SimpleThrowBothBranches(n: number): string
+      if n > 10
+        throw 'Error A'
+      else
+        throw 'Error B'
+      endif
+      var x = 1
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 6)
+
+  # One branch returns, the other throws; both terminate.
+  lines =<< trim END
+    vim9script
+    def ReturnThenThrow(n: number): string
+      if n > 10
+        return 'ok'
+      else
+        throw 'failed'
+      endif
+      var x = 1
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 6)
+
+  # Same as above with the throw/return branches swapped.
+  lines =<< trim END
+    vim9script
+    def ThrowThenReturn(n: number): string
+      if n > 10
+        throw 'failed'
+      else
+        return 'ok'
+      endif
+      var x = 1
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 6)
+
+  # Every branch of an if/elseif/elseif/else chain returns.
+  lines =<< trim END
+    vim9script
+    def MultiElseIfReturn(n: number): number
+      if n == 1
+        return 10
+      elseif n == 2
+        return 20
+      elseif n == 3
+        return 30
+      else
+        return 0
+      endif
+      echo "finished"
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 10)
+
+  # Every branch of an if/elseif/elseif/else chain throws.
+  lines =<< trim END
+    vim9script
+    def MultiElseIfThrow(n: number): number
+      if n == 1
+        throw 'Err 1'
+      elseif n == 2
+        throw 'Err 2'
+      elseif n == 3
+        throw 'Err 3'
+      else
+        throw 'Err else'
+      endif
+      echo "finished"
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 10)
+
+  # Every branch of an if/elseif/elseif/else chain terminates via a mix of
+  # return and throw.
+  lines =<< trim END
+    vim9script
+    def MultiElseIfReturnThrow(n: number): number
+      if n == 1
+        return 10
+      elseif n == 2
+        throw 'Err 2'
+      elseif n == 3
+        return 30
+      else
+        throw 'Err else'
+      endif
+      echo "finished"
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 10)
+
+  # No "else": the if returns but code can still fall through.
+  lines =<< trim END
+    vim9script
+    def MissingElseReturn(n: number): string
+      if n > 10
+        return 'a'
+      endif
+      return 'b'
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+
+  # No "else": even though every present branch terminates, the missing
+  # else still allows falling through.
+  lines =<< trim END
+    vim9script
+    def MissingElseAllTerminate(n: number): string
+      if n == 1
+        return 'a'
+      elseif n == 2
+        throw 'err'
+      elseif n == 3
+        return 'c'
+      endif
+      return 'reachable'
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+
+  # No "else": the if throws but code can still fall through.
+  lines =<< trim END
+    vim9script
+    def MissingElseThrow(n: number): string
+      if n > 10
+        throw 'Err a'
+      endif
+      return 'b'
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+
+  # An empty "else" branch never terminates, so the if doesn't either.
+  lines =<< trim END
+    vim9script
+    def EmptyElse(n: number): string
+      if n > 10
+        return 'a'
+      else
+      endif
+      return 'b'
+    enddef
+  END
+  v9.CheckSourceScriptSuccess(lines)
+
+  # An empty "if" branch never terminates, so the if doesn't either.
+  lines =<< trim END
+    vim9script
+    def EmptyIf(n: number): string
+      if n > 10
+      else
+        return 'b'
+      endif
+      return 'c'
+    enddef
+  END
+  v9.CheckSourceScriptSuccess(lines)
+
+  # The "elseif" branch falls through, so the if/elseif/else doesn't
+  # terminate even though the other branches return.
+  lines =<< trim END
+    vim9script
+    def NonTerminatingElseIfReturn(n1: number, n2: number): number
+      if n1 == 1
+        return 100
+      elseif n2 == 2
+        var x = 42
+      else
+        return 300
+      endif
+      return 0
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+
+  # Same as above, but the terminating branches throw instead of return.
+  lines =<< trim END
+    vim9script
+    def NonTerminatingElseIfThrow(n1: number, n2: number): number
+      if n1 == 1
+        throw 'Err 1'
+      elseif n2 == 2
+        var x = 42
+      else
+        return 300
+      endif
+      return 0
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+enddef
+
+def Test_unreachable_after_if_nested()
+  # A nested if-else, where every branch (inner and outer) returns.
+  var lines =<< trim END
+    vim9script
+    def NestedIfReturn(n1: number, n2: number): string
+      if n1 > 10
+        if n2 < 5
+          return 'a'
+        else
+          return 'b'
+        endif
+      else
+        return 'c'
+      endif
+      return 'done'
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 10)
+
+  # The inner if-else terminates, but the outer if has no "else", so
+  # code can still fall through.
+  lines =<< trim END
+    vim9script
+    def InnerTerminatingOuterFallsThrough(n1: number, n2: number): string
+      if n1 > 10
+        if n2 > 10
+          return 'a'
+        else
+          return 'b'
+        endif
+      endif
+      return 'c'
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+
+  # Same as above, but the inner if/elseif/else mixes return and throw.
+  lines =<< trim END
+    vim9script
+    def ElseIfInnerTerminatesOuterFallsThrough(n1: number, n2: number): string
+      if n1 > 10
+        if n2 == 1
+          return 'a'
+        elseif n2 == 2
+          throw 'b'
+        else
+          return 'c'
+        endif
+      endif
+      return 'reachable'
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+
+  # A nested if-else, where every branch (inner and outer) throws.
+  lines =<< trim END
+    vim9script
+    def NestedIfBothThrow(n1: number, n2: number): string
+      if n1 > 10
+        if n2 < 5
+          throw 'Err a'
+        else
+          throw 'Err b'
+        endif
+      else
+        throw 'Err c'
+      endif
+      return 'done'
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 10)
+
+  # A nested if-else, where every branch terminates via a mix of return
+  # and throw.
+  lines =<< trim END
+    vim9script
+    def NestedIfMixed(n1: number, n2: number): string
+      if n1 > 10
+        if n2 < 5
+          return 'a'
+        else
+          throw 'Err b'
+        endif
+      else
+        return 'c'
+      endif
+      return 'done'
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 10)
+
+  # A nested if inside a for loop, where every branch either breaks,
+  # continues or returns.
+  lines =<< trim END
+    vim9script
+    def NestedBreakContinue(): number
+      for i in [1, 2, 3]
+        if i > 1
+          if i == 2
+            continue
+          else
+            break
+          endif
+        else
+          return 10
+        endif
+        echo 'unreachable'
+      endfor
+      return 0
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 11)
+
+  # The inner if has no "else", so the nested if-else doesn't terminate.
+  lines =<< trim END
+    vim9script
+    def IncompleteNestedIfReturn(n1: number, n2: number): string
+      if n1
+        if n2
+          return 'a'
+        endif
+      else
+        return 'b'
+      endif
+      return 'c'
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+
+  # Same as above, but the terminating branches throw instead of return.
+  lines =<< trim END
+    vim9script
+    def IncompleteNestedIfThrow(n1: number, n2: number): string
+      if n1
+        if n2
+          throw 'Err a'
+        endif
+      else
+        throw 'Err b'
+      endif
+      return 'c'
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+enddef
+
+def Test_unreachable_after_if_loop()
+  # break/return terminate the if-else, but the loop can still fall
+  # through normally after the endfor.
+  var lines =<< trim END
+    vim9script
+    def BreakOrReturnFallsThroughLoop(): number
+      for i in [1, 2, 3]
+        if i == 2
+          break
+        else
+          return 10
+        endif
+      endfor
+      return 0
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+
+  # break/return in an if-else make the code after the endif, inside the
+  # loop body, unreachable.
+  lines =<< trim END
+    vim9script
+    def BreakMakesFollowingCodeUnreachable(): number
+      for i in [1, 2, 3]
+        if i == 2
+          break
+        else
+          return 10
+        endif
+        echo 'unreachable'
+      endfor
+      return 0
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 7)
+
+  # Same as above but with "continue" instead of "break".
+  lines =<< trim END
+    vim9script
+    def ContinueMakesFollowingCodeUnreachable(): number
+      for i in [1, 2, 3]
+        if i == 2
+          continue
+        else
+          return 10
+        endif
+        echo 'unreachable'
+      endfor
+      return 0
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 7)
+
+  # Both branches of the if-else "continue", so the loop body code after
+  # the endif is unreachable.
+  lines =<< trim END
+    vim9script
+    def BothBranchesContinue(): number
+      for i in [1, 2, 3]
+        if i == 2
+          continue
+        else
+          continue
+        endif
+        echo 'unreachable'
+      endfor
+      return 0
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 7)
+
+  # An if/elseif/else where each branch terminates differently: break,
+  # continue and return.
+  lines =<< trim END
+    vim9script
+    def BreakContinueReturnAllTerminate(): number
+      for i in [1, 2, 3]
+        if i == 1
+          break
+        elseif i == 2
+          continue
+        else
+          return 10
+        endif
+        echo 'unreachable'
+      endfor
+      return 0
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 9)
+
+  # Same as above, but the last branch falls through instead of
+  # returning, so the code after the endif stays reachable.
+  lines =<< trim END
+    vim9script
+    def BreakContinueReturnNotAllTerminate(): number
+      for i in [1, 2, 3]
+        if i == 1
+          break
+        elseif i == 2
+          continue
+        else
+          var x = 10
+        endif
+        echo 'reachable'
+      endfor
+      return 0
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+
+  # "break" in one branch and "throw" in the other; no code follows the
+  # if-else, so nothing should be reported unreachable.
+  lines =<< trim END
+    vim9script
+    def BreakInBranchWithThrow(): number
+      for i in [1, 2, 3]
+        if i == 2
+          break
+        else
+          throw 'Err a'
+        endif
+      endfor
+      return 0
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+
+  # "continue"/"return" in a while loop's if-else fall through the loop
+  # normally, same as with a for loop.
+  lines =<< trim END
+    vim9script
+    def ContinueOrReturnFallsThroughLoop(): number
+      var i = 0
+      while i < 3
+        i += 1
+        if i == 2
+          continue
+        else
+          return 10
+        endif
+      endwhile
+      return 0
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+enddef
+
+def Test_unreachable_after_if_trycatch()
+  # In both branches, both the try and the (bare) catch return.
+  var lines =<< trim END
+    vim9script
+    def TryCatchAllReturn(n: number): string
+      if n > 10
+        try
+          return 'try_a'
+        catch
+          return 'catch_a'
+        endtry
+      else
+        try
+          return 'try_b'
+        catch
+          return 'catch_b'
+        endtry
+      endif
+      var x = 1
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 14)
+
+  # In both branches, both the try and the (bare) catch throw.
+  lines =<< trim END
+    vim9script
+    def TryCatchAllThrow(n: number)
+      if n > 10
+        try
+          throw 'err_try_a'
+        catch
+          throw 'err_catch_a'
+        endtry
+      else
+        try
+          throw 'err_try_b'
+        catch
+          throw 'err_catch_b'
+        endtry
+      endif
+      var x = 1
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 14)
+
+  # Try/catch terminate via a mix of throw and return in each branch.
+  lines =<< trim END
+    vim9script
+    def TryCatchMixedExits(n: number): string
+      if n > 10
+        try
+          throw 'err'
+        catch
+          return 'handled'
+        endtry
+      else
+        try
+          return 'ok'
+        catch
+          throw 'unhandled'
+        endtry
+      endif
+      var x = 1
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 14)
+
+  # A catch block that doesn't return or throw leaves the branch reachable.
+  lines =<< trim END
+    vim9script
+    def CatchSwallowsException(n: number): string
+      if n > 10
+        try
+          throw 'error'
+        catch
+          echo "caught, but no return or re-throw!"
+        endtry
+      else
+        return 'b'
+      endif
+      return 'reachable'
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+
+  # Try block returns, but if an exception occurs prior or inside, catch block
+  # falls through.
+  lines =<< trim END
+    vim9script
+    def TryReturnsCatchDoesNot(n: number): string
+      if n > 10
+        try
+          return 'a'
+        catch /SpecificError/
+          var x = 42  # Missing return or throw in catch!
+        endtry
+      else
+        throw 'error_else'
+      endif
+      return 'reachable'
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+
+  # Second catch clause (with a pattern) falls through, leaving the
+  # try/catch reachable even though the first catch returns.
+  lines =<< trim END
+    vim9script
+    def MultiCatchPartialReturn(n: number): string
+      if n > 10
+        try
+          throw 'ErrA'
+        catch /ErrA/
+          return 'handled_a'
+        catch /ErrB/
+          var x = 1
+        endtry
+      else
+        return 'b'
+      endif
+      return 'reachable'
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+
+  # An if-else that both returns is nested inside a try, with a
+  # terminating catch; the whole try/catch terminates.
+  lines =<< trim END
+    vim9script
+    def IfInsideTry(n: number): string
+      try
+        if n > 10
+          return 'a'
+        else
+          return 'b'
+        endif
+      catch
+        return 'caught'
+      endtry
+      var x = 1
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 10)
+
+  # The catch swallows the exception without returning/throwing, so the
+  # try/catch (and the if-else nested inside the try) stays reachable.
+  lines =<< trim END
+    vim9script
+    def IfInsideTryCatchFallsThrough(n: number): string
+      try
+        if n > 10
+          throw 'err'
+        else
+          return 'b'
+        endif
+      catch
+        echo 'caught'
+      endtry
+      return 'reachable'
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+enddef
+
+def Test_unreachable_after_if_finally()
+  # Even if try/catch don't terminate, a return or throw in finally forces
+  # termination.
+  var lines =<< trim END
+    vim9script
+    def TerminatedByFinally(n: number): string
+      if n > 10
+        try
+          echo "no return here"
+        catch
+          echo "no return here either"
+        finally
+          return 'finally_a'
+        endtry
+      else
+        try
+          echo "no return"
+        finally
+          throw 'finally_b_err'
+        endtry
+      endif
+      var x = 1
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 16)
+
+  # Try has no return/throw, finally runs without exit -> falls through.
+  lines =<< trim END
+    vim9script
+    def FinallyWithoutExit(n: number): string
+      if n > 10
+        try
+          var a = 1
+        finally
+          var b = 2  # Finally executes, but does not return or throw
+        endtry
+      else
+        return 'else_branch'
+      endif
+      return 'reachable'
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+
+  # "finally" returning overrides a try that returns.
+  lines =<< trim END
+    vim9script
+    def FinallyReturnOverridesReturn(): string
+      if true
+        try
+          return 'try'
+        finally
+          return 'finally'
+        endtry
+      else
+        return 'else'
+      endif
+      var x = 1
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 10)
+
+  # "finally" returning overrides a try that throws.
+  lines =<< trim END
+    vim9script
+    def FinallyReturnOverridesThrow(): string
+      if true
+        try
+          throw 'try'
+        finally
+          return 'finally'
+        endtry
+      else
+        return 'else'
+      endif
+      var x = 1
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 10)
+
+  # "finally" throwing overrides a try that returns.
+  lines =<< trim END
+    vim9script
+    def FinallyThrowOverridesReturn(): string
+      if true
+        try
+          return 'try'
+        finally
+          throw 'finally'
+        endtry
+      else
+        return 'else'
+      endif
+      var x = 1
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 10)
+
+  # Only one branch has a try/finally that terminates; the other branch
+  # falls through, so the if-else stays reachable.
+  lines =<< trim END
+    vim9script
+    def TryOnlyOneBranch(n: number): string
+      if n > 10
+        try
+          return 'a'
+        finally
+          echo 'done'
+        endtry
+      else
+        echo 'not terminated'
+      endif
+      return 'reachable'
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptSuccess(lines)
+
+  # Both branches have a try/finally, where the try itself (not the
+  # finally) terminates via return or throw.
+  lines =<< trim END
+    vim9script
+    def TryBothBranches(n: number): string
+      if n > 10
+        try
+          return 'a'
+        finally
+          echo 'done'
+        endtry
+      else
+        try
+          throw 'err'
+        finally
+          echo 'done'
+        endtry
+      endif
+      return 'unreachable'
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 14)
+
+  # A non-terminating finally does not prevent a return in the try from
+  # terminating the overall construct.
+  lines =<< trim END
+    vim9script
+    def ReturnWithNonTerminatingFinally(): string
+      if true
+        try
+          return 'a'
+        finally
+          echo 'finally'
+        endtry
+      else
+        return 'b'
+      endif
+      var x = 1
+    enddef
+    defcompile
+  END
+  v9.CheckSourceScriptFailure(lines, 'E1095: Unreachable code after :return', 10)
+enddef
+
 def Test_throw_in_nested_try()
   var lines =<< trim END
       vim9script
@@ -1157,10 +2108,11 @@ def Test_try_ends_in_return()
         catch /x/
           return 'caught'
         endtry
+        return 'aaa'
       enddef
       assert_equal('foo', Foo())
   END
-  v9.CheckScriptFailure(lines, 'E1027:')
+  v9.CheckScriptFailure(lines, 'E1095: Unreachable code after :return')
 
   lines =<< trim END
       vim9script
@@ -1176,7 +2128,6 @@ def Test_try_ends_in_return()
       assert_equal('done', Foo())
   END
   v9.CheckScriptSuccess(lines)
-
 enddef
 
 def Test_try_in_catch()
@@ -1216,7 +2167,7 @@ def Test_error_in_catch()
   v9.CheckDefExecFailure(lines, 'E684:', 4)
 enddef
 
-" :while at the very start of a function that :continue jumps to
+" Test for :while at the very start of a function that :continue jumps to
 def s:TryContinueFunc()
  while g:Count < 2
    g:sequence ..= 't'
@@ -1330,8 +2281,8 @@ def Test_nocatch_throw_silenced()
   source XthrowSilenced
 enddef
 
-" g:DeletedFunc() is found when compiling Test_try_catch_throw() and then
-" deleted, this should give a runtime error.
+" Test for g:DeletedFunc() is found when compiling Test_try_catch_throw() and
+" then deleted, this should give a runtime error.
 def DeletedFunc(): list<any>
   return ['delete me']
 enddef
@@ -1522,7 +2473,7 @@ def Try_catch_skipped()
   endif
 enddef
 
-" The skipped try/endtry was updating the wrong instruction.
+" Test for when the skipped try/endtry was updating the wrong instruction.
 def Test_try_catch_skipped()
   var instr = execute('disassemble Try_catch_skipped')
   assert_match("NEWLIST size 0\n", instr)
@@ -1847,6 +2798,41 @@ def Test_vim9script_reload_delfunc()
   g:DoCheck(false)
 enddef
 
+def Test_vim9script_reload_lambda_def_func()
+  CheckFeature timers
+
+  var lines =<< trim END
+    vim9script
+
+    def F()
+      g:call_result += 1
+    enddef
+
+    augroup Xtest933
+      au!
+      au CmdlineLeave : timer_start(0, (_) => F())
+    augroup END
+  END
+
+  g:call_result = 0
+  writefile(lines, 'Xtest933.vim', 'D')
+  source Xtest933.vim
+
+  # Simulate the CmdlineLeave event that fires before the second :so
+  doautocmd CmdlineLeave :
+
+  # Re-source: F is redefined; without the fix this causes E933 when timer fires
+  source Xtest933.vim
+
+  # Allow the 0ms timer to fire
+  sleep 10m
+
+  assert_equal(1, g:call_result)
+
+  augroup Xtest933 | au! | augroup END
+  unlet! g:call_result
+enddef
+
 def Test_vim9script_reload_delvar()
   # write the script with a script-local variable
   var lines =<< trim END
@@ -1939,6 +2925,8 @@ def Test_no_insert_xit()
   v9.CheckDefExecFailure(['a = 1'], 'E1100:')
   v9.CheckDefExecFailure(['c = 1'], 'E1100:')
   v9.CheckDefExecFailure(['i = 1'], 'E1100:')
+  v9.CheckDefExecFailure(['k = 1'], 'E1100:')
+  v9.CheckDefExecFailure(['o = 1'], 'E1100:')
   v9.CheckDefExecFailure(['t = 1'], 'E1100:')
   v9.CheckDefExecFailure(['x = 1'], 'E1100:')
 
@@ -1948,11 +2936,14 @@ def Test_no_insert_xit()
   v9.CheckScriptFailure(['vim9script', 'c'], 'E1100:')
   v9.CheckScriptFailure(['vim9script', 'i = 1'], 'E488:')
   v9.CheckScriptFailure(['vim9script', 'i'], 'E1100:')
+  v9.CheckScriptFailure(['vim9script', 'k = 1'], 'E1100:')
+  v9.CheckScriptFailure(['vim9script', 'k'], 'E1100:')
   v9.CheckScriptFailure(['vim9script', 'o = 1'], 'E1100:')
   v9.CheckScriptFailure(['vim9script', 'o'], 'E1100:')
-  v9.CheckScriptFailure(['vim9script', 't'], 'E1100:')
   v9.CheckScriptFailure(['vim9script', 't = 1'], 'E1100:')
+  v9.CheckScriptFailure(['vim9script', 't'], 'E1100:')
   v9.CheckScriptFailure(['vim9script', 'x = 1'], 'E1100:')
+  v9.CheckScriptFailure(['vim9script', 'x'], 'E1100:')
 enddef
 
 def s:IfElse(what: number): string
@@ -2861,6 +3852,36 @@ def Test_for_loop_with_closure()
         assert_equal(3 .. 'd', lv_list[i]())
         assert_equal(i .. c, copy_list[i]())
       endfor
+  END
+  v9.CheckDefAndScriptSuccess(lines)
+
+  # assigning to a variable declared in the loop from a closure
+  lines =<< trim END
+      for i in range(3)
+        var inloop = 0
+        var F = () => {
+              inloop = i + 1
+            }
+        F()
+        assert_equal(i + 1, inloop)
+      endfor
+  END
+  v9.CheckDefAndScriptSuccess(lines)
+
+  # same in a nested loop
+  lines =<< trim END
+      var result: list<number>
+      for i in range(2)
+        for j in range(2)
+          var inloop = 0
+          var F = () => {
+                inloop = i * 10 + j
+              }
+          F()
+          result += [inloop]
+        endfor
+      endfor
+      assert_equal([0, 1, 10, 11], result)
   END
   v9.CheckDefAndScriptSuccess(lines)
 enddef
@@ -4341,62 +5362,144 @@ def Run_test_reject_declaration()
   g:StopVimInTerminal(buf)
 enddef
 
-def Test_minimal_command_name_length()
-  var names = [
-       'cons',
-       'brea',
-       'cat',
-       'catc',
-       'con',
-       'cont',
-       'conti',
-       'contin',
-       'continu',
-       'el',
-       'els',
-       'elsei',
-       'endfo',
-       'en',
-       'end',
-       'endi',
-       'endw',
-       'endt',
-       'endtr',
-       'exp',
-       'expo',
-       'expor',
-       'fina',
-       'finall',
-       'fini',
-       'finis',
-       'imp',
-       'impo',
-       'impor',
-       'retu',
-       'retur',
-       'th',
-       'thr',
-       'thro',
-       'wh',
-       'whi',
-       'whil',
-      ]
-  for name in names
-    v9.CheckDefAndScriptFailure([name .. ' '], 'E1065:')
+" Test shortened commands that are invalid in Vim9 script
+def Test_shortened_invalid_vim9()
+  # Many Vim9 script commands cannot be shortened/abbreviated.
+  # SHORTENED is a list of dicts, each with a single key (the exact shortened
+  # command) and a list value with four items:
+  # [0] list<string>	Lines passed to the check function (without 'vim9script'
+  #			for SourceFailure lines)
+  # [1] number		Line number where the error is expected ('vimscript',
+  #			which is not in the list, is line 1 in the
+  #			'SourceFailure' and 'DefFailure lines, so needs to be
+  #			included in the count)
+  # [2] string		'DefAndScriptFailure', 'SourceFailure', or 'DefFailure'
+  #			specifying the applicable 'Check' function to call
+  const SHORTENED: list<dict<list<any>>> = [
+    # abstract
+    {abs: [['abs class A'], 1, 'DefAndScriptFailure']},
+    {abst: [['abst class A'], 1, 'DefAndScriptFailure']},
+    {abstr: [['abstr class A'], 1, 'DefAndScriptFailure']},
+    {abstra: [['abstra class A'], 1, 'DefAndScriptFailure']},
+    {abstrac: [['abstrac class A'], 1, 'DefAndScriptFailure']},
+    # break
+    {brea: [['for k in range(0, 2)', 'brea', 'endfor'], 2, 'DefAndScriptFailure']},
+    # catch
+    {cat: [['try', 'echo 0', 'cat'], 3, 'DefAndScriptFailure']},
+    {catc: [['try', 'echo 0', 'catc'], 3, 'DefAndScriptFailure']},
+    # class - n/a because :clas is :clast
+    # const
+    {cons: [['cons C = 0'], 1, 'DefAndScriptFailure']},
+    # continue
+    {con: [['var n: number', 'while n < 9', '++n', 'con'], 4, 'DefAndScriptFailure']},
+    {cont: [['var n: number', 'while n < 9', '++n', 'cont'], 4, 'DefAndScriptFailure']},
+    {conti: [['var n: number', 'while n < 9', '++n', 'conti'], 4, 'DefAndScriptFailure']},
+    {contin: [['var n: number', 'while n < 9', '++n', 'contin'], 4, 'DefAndScriptFailure']},
+    {continu: [['var n: number', 'while n < 9', '++n', 'continu'], 4, 'DefAndScriptFailure']},
+    # def has no applicable shortened form (:de is :delete)
+    # else
+    {els: [['if true', 'els'], 2, 'DefAndScriptFailure']},
+    # elseif
+    {elsei: [['if true', 'elsei false'], 2, 'DefAndScriptFailure']},
+    # endclass
+    {endc: [['class C', 'endc'], 3, 'SourceFailure']},
+    {endcl: [['class C', 'endcl'], 3, 'SourceFailure']},
+    {endcla: [['class C', 'endcla'], 3, 'SourceFailure']},
+    {endclas: [['class C', 'endclas'], 3, 'SourceFailure']},
+    # enddef
+    # (NB: The separate DefFailure check tests them nested -
+    #      DefAndScriptFailure cannot be used for testing :endd[e])
+    {endd: [['def D()', 'endd'], 3, 'SourceFailure']},
+    {endde: [['def D()', 'endde'], 3, 'SourceFailure']},
+    {endd: [['var R: func = (): bool => {', 'def D()', 'endd', '}'], 4, 'DefFailure']}, 
+    {endde: [['var R: func = (): bool => {', 'def D()', 'endde', '}'], 4, 'DefFailure']}, 
+    # endenum
+    {ende: [['enum E', 'ende'], 3, 'SourceFailure']},
+    {enden: [['enum E', 'enden'], 3, 'SourceFailure']},
+    {endenu: [['enum E', 'endenu'], 3, 'SourceFailure']},
+    # endfor
+    {endfo: [['for n in range(0, 2)', 'endfo'], 2, 'DefAndScriptFailure']},
+    # endif
+    {en: [['if true', 'en'], 2, 'DefAndScriptFailure']},
+    {end: [['if true', 'end'], 2, 'DefAndScriptFailure']},
+    {endi: [['if true', 'endi'], 2, 'DefAndScriptFailure']},
+    # endinterface
+    {endin: [['interface I', 'endin'], 3, 'SourceFailure']},
+    {endint: [['interface I', 'endint'], 3, 'SourceFailure']},
+    {endinte: [['interface I', 'endinte'], 3, 'SourceFailure']},
+    {endinter: [['interface I', 'endinter'], 3, 'SourceFailure']},
+    {endinterf: [['interface I', 'endinterf'], 3, 'SourceFailure']},
+    {endinterfa: [['interface I', 'endinterfa'], 3, 'SourceFailure']},
+    {endinterfac: [['interface I', 'endinterfac'], 3, 'SourceFailure']},
+    # endtry
+    {endt: [['try', 'echo 0', 'endt'], 3, 'DefAndScriptFailure']},
+    {endtr: [['try', 'echo 0', 'endtr'], 3, 'DefAndScriptFailure']},
+    # endwhile
+    {endw: [['var n = 9', 'while n > 0', '--n', 'endw'], 4, 'DefAndScriptFailure']},
+    {endwh: [['var n = 9', 'while n > 0', '--n', 'endwh'], 4, 'DefAndScriptFailure']},
+    {endwhi: [['var n = 9', 'while n > 0', '--n', 'endwhi'], 4, 'DefAndScriptFailure']},
+    {endwhil: [['var n = 9', 'while n > 0', '--n', 'endwhil'], 4, 'DefAndScriptFailure']},
+    # enum
+    {enu: [['enu E', 'endenum'], 2, 'SourceFailure']},
+    # export
+    {exp: [['exp var b: bool'], 2, 'SourceFailure']},
+    {expo: [['expo var b: bool'], 2, 'SourceFailure']},
+    {expor: [['expor var b: bool'], 2, 'SourceFailure']},
+    # final has no applicable shortened form (because :fina is short for :finally)
+    # finally
+    {fina: [['try', '# Do something', 'fina'], 3, 'DefAndScriptFailure']},
+    # finish
+    {fini: [['fini'], 1, 'DefAndScriptFailure']},
+    # import
+    {imp: [['imp $"{$VIMRUNTIME}/autoload/ccomplete.vim"'], 2, 'SourceFailure']},
+    {impo: [['impo $"{$VIMRUNTIME}/autoload/ccomplete.vim"'], 2, 'SourceFailure']},
+    {impor: [['impor $"{$VIMRUNTIME}/autoload/ccomplete.vim"'], 2, 'SourceFailure']},
+    # interface
+    {inte: [['inte I', 'endinterface'], 2, 'SourceFailure']},
+    {inter: [['inter I', 'endinterface'], 2, 'SourceFailure']},
+    {interf: [['interf I', 'endinterface'], 2, 'SourceFailure']},
+    {interfa: [['interfa I', 'endinterface'], 2, 'SourceFailure']},
+    {interfac: [['interfac I', 'endinterface'], 2, 'SourceFailure']},
+    # public
+    {pub: [['class P', 'pub var b: bool', 'endclass'], 3, 'SourceFailure']},
+    {publ: [['class P', 'publ var b: bool', 'endclass'], 3, 'SourceFailure']},
+    {publi: [['class P', 'publi var b: bool', 'endclass'], 3, 'SourceFailure']},
+    # return (NB: line is 0 - for CheckDefAndScriptFailure the first line of the Vim9 script lambda function is considered 0)
+    {retu:  [['var R: func = (): bool => {', 'retu false', '}'], 0, 'DefAndScriptFailure']},
+    {retur: [['var R: func = (): bool => {', 'retur false', '}'], 0, 'DefAndScriptFailure']}, 
+    # static
+    {stat: [['class S', 'stat var b: bool', 'endclass'], 3, 'SourceFailure']},
+    {stati: [['class S', 'stati var b: bool', 'endclass'], 3, 'SourceFailure']},
+    # this
+    {thi: [['thi'], 1, 'DefAndScriptFailure']},
+    # throw
+    {th: [['try', 'th 9', 'catch 9', 'echo "Should give E1065"', 'thr'], 2, 'DefAndScriptFailure']},
+    {thr: [['try', 'thr 9', 'catch 9', 'echo "Should give E1065"', 'thr'], 2, 'DefAndScriptFailure']},
+    {thro: [['try', 'thro 9', 'catch 9', 'echo "Should give E1065"', 'thro'], 2, 'DefAndScriptFailure']},
+    # type
+    {ty: [['ty ListOfBools = list<bool>'], 1, 'DefAndScriptFailure']},
+    {typ: [['typ ListOfBools = list<bool>'], 1, 'DefAndScriptFailure']},
+    # var
+    {va: [['va b: bool'], 1, 'DefAndScriptFailure']},
+    # while
+    {wh: [['var n = 9', 'wh n > 0', '--n', 'endwhile'], 2, 'DefAndScriptFailure']},
+    {whi: [['var n = 9', 'whi n > 0', '--n', 'endwhile'], 2, 'DefAndScriptFailure']},
+    {whil: [['var n = 9', 'whil n > 0', '--n', 'endwhile'], 2, 'DefAndScriptFailure']},
+  ]
+  for short in SHORTENED
+    const CMD: string = short->keys()[0]
+    const LINES: list<string> = short[CMD][0]
+    const E1065: string = "E1065: Command cannot be shortened: " .. CMD
+    const LNUM: number = short[CMD][1]
+    const CHECK: string = short[CMD][2]
+    if CHECK == 'SourceFailure'
+      v9.CheckSourceFailure(['vim9script', LINES]->flattennew(), E1065, LNUM)
+    elseif CHECK == 'DefAndScriptFailure'
+      v9.CheckDefAndScriptFailure(LINES, E1065, LNUM)
+    elseif CHECK == 'DefFailure'
+      v9.CheckDefFailure(LINES, E1065, LNUM)
+    endif
   endfor
-
-  var lines =<< trim END
-      vim9script
-      def SomeFunc()
-      endd
-  END
-  v9.CheckScriptFailure(lines, 'E1065:')
-  lines =<< trim END
-      vim9script
-      def SomeFunc()
-      endde
-  END
-  v9.CheckScriptFailure(lines, 'E1065:')
 enddef
 
 def Test_unset_any_variable()
@@ -4577,10 +5680,12 @@ def Test_invoke_normal_in_visual_mode()
 enddef
 
 def Test_white_space_after_command()
+  # "exit_cb" is not ":exit"; nothing must be executed.
   var lines =<< trim END
     exit_cb: Func})
   END
-  v9.CheckDefAndScriptFailure(lines, 'E1144:', 1)
+  v9.CheckDefAndScriptFailure(lines, ['E476: Invalid command: exit_cb: Func})',
+    'E492: Not an editor command: exit_cb: Func})'], 1)
 
   lines =<< trim END
     e#
@@ -4637,6 +5742,11 @@ def Test_unsupported_commands()
       :1k a
   END
   v9.CheckDefAndScriptFailure(lines, 'E481:')
+
+  lines =<< trim END
+    o
+  END
+  v9.CheckDefAndScriptFailure(lines, 'E1100:')
 
   lines =<< trim END
     t
@@ -5724,6 +6834,28 @@ def Test_multikey_dict_in_block()
   unlet g:TestDict
 enddef
 
+" Test for overriding a block level variable with a new script level variable
+" and referring to it in a function.
+def Test_block_var_override_with_script_var()
+  var lines =<< trim END
+    vim9script
+
+    if true
+      var lines = ['a']
+      lines->filter((_, _) => true)
+    endif
+
+    var lines = []
+
+    def Fx()
+      lines->add('b')
+    enddef
+    Fx()
+    assert_equal(['b'], lines)
+  END
+  v9.CheckSourceSuccess(lines)
+enddef
+
 " Test for using the type() function with void
 def Test_type_func_with_void()
   var lines =<< trim END
@@ -5733,6 +6865,247 @@ def Test_type_func_with_void()
     echo type(GetVoidValue())
   END
   v9.CheckSourceFailure(lines, 'E1031: Cannot use void value', 4)
+enddef
+
+def Test_call_stack_string()
+  CheckScreendump
+  var lines =<< trim END
+    vim9script
+
+    def CheckStack(stack: string, expected: string)
+      const caller = stack->split('\.\.')[-1]->substitute('\[\d\+\]', '', '')
+      if caller !~ expected
+        throw 'fail'
+      endif
+    enddef
+
+    class C
+      static def ClassMethodX()
+        CheckStack(expand('<stack>'), '_C.ClassMethodX$')
+      enddef
+    endclass
+
+    def NormalFuncX()
+      CheckStack(expand('<stack>'), '_NormalFuncX$')
+    enddef
+
+    # creating function names of various lengths till the name in call stack is corrupt
+    for i in range(1, 20)
+      const name = 'Wrapper' .. repeat('A', i) .. 'func'
+      execute "def g:" .. name .. "(id: any)\n  NormalFuncX()\n  C.ClassMethodX()\nenddef"
+      execute "timer_start(0, g:" .. name .. ")"
+    endfor
+  END
+  writefile(lines, 'XTest_call_stack_string', 'D')
+  var buf = g:RunVimInTerminal('-S XTest_call_stack_string', {'rows': 20})
+  g:StopVimInTerminal(buf)
+enddef
+
+def Test_g_variable_not_shadowed_by_function()
+  var lines =<< trim END
+    vim9script
+    g:F = 1
+    def F()
+      return 2
+    enddef
+    def Check()
+      var x = g:F
+      assert_equal(1, x)
+    enddef
+    Check()
+  END
+  v9.CheckScriptSuccess(lines)
+enddef
+
+" Test g: variable shadowed by script-local function in various expression contexts.
+def Test_g_variable_shadow_multi_context()
+  var lines =<< trim END
+    vim9script
+    g:F = 1
+    def F(): number
+      return 2
+    enddef
+
+    # 1. Assignment to local
+    def AssignCheck()
+      var x = g:F
+      assert_equal(1, x)
+    enddef
+
+    # 2. Function argument
+    def ArgCheck(val: number): number
+      return val * 10
+    enddef
+    def CallArg()
+      assert_equal(10, ArgCheck(g:F))
+    enddef
+
+    # 3. Return value
+    def ReturnCheck(): number
+      return g:F
+    enddef
+
+    # 4. Binary operation
+    def BinaryCheck(): number
+      return g:F + 5
+    enddef
+
+    # 5. List literal element
+    def ListCheck(): list<number>
+      return [g:F, 2, 3]
+    enddef
+
+    # 6. Dict literal value
+    def DictCheck(): dict<number>
+      return {val: g:F}
+    enddef
+
+    # 7. Conditional expression
+    def CondCheck(): string
+      return g:F == 1 ? 'yes' : 'no'
+    enddef
+
+    # 8. Loop condition (only evaluated once but still loads)
+    def LoopCheck(): number
+      var i = 0
+      while i < g:F
+        i += 1
+      endwhile
+      return i
+    enddef
+
+    AssignCheck()
+    CallArg()
+    assert_equal(1, ReturnCheck())
+    assert_equal(6, BinaryCheck())
+    assert_equal([1, 2, 3], ListCheck())
+    assert_equal({val: 1}, DictCheck())
+    assert_equal('yes', CondCheck())
+    assert_equal(1, LoopCheck())
+  END
+  v9.CheckScriptSuccess(lines)
+  unlet g:F
+enddef
+
+" Test that dead elseif conditions are skipped without errors inside a :def function
+def Test_skip_elseif_dead_branch()
+  var lines =<< trim END
+    vim9script
+    def CompileTest()
+      if true
+        echo 'ok'
+      else
+        var x = 0
+        if x > 0
+          echo 'pos'
+        elseif x < 0
+          echo 'neg'
+        endif
+      endif
+    enddef
+    CompileTest()
+  END
+  v9.CheckScriptSuccess(lines)
+enddef
+
+" Another variation: using has() in a dead branch that would fail if compiled
+def Test_skip_elseif_with_has_in_dead_branch()
+  var lines =<< trim END
+    vim9script
+    def HasTest()
+      if true
+        echo 'ok'
+      else
+        var x = 0
+        if x > 0
+          echo 'pos'
+        elseif has('clipboard')
+          echo 'neg'
+        endif
+      endif
+    enddef
+    HasTest()
+  END
+  v9.CheckScriptSuccess(lines)
+enddef
+
+def Test_if_false_elseif_true_still_takes_elseif()
+  var lines =<< trim END
+    vim9script
+    var result = ''
+    def F()
+      if false
+        result = 'A'
+      elseif true
+        result = 'B'
+      else
+        result = 'C'
+      endif
+    enddef
+    F()
+    assert_equal('B', result)
+  END
+  v9.CheckScriptSuccess(lines)
+enddef
+
+" Test for correct fullcommand() outputs: return the correct command (or '')
+def Test_builtin_fullcommand()
+  # :hor is the minimum abbreviation of :horizontal; :ho is invalid
+  assert_equal('', fullcommand('ho', true))
+  assert_equal('horizontal', fullcommand('hor', true))
+
+  # :k is an invalid one-letter command in Vim9 script
+  assert_equal('', fullcommand('k', true))
+  assert_equal('', fullcommand(':k', true))
+  assert_equal('', fullcommand('karrrrrgh!', true))
+  assert_equal('k', fullcommand('k', false))
+  assert_equal('k', fullcommand(':k', false))
+  assert_equal('k', fullcommand('karrrrrgh!', false))
+
+  # :dl is "delete and list" in legacy Vim script but, because :dl itself is
+  # invalid in Vim9 script, :dl is 'dlist' in Vim9 script
+  assert_equal('delete', fullcommand('dl', v:false))
+  assert_equal('dlist', fullcommand('dl', v:true))
+
+  # Substitute :s two and three letter commands in legacy Vim script are
+  # invalid in Vim9 script
+  assert_equal('', fullcommand('sIr', true))
+  assert_equal('', fullcommand('sIrarrrrrgh!', true))
+  assert_equal('substitute', fullcommand('sIr', false))
+  assert_equal('substitute', fullcommand('sIrarrrrrgh!', false))
+
+  # Three :s? commands are exceptionss, returning different commands depending
+  # on whether the scope is legacy Vim script or Vim9 script
+  assert_equal('scriptnames', fullcommand('sc', true))
+  assert_equal('simalt', fullcommand('si', true))
+  assert_equal('srewind', fullcommand('sr', true))
+  assert_equal('substitute', fullcommand('sc', false))
+  assert_equal('substitute', fullcommand('si', false))
+  assert_equal('substitute', fullcommand('sr', false))
+
+  # :finally cannot be shortened in Vim9 script but :final should return 'final'
+  assert_equal('', fullcommand('fina', true))
+  assert_equal('final', fullcommand('final', true))
+  assert_equal('', fullcommand('finall', true))
+enddef
+
+" This used to cause a stack-use-after-return under ASAN
+" Set custom ASAN_OPTIONS, to force an abort
+def Test_string_reduce_error_funccal()
+  CheckAsan
+
+  var save = $ASAN_OPTIONS
+  defer setenv('ASAN_OPTIONS', save)
+  $ASAN_OPTIONS = 'detect_stack_use_after_return=1:abort_on_error=1:' .. save
+
+  var lines =<< trim END
+      vim9script
+      silent! echo reduce("abc", (acc, c) => [][0])
+      qall!
+  END
+  writefile(lines, 'Xreducefc.vim', 'D')
+  g:RunVim([], [], '-u NONE -S Xreducefc.vim')
+  assert_equal(0, v:shell_error)
 enddef
 
 " Keep this last, it messes up highlighting.

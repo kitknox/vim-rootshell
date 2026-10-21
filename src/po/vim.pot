@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Vim\n"
 "Report-Msgid-Bugs-To: vim-dev@vim.org\n"
-"POT-Creation-Date: 2026-02-19 17:55+0000\n"
+"POT-Creation-Date: 2026-10-20 14:16+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -254,9 +254,6 @@ msgstr ""
 msgid "%d of %d edited"
 msgstr ""
 
-msgid "Socket server not online:Send expression failed"
-msgstr ""
-
 msgid "No display: Send expression failed.\n"
 msgstr ""
 
@@ -462,11 +459,6 @@ msgid ""
 "\tLast set from "
 msgstr ""
 
-#.
-#. * Yes this is ugly, I don't particularly like it either.  But doing it
-#. * this way has the compelling advantage that translations need not to
-#. * be touched at all.  See below what 'ok' and 'ync' are used for.
-#.
 msgid "&Ok"
 msgstr ""
 
@@ -900,18 +892,6 @@ msgid ""
 "&Cancel"
 msgstr ""
 
-msgid "OK"
-msgstr ""
-
-msgid "Yes"
-msgstr ""
-
-msgid "No"
-msgstr ""
-
-msgid "Cancel"
-msgstr ""
-
 msgid "Input _Methods"
 msgstr ""
 
@@ -921,9 +901,11 @@ msgstr ""
 msgid "VIM - Search..."
 msgstr ""
 
+#. "Find what:" label + entry
 msgid "Find what:"
 msgstr ""
 
+#. "Replace with:" label + entry
 msgid "Replace with:"
 msgstr ""
 
@@ -957,6 +939,21 @@ msgstr ""
 msgid "_Close"
 msgstr ""
 
+msgid "Close Tab"
+msgstr ""
+
+msgid "New Tab"
+msgstr ""
+
+msgid "Open Tab..."
+msgstr ""
+
+msgid "Direction:"
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
 msgid "Vim: Received \"die\" request from session manager\n"
 msgstr ""
 
@@ -964,9 +961,6 @@ msgid "Close tab"
 msgstr ""
 
 msgid "New tab"
-msgstr ""
-
-msgid "Open Tab..."
 msgstr ""
 
 msgid "Vim: Main window unexpectedly destroyed\n"
@@ -1058,6 +1052,12 @@ msgid "no specific match"
 msgstr ""
 
 msgid "Vim - Font Selector"
+msgstr ""
+
+msgid "OK"
+msgstr ""
+
+msgid "Cancel"
 msgstr ""
 
 msgid "Name:"
@@ -1660,6 +1660,9 @@ msgstr ""
 msgid "--ttyfail\t\tExit if input or output is not a terminal"
 msgstr ""
 
+msgid "--stdio-channel\tUse stdin and stdout as a channel"
+msgstr ""
+
 msgid "-u <vimrc>\t\tUse <vimrc> instead of any .vimrc"
 msgstr ""
 
@@ -1714,7 +1717,8 @@ msgstr ""
 msgid "-Y\t\t\tDo not connect to Wayland compositor"
 msgstr ""
 
-msgid "--clientserver <socket|x11> Backend for clientserver communication"
+msgid ""
+"--clientserver <socket|x11|mswin> Backend for clientserver communication"
 msgstr ""
 
 msgid "--remote <files>\tEdit <files> in a Vim server if possible"
@@ -1807,6 +1811,11 @@ msgid "+reverse\t\tDon't use reverse video (also: +rv)"
 msgstr ""
 
 msgid "-xrm <resource>\tSet the specified resource"
+msgstr ""
+
+msgid ""
+"\n"
+"Arguments recognised by gvim (GTK4 version):\n"
 msgstr ""
 
 msgid ""
@@ -1960,10 +1969,19 @@ msgstr ""
 msgid "???LINES MISSING"
 msgstr ""
 
+msgid "???ILLEGAL BLOCK NUMBER"
+msgstr ""
+
 msgid "???BLOCK MISSING"
 msgstr ""
 
+msgid "??? BLOCK PAGE COUNT MISMATCH"
+msgstr ""
+
 msgid "??? from here until ???END lines may be messed up"
+msgstr ""
+
+msgid "??? block header corrupted"
 msgstr ""
 
 msgid "??? from here until ???END lines may have been inserted/deleted"
@@ -2155,10 +2173,10 @@ msgstr ""
 msgid "\" already exists!"
 msgstr ""
 
-msgid "VIM - ATTENTION"
+msgid "Swap file already exists!"
 msgstr ""
 
-msgid "Swap file already exists!"
+msgid "VIM - ATTENTION"
 msgstr ""
 
 msgid ""
@@ -2264,6 +2282,10 @@ msgid " (Interrupted)"
 msgstr ""
 
 msgid "Beep!"
+msgstr ""
+
+#, c-format
+msgid "Executing directly: \"%s\""
 msgstr ""
 
 #, c-format
@@ -2511,10 +2533,6 @@ msgstr ""
 
 #, c-format
 msgid "XSMP SmcOpenConnection failed: %s"
-msgstr ""
-
-#, c-format
-msgid "Failed creating socket directory: %s"
 msgstr ""
 
 msgid "At line"
@@ -2786,6 +2804,10 @@ msgid " (NOT FOUND)"
 msgstr ""
 
 msgid " (not supported)"
+msgstr ""
+
+#, c-format
+msgid "Failed creating socket directory: %s"
 msgstr ""
 
 #, c-format
@@ -3087,6 +3109,16 @@ msgstr ""
 msgid "syncing on C-style comments"
 msgstr ""
 
+msgid ""
+"\n"
+"--- Syntax sync items ---"
+msgstr ""
+
+msgid ""
+"\n"
+"syncing on items"
+msgstr ""
+
 msgid "no syncing"
 msgstr ""
 
@@ -3097,16 +3129,6 @@ msgid "syncing starts "
 msgstr ""
 
 msgid " lines before top line"
-msgstr ""
-
-msgid ""
-"\n"
-"--- Syntax sync items ---"
-msgstr ""
-
-msgid ""
-"\n"
-"syncing on items"
 msgstr ""
 
 msgid ""
@@ -3444,6 +3466,9 @@ msgstr ""
 msgid "without GUI."
 msgstr ""
 
+msgid "with GTK4 GUI."
+msgstr ""
+
 msgid "with GTK3 GUI."
 msgstr ""
 
@@ -3585,7 +3610,7 @@ msgstr ""
 msgid "type  :help sponsor<Enter>    for information "
 msgstr ""
 
-msgid "menu  Help->Sponsor  for information    "
+msgid "menu  Help->Sponsor           for information    "
 msgstr ""
 
 msgid "global"
@@ -5215,9 +5240,6 @@ msgstr ""
 msgid "E457: Can't read PostScript resource file \"%s\""
 msgstr ""
 
-msgid "E458: Cannot allocate colormap entry, some colors may be incorrect"
-msgstr ""
-
 msgid "E459: Cannot go back to previous directory"
 msgstr ""
 
@@ -5858,6 +5880,9 @@ msgid "E647: Invalid buffer identifier in setDot"
 msgstr ""
 
 msgid "E648: Invalid buffer identifier in close"
+msgstr ""
+
+msgid "E649: Invalid identifier name in defineAnnoType"
 msgstr ""
 
 msgid "E650: Invalid buffer identifier in defineAnnoType"
@@ -6650,9 +6675,8 @@ msgstr ""
 msgid "E882: Uniq compare function failed"
 msgstr ""
 
-msgid ""
-"E883: Search pattern and expression register may not contain two or more "
-"lines"
+#, c-format
+msgid "E883: Register '%c' cannot contain multiple lines"
 msgstr ""
 
 #, c-format
@@ -6759,7 +6783,8 @@ msgstr ""
 msgid "E911: Using a Job as a Float"
 msgstr ""
 
-msgid "E912: Cannot use ch_evalexpr()/ch_sendexpr() with a raw or nl channel"
+msgid ""
+"E912: Cannot use ch_evalexpr()/ch_sendexpr() with a raw, nl or blob channel"
 msgstr ""
 
 msgid "E913: Using a Channel as a Number"
@@ -8096,7 +8121,7 @@ msgstr ""
 msgid "E1292: Command-line window is already open"
 msgstr ""
 
-msgid "E1293: Cannot use a negative id after adding a textprop with text"
+msgid "E1293: Cannot use a negative id for a text property"
 msgstr ""
 
 msgid "E1294: Can only use text_align when column is zero"
@@ -8238,11 +8263,6 @@ msgstr ""
 
 #, c-format
 msgid "E1337: Class variable \"%s\" not found in class \"%s\""
-msgstr ""
-
-msgid ""
-"E1339: Cannot add a textprop with text after using a textprop with a "
-"negative id"
 msgstr ""
 
 #, c-format
@@ -8471,6 +8491,10 @@ msgstr ""
 msgid "E1405: Class \"%s\" cannot be used as a value"
 msgstr ""
 
+#, c-format
+msgid "E1406: Public and protected member have the same name: %s and _%s"
+msgstr ""
+
 msgid "E1407: Cannot use a Typealias as a variable or value"
 msgstr ""
 
@@ -8588,6 +8612,15 @@ msgid "E1436: Interface can only be used in a script"
 msgstr ""
 
 msgid "E1437: Can only compare Object with Object"
+msgstr ""
+
+#, c-format
+msgid ""
+"E1438: Number of type variables of method \"%s\" differs from interface "
+"\"%s\""
+msgstr ""
+
+msgid "E1439: Type nested too deep"
 msgstr ""
 
 #, c-format
@@ -8754,7 +8787,7 @@ msgstr ""
 msgid "E1546: Cannot switch to a closing buffer"
 msgstr ""
 
-msgid "E1547: This version of Vim does support :redrawtabpanel"
+msgid "E1547: This version of Vim does not support :redrawtabpanel"
 msgstr ""
 
 msgid "E1548: Wayland connection is unavailable"
@@ -8813,20 +8846,20 @@ msgstr ""
 msgid "E1562: Diff anchors cannot be used with hidden diff windows"
 msgstr ""
 
-msgid "E1563: Socket path is too big"
-msgstr ""
-
-msgid "E1564: Socket name cannot have slashes in it without being a path"
+#, c-format
+msgid "E1564: Socket name '%s' cannot have slashes in it without being a path"
 msgstr ""
 
 msgid "E1565: Socket server is not online, call remote_startserver() first"
 msgstr ""
 
 #, c-format
-msgid "E1566: Failed connecting to socket %s: %s"
+msgid "E1566: Failed connecting to socket '%s'"
 msgstr ""
 
-msgid "E1567: Cannot start socket server, socket path is unavailable"
+msgid ""
+"E1567: Socket server protocol version mismatch, check what Vim version you "
+"are using"
 msgstr ""
 
 #, c-format
@@ -8842,29 +8875,61 @@ msgstr ""
 msgid "E1571: Must specify at least one callback for redraw_listener_add"
 msgstr ""
 
+msgid "E1572: 'listchars' field \"leadtab\" requires \"tab\" to be specified"
+msgstr ""
+
+msgid "E1573: Cannot listen on port"
+msgstr ""
+
+msgid "E1574: gethostbyname(): cannot resolve hostname in channel_listen()"
+msgstr ""
+
+msgid "E1575: Cannot create pipes"
+msgstr ""
+
+msgid "E1576: Tag file entry must not be a URL"
+msgstr ""
+
+#, c-format
+msgid "E1577: Invalid format string, only one \"%s\" is allowed"
+msgstr ""
+
+msgid "E1578: Too many postponed prefixes and/or compound flags"
+msgstr ""
+
+msgid "E1579: -completeopt=escape cannot be used with -nargs=_"
+msgstr ""
+
+msgid "E1580: Too many text properties on a single line"
+msgstr ""
+
+msgid "E1581: Cannot extend a null blob"
+msgstr ""
+
+msgid "E1582: Not started with --stdio-channel"
+msgstr ""
+
+msgid "E1583: Cannot open stdio channel"
+msgstr ""
+
+msgid "E1584: Image dimensions are invalid"
+msgstr ""
+
+msgid "E1585: No image backend available"
+msgstr ""
+
+msgid "E1586: Failed changing image backends"
+msgstr ""
+
+#, c-format
+msgid "E1587: Image ID %d does not exist"
+msgstr ""
+
 #. type of cmdline window or 0
 #. result of cmdline window or 0
 #. buffer of cmdline window or NULL
 #. window of cmdline window or NULL
 msgid "--No lines in buffer--"
-msgstr ""
-
-msgid "int"
-msgstr ""
-
-msgid "long int"
-msgstr ""
-
-msgid "long long int"
-msgstr ""
-
-msgid "unsigned int"
-msgstr ""
-
-msgid "unsigned long int"
-msgstr ""
-
-msgid "unsigned long long int"
 msgstr ""
 
 msgid "pointer"
@@ -8873,13 +8938,7 @@ msgstr ""
 msgid "percent"
 msgstr ""
 
-msgid "char"
-msgstr ""
-
 msgid "string"
-msgstr ""
-
-msgid "float"
 msgstr ""
 
 #.
@@ -9348,6 +9407,9 @@ msgstr ""
 msgid "file names in a tags file are relative to the tags file"
 msgstr ""
 
+msgid "a :tag command cannot access remote files"
+msgstr ""
+
 msgid "a :tag command will use the tagstack"
 msgstr ""
 
@@ -9388,6 +9450,9 @@ msgid "scroll by screen line"
 msgstr ""
 
 msgid "number of screen lines to show around the cursor"
+msgstr ""
+
+msgid "vertically center cursor even at end of file"
 msgstr ""
 
 msgid "long lines wrap"
@@ -9437,6 +9502,12 @@ msgid "number of lines to scroll for CTRL-F and CTRL-B"
 msgstr ""
 
 msgid "don't redraw while executing macros"
+msgstr ""
+
+msgid "configure method of receiving terminal size changes"
+msgstr ""
+
+msgid "enable terminal sync mode"
 msgstr ""
 
 msgid "timeout for 'hlsearch' and :match highlighting in msec"
@@ -9498,6 +9569,9 @@ msgstr ""
 msgid "highlight group to use for the window"
 msgstr ""
 
+msgid "highlight group mappings for the window"
+msgstr ""
+
 msgid "use GUI colors for the terminal"
 msgstr ""
 
@@ -9541,6 +9615,9 @@ msgid "0, 1 or 2; when to use a status line for the last window"
 msgstr ""
 
 msgid "alternate format to be used for a status line"
+msgstr ""
+
+msgid "optional settings for the status line"
 msgstr ""
 
 msgid "make all windows the same size when adding/removing windows"
@@ -9666,6 +9743,9 @@ msgid "terminal that requires extra redrawing"
 msgstr ""
 
 msgid "what keyboard protocol to use for which terminal"
+msgstr ""
+
+msgid "what image backend to use for which terminal"
 msgstr ""
 
 msgid "recognize keys that start with <Esc> in Insert mode"
@@ -9911,10 +9991,6 @@ msgstr ""
 msgid "Wayland seat to use"
 msgstr ""
 
-msgid ""
-"Enable wayland focus stealing functionality in order to access the clipboard"
-msgstr ""
-
 msgid "\"startsel\" and/or \"stopsel\"; what special keys can do"
 msgstr ""
 
@@ -10008,6 +10084,9 @@ msgid "maximum width of the popup menu"
 msgstr ""
 
 msgid "popup border style"
+msgstr ""
+
+msgid "additional options for the popup menu"
 msgstr ""
 
 msgid "user defined function for Insert mode completion"
@@ -10213,6 +10292,9 @@ msgid "enable using settings from modelines when reading a file"
 msgstr ""
 
 msgid "allow setting expression options from a modeline"
+msgstr ""
+
+msgid "only allow safe options to be set from a modeline"
 msgstr ""
 
 msgid "number of lines to check for modelines"

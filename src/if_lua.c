@@ -215,7 +215,11 @@ static void luaV_call_lua_func_free(void *state);
 #  define luaopen_os dll_luaopen_os
 #  define luaopen_package dll_luaopen_package
 #  define luaopen_debug dll_luaopen_debug
-#  define luaL_openlibs dll_luaL_openlibs
+#  if LUA_VERSION_NUM >= 505
+#   define luaL_openselectedlibs dll_luaL_openselectedlibs
+#  else
+#   define luaL_openlibs dll_luaL_openlibs
+#  endif
 
 // lauxlib
 #  if LUA_VERSION_NUM <= 501
@@ -331,7 +335,11 @@ int (*dll_luaopen_io) (lua_State *L);
 int (*dll_luaopen_os) (lua_State *L);
 int (*dll_luaopen_package) (lua_State *L);
 int (*dll_luaopen_debug) (lua_State *L);
+#  if LUA_VERSION_NUM >= 505
+void (*dll_luaL_openselectedlibs) (lua_State *L, int load, int preload);
+#  else
 void (*dll_luaL_openlibs) (lua_State *L);
+#  endif
 
 typedef void **luaV_function;
 typedef struct {
@@ -439,7 +447,11 @@ static const luaV_Reg luaV_dll[] = {
     {"luaopen_os", (luaV_function) &dll_luaopen_os},
     {"luaopen_package", (luaV_function) &dll_luaopen_package},
     {"luaopen_debug", (luaV_function) &dll_luaopen_debug},
+#  if LUA_VERSION_NUM >= 505
+    {"luaL_openselectedlibs", (luaV_function) &dll_luaL_openselectedlibs},
+#  else
     {"luaL_openlibs", (luaV_function) &dll_luaL_openlibs},
+#  endif
     {NULL, NULL}
 };
 
@@ -1235,7 +1247,10 @@ luaV_blob_index(lua_State *L)
     if (lua_isnumber(L, 2))
     {
 	int idx = luaL_checkinteger(L, 2);
-	if (idx < blob_len(b))
+	if (idx < 0)
+	    // Negative index is relative to the end.
+	    idx += (int) blob_len(b);
+	if (idx >= 0 && idx < blob_len(b))
 	    lua_pushnumber(L, (lua_Number) blob_get(b, idx));
 	else
 	    lua_pushnil(L);
@@ -1269,7 +1284,11 @@ luaV_blob_newindex(lua_State *L)
     long len = blob_len(b);
     int idx = luaL_checkinteger(L, 2);
     int val = luaL_checkinteger(L, 3);
-    if (idx < len || (idx == len && ga_grow(&b->bv_ga, 1) == OK))
+    if (idx < 0)
+	// Negative index is relative to the end.
+	idx += (int) len;
+    if ((idx >= 0 && idx < len)
+	    || (idx == len && ga_grow(&b->bv_ga, 1) == OK))
     {
 	blob_set(b, idx, (char_u) val);
 	if (idx == len)
@@ -1675,7 +1694,7 @@ luaV_window_newindex(lua_State *L)
 	luaV_checksandbox(L);
 # endif
 	w->w_cursor.col = v - 1;
-	w->w_set_curswant = TRUE;
+	w->w_set_curswant = true;
 	update_screen(UPD_VALID);
     }
     else if (strncmp(s, "width", 5) == 0)
@@ -2431,8 +2450,7 @@ luaV_pushversion(lua_State *L)
     "    -- Note: ignores trailing item without trailing `;`. Not using something\n"\
     "    -- simpler in order to preserve empty items (stand for default path).\n"\
     "    local orig = {}\n"\
-    "    for s in orig_str:gmatch('[^;]*;') do\n"\
-    "      s = s:sub(1, -2)  -- Strip trailing semicolon\n"\
+    "    for s in orig_str:gmatch('([^;]*);') do\n"\
     "      orig[#orig + 1] = s\n"\
     "    end\n"\
     "    if key == 'path' then\n"\
@@ -2571,7 +2589,11 @@ luaopen_vim(lua_State *L)
 luaV_newstate(void)
 {
     lua_State *L = luaL_newstate();
+# if LUA_VERSION_NUM >= 505
+    luaL_openselectedlibs(L, ~0, 0); // core libs
+# else
     luaL_openlibs(L); // core libs
+# endif
     lua_pushcfunction(L, luaopen_vim); // vim
     lua_call(L, 0, 0);
     return L;

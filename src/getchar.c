@@ -78,6 +78,7 @@ static __thread int	KeyNoremap = 0;	    // remapping flags
 #define RM_NONE		1	// tb_noremap: don't remap
 #define RM_SCRIPT	2	// tb_noremap: remap local script mappings
 #define RM_ABBR		4	// tb_noremap: don't remap, do abbrev.
+#define RM_SIMPLIFIED	8	// tb_noremap: modifiers merged into the key
 
 // typebuf.tb_buf has three parts: room in front (for result of mappings), the
 // middle for typeahead and room for new characters (which needs to be 3 *
@@ -714,6 +715,11 @@ stuffRedoReadbuff(char_u *s)
     void
 stuffReadbuffLen(char_u *s, long len)
 {
+#ifdef FEAT_EVAL
+    if (add_last_insert == 1) // Only add if this is the first call, for
+			      // recursive calls, ignore.
+	ga_concat_len(&last_insert_ga, s, (size_t)len);
+#endif
     add_buff(&readbuf1, s, len);
 }
 
@@ -1374,9 +1380,9 @@ gotchars_add_byte(gotchars_state_T *state, char_u byte)
 		// When receiving a modifier, wait for the modified key.
 		goto ret_false;
 	    c = TO_SPECIAL(state->prev_c, c);
-	    if (c == K_FOCUSGAINED || c == K_FOCUSLOST)
-		// Drop K_FOCUSGAINED and K_FOCUSLOST, they are not useful
-		// in a recording.
+	    // Drop K_FOCUSGAINED, K_FOCUSLOST and K_COMPLETE_DELAY, they are
+	    // not useful in a recording.
+	    if (c == K_FOCUSGAINED || c == K_FOCUSLOST || c == K_COMPLETE_DELAY)
 		state->buflen = 0;
 	}
 	// When receiving a multibyte character, store it until we have all
@@ -1725,6 +1731,9 @@ using_script(void)
     void
 before_blocking(void)
 {
+    // Tell terminal to flush screen contents before blocking
+    term_set_sync_output(TERM_SYNC_OUTPUT_FLUSH);
+
     updatescript(0);
 #ifdef FEAT_EVAL
     if (may_garbage_collect)
@@ -2010,7 +2019,7 @@ vgetc(void)
 		    continue;
 		}
 #endif
-#if defined(FEAT_GUI) && defined(FEAT_GUI_GTK) && defined(FEAT_MENU)
+#if defined(FEAT_GUI) && defined(FEAT_GUI_GTK) && !defined(USE_GTK4) && defined(FEAT_MENU)
 		// GTK: <F10> normally selects the menu, but it's passed until
 		// here to allow mapping it.  Intercept and invoke the GTK
 		// behavior if it's not mapped.
@@ -2167,7 +2176,8 @@ vgetc(void)
 #endif
 
 #ifdef FEAT_BEVAL_TERM
-    if (c != K_MOUSEMOVE && c != K_IGNORE && c != K_CURSORHOLD)
+    if (c != K_MOUSEMOVE && c != K_IGNORE && c != K_CURSORHOLD
+	    && c != K_COMPLETE_DELAY)
     {
 	// Don't trigger 'balloonexpr' unless only the mouse was moved.
 	bevalexpr_due_set = FALSE;
@@ -2206,7 +2216,7 @@ vgetc(void)
 
 #ifdef FEAT_EVAL
 /*
- * Handle the InsertCharPre autocommand.
+ * Handle the KeyInputPre autocommand.
  * "c" is the character that was typed.
  * Return new input character.
  */
@@ -2215,6 +2225,7 @@ do_key_input_pre(int c)
 {
     int		res = c;
     char_u	buf[MB_MAXBYTES + 1];
+    size_t	buflen;
     char_u	curr_mode[MODE_MAX_LENGTH];
     int		save_State = State;
     save_v_event_T save_v_event;
@@ -2229,10 +2240,11 @@ do_key_input_pre(int c)
 	buf[0] = K_SPECIAL;
 	buf[1] = KEY2TERMCAP0(c);
 	buf[2] = KEY2TERMCAP1(c);
-	buf[3] = NUL;
+	buflen = 3;
     }
     else
-	buf[(*mb_char2bytes)(c, buf)] = NUL;
+	buflen = (*mb_char2bytes)(c, buf);
+    buf[buflen] = NUL;
 
     typedchars[typedchars_pos] = NUL;
     vim_unescape_csi(typedchars);
@@ -2241,29 +2253,29 @@ do_key_input_pre(int c)
 
     // Lock the text to avoid weird things from happening.
     ++textlock;
-    set_vim_var_string(VV_CHAR, buf, -1);  // set v:char
+    set_vim_var_string(VV_CHAR, buf, (int)buflen);  // set v:char
 
     v_event = get_v_event(&save_v_event);
     (void)dict_add_bool(v_event, "typed", KeyTyped);
-    (void)dict_add_string(v_event, "typedchar", typedchars);
+    (void)dict_add_string_len(v_event, "typedchar", typedchars, typedchars_pos);
 
-    if (apply_autocmds(EVENT_KEYINPUTPRE, curr_mode, curr_mode, FALSE, curbuf)
-	&& STRCMP(buf, get_vim_var_str(VV_CHAR)) != 0)
+    if (apply_autocmds(EVENT_KEYINPUTPRE, curr_mode, curr_mode, FALSE, curbuf))
     {
+	string_T    v_char;
+
 	// Get the value of v:char.  It may be empty or more than one
 	// character.  Only use it when changed, otherwise continue with the
 	// original character.
-	char_u *v_char;
-	size_t	v_charlen;
-
-	v_char = get_vim_var_str(VV_CHAR);
-	v_charlen = STRLEN(v_char);
-
-	// Convert special bytes when it is special string.
-	if (v_charlen >= 3 && v_char[0] == K_SPECIAL)
-	    res = TERMCAP2KEY(v_char[1], v_char[2]);
-	else if (v_charlen > 0)
-	    res = PTR2CHAR(v_char);
+	v_char.string = get_vim_var_str(VV_CHAR);
+	if (STRCMP(buf, v_char.string) != 0)
+	{
+	    v_char.length = STRLEN(v_char.string);
+	    // Convert special bytes when it is special string.
+	    if (v_char.length >= 3 && v_char.string[0] == K_SPECIAL)
+		res = TERMCAP2KEY(v_char.string[1], v_char.string[2]);
+	    else if (v_char.length > 0)
+		res = PTR2CHAR(v_char.string);
+	}
     }
 
     restore_v_event(v_event, &save_v_event);
@@ -2644,6 +2656,9 @@ parse_queued_messages(void)
 	// Process the queued netbeans messages.
 	netbeans_parse_messages();
 # endif
+# ifdef FEAT_SOCKETSERVER
+	socketserver_parse_messages();
+# endif
 # ifdef FEAT_JOB_CHANNEL
 	// Write any buffer lines still to be written.
 	channel_write_any_lines();
@@ -2709,6 +2724,7 @@ typedef enum {
 /*
  * Check if the bytes at the start of the typeahead buffer are a character used
  * in Insert mode completion.  This includes the form with a CTRL modifier.
+ * During completion started by complete() keys are mapped as usual.
  */
     static int
 at_ins_compl_key(void)
@@ -2719,10 +2735,14 @@ at_ins_compl_key(void)
     if (typebuf.tb_len > 3
 	    && (c == K_SPECIAL || c == CSI)  // CSI is used by the GUI
 	    && p[1] == KS_MODIFIER
-	    && (p[2] & MOD_MASK_CTRL))
+	    && (p[2] & MOD_MASK_CTRL)
+	    // CTRL-SHIFT-N/P scroll the info popup, so they must not be folded
+	    // to the CTRL-N/CTRL-P completion keys here.
+	    && !(p[2] & MOD_MASK_SHIFT))
 	c = p[3] & 0x1f;
-    return (ctrl_x_mode_not_default() && vim_is_ctrl_x_key(c))
-		|| (compl_status_local() && (c == Ctrl_N || c == Ctrl_P));
+    return !ctrl_x_mode_eval()
+	    && ((ctrl_x_mode_not_default() && vim_is_ctrl_x_key(c))
+		|| (compl_status_local() && (c == Ctrl_N || c == Ctrl_P)));
 }
 
 /*
@@ -2755,6 +2775,7 @@ check_simplify_modifier(int max_offset)
 	    {
 		char_u	new_string[MB_MAXBYTES];
 		int	len;
+		int	key_offset = offset;
 
 		if (offset == 0)
 		{
@@ -2782,10 +2803,17 @@ check_simplify_modifier(int max_offset)
 		else
 		{
 		    tp[2] = modifier;
-		    if (put_string_in_typebuf(offset + 3, 1, new_string, len,
+		    key_offset = offset + 3;
+		    if (put_string_in_typebuf(key_offset, 1, new_string, len,
 							NULL, 0, NULL) == FAIL)
 			return -1;
 		}
+
+		// A mapping for the simplified key can be used for it even
+		// when the key protocol is enabled.
+		for (int i = 0; i < len; ++i)
+		    typebuf.tb_noremap[typebuf.tb_off + key_offset + i]
+							    |= RM_SIMPLIFIED;
 		return len;
 	    }
 	}
@@ -2860,7 +2888,8 @@ handle_mapping(
      * - in insert or cmdline mode and 'paste' option set
      * - waiting for "hit return to continue" and CR or SPACE typed
      * - waiting for a char with --more--
-     * - in Ctrl-X mode, and we get a valid char for that mode
+     * - in Ctrl-X mode (not started by complete()), and we get a valid char
+     *   for that mode
      * - currently receiving OSC sequence
      */
     tb_c1 = typebuf.tb_buf[typebuf.tb_off];
@@ -2923,7 +2952,9 @@ handle_mapping(
 	    if (mp->m_keys[0] == tb_c1
 		    && (mp->m_mode & local_State)
 		    && !(mp->m_simplified && key_protocol_enabled()
-						     && typebuf.tb_maplen == 0)
+			    && typebuf.tb_maplen == 0
+			    && (typebuf.tb_noremap[typebuf.tb_off]
+							& RM_SIMPLIFIED) == 0)
 		    && ((mp->m_mode & MODE_LANGMAP) == 0
 						    || typebuf.tb_maplen == 0))
 	    {
@@ -2986,7 +3017,7 @@ handle_mapping(
 		    // If only script-local mappings are allowed, check if the
 		    // mapping starts with K_SNR.
 		    s = typebuf.tb_noremap + typebuf.tb_off;
-		    if (*s == RM_SCRIPT
+		    if ((*s & ~RM_SIMPLIFIED) == RM_SCRIPT
 			    && (mp->m_keys[0] != K_SPECIAL
 				|| mp->m_keys[1] != KS_EXTRA
 				|| mp->m_keys[2] != KE_SNR))
@@ -3110,8 +3141,8 @@ handle_mapping(
 	if (in_osc || no_mapping == 0 || allow_keys != 0)
 	{
 	    if (in_osc || ((typebuf.tb_maplen == 0
-			    || (p_remap && typebuf.tb_noremap[
-						    typebuf.tb_off] == RM_YES))
+			    || (p_remap && (typebuf.tb_noremap[typebuf.tb_off]
+						& ~RM_SIMPLIFIED) == RM_YES))
 		    && !*timedout))
 		keylen = check_termcode(max_mlen + 1, NULL, 0, NULL);
 	    else
@@ -3619,7 +3650,8 @@ vgetorpeek(int advance)
 				gotchars(typebuf.tb_buf
 						 + typebuf.tb_off, 1);
 			    }
-			    KeyNoremap = typebuf.tb_noremap[typebuf.tb_off];
+			    KeyNoremap = typebuf.tb_noremap[typebuf.tb_off]
+							    & ~RM_SIMPLIFIED;
 			    del_typebuf(1, 0);
 			}
 			break;  // got character, break the for loop
@@ -4180,8 +4212,11 @@ fix_input_buffer(char_u *buf, int len)
 	else
 #endif
 	if (p[0] == NUL || (p[0] == K_SPECIAL
-		    // timeout may generate K_CURSORHOLD
-		    && (i < 2 || p[1] != KS_EXTRA || p[2] != (int)KE_CURSORHOLD)
+		    // timeout may generate K_CURSORHOLD,
+		    // 'autocompletedelay' timeout K_COMPLETE_DELAY
+		    && (i < 2 || p[1] != KS_EXTRA
+			|| (p[2] != (int)KE_CURSORHOLD
+			    && p[2] != (int)KE_COMPLETE_DELAY))
 #if defined(MSWIN) && (!defined(FEAT_GUI) || defined(VIMDLL))
 		    // Win32 console passes modifiers
 		    && (
@@ -4282,6 +4317,13 @@ getcmdkeycmd(
 	    // to a single Esc here.
 	    if (c1 == K_ESC)
 		c1 = ESC;
+
+#ifdef FEAT_GUI
+	    // Translate K_CSI to CSI.  The special key is only used to
+	    // avoid it being recognized as the start of a special key.
+	    if (c1 == K_CSI)
+		c1 = CSI;
+#endif
 	}
 
 	if (got_int)
@@ -4298,7 +4340,7 @@ getcmdkeycmd(
 	}
 	else if (c1 == K_SNR)
 	{
-	    ga_concat_len(&line_ga, (char_u *)"<SNR>", 5);
+	    GA_CONCAT_LITERAL(&line_ga, "<SNR>");
 	}
 	else
 	{

@@ -16,13 +16,24 @@ def CopyZipFile(source: string)
 enddef
 
 def g:Test_zip_basic()
+  ### Check load once
+  assert_true(!exists("g:loaded_zip"), "Test config: now the zip autoload should not be loaded.")
+
+  ### Windows OS: PowerShell fallback should be manually set up
+  if &shell =~? 'cmd'
+    g:zip_pwsh = 'powershell'
+  endif
+
   CopyZipFile("test.zip")
   defer delete("X.zip")
   e X.zip
 
+  ### Check load once
+  assert_true(exists("g:loaded_zip"))
+
   ### Check header
   assert_match('^" zip\.vim version v\d\+', getline(1))
-  assert_match('^" Browsing zipfile .*/X.zip', getline(2))
+  assert_match('^" Browsing zipfile .*/X\.zip', getline(2))
   assert_match('^" Select a file with cursor and press ENTER', getline(3))
   assert_match('^$', getline(4))
 
@@ -43,7 +54,7 @@ def g:Test_zip_basic()
   :1
   search('file.txt')
   exe ":normal \<cr>"
-  assert_match('zipfile://.*/X.zip::Xzip/file.txt', @%)
+  assert_match('zipfile://.*/X\.zip::Xzip/file\.txt', @%)
   assert_equal('one', getline(1))
 
   ### Check editing file
@@ -68,7 +79,7 @@ def g:Test_zip_basic()
   assert_true(filereadable("Xzip/file.txt"))
 
   ## Check not overwriting existing file
-  assert_match('<Xzip/file.txt> .* not overwriting!', execute("normal x"))
+  assert_match('<Xzip/file\.txt> .* not overwriting!', execute("normal x"))
 
   delete("Xzip", "rf")
 
@@ -83,10 +94,15 @@ def g:Test_zip_basic()
   assert_equal("X.zip", @%)
   bw
 
+  ### Windows OS: PowerShell fallback
+  if has('win32')
+    return
+  endif
+
   ### Check opening zip when "unzip" program is missing
   var save_zip_unzipcmd = g:zip_unzipcmd
   g:zip_unzipcmd = "/"
-  assert_match('unzip not available on your system', execute("e X.zip"))
+  assert_match('(zip#Browse) sorry, your system doesn''t appear to have the / program', execute("e X.zip"))
 
   ### Check when "unzip" don't work
   if executable("false")
@@ -118,12 +134,29 @@ def g:Test_zip_basic()
   ### Check when "zip" report failure
   if executable("false")
     g:zip_zipcmd = "false"
-    assert_match('sorry, unable to update .*/X.zip with Xzip/file.txt',
+    assert_match('sorry, unable to update .*/X\.zip with Xzip/file\.txt',
                   execute("write"))
   endif
   bw!|bw
 
   g:zip_zipcmd = save_zip_zipcmd
+
+  ### Check opening an no zipfile
+  writefile(["qsdf"], "Xcorupt.zip", "D")
+  e! Xcorupt.zip
+  assert_equal("qsdf", getline(1))
+
+  bw
+
+  ### Check no existing zipfile
+  assert_match('File not readable', execute("e Xnot_exists.zip"))
+
+  bw
+enddef
+
+def g:Test_zip_windows_powershell()
+  CheckMSWindows
+  ### TODO: add more test for powershell fallback
 
   ### Check opening an no zipfile
   writefile(["qsdf"], "Xcorupt.zip", "D")
@@ -189,7 +222,7 @@ def g:Test_zip_glob_fname()
   fname = 'a[a].txt'
   search('\V' .. fname)
   exe ":normal \<cr>"
-  assert_match('zipfile://.*/X.zip::zipglob/a\[a\].txt', @%)
+  assert_match('zipfile://.*/X\.zip::zipglob/a\[a\]\.txt', @%)
   assert_equal('a test file with []', getline(1))
   bw
 
@@ -198,7 +231,7 @@ def g:Test_zip_glob_fname()
   fname = 'a*.txt'
   search('\V' .. fname)
   exe ":normal \<cr>"
-  assert_match('zipfile://.*/X.zip::zipglob/a\*.txt', @%)
+  assert_match('zipfile://.*/X\.zip::zipglob/a\*\.txt', @%)
   assert_equal('a test file with a*', getline(1))
   bw
 
@@ -207,7 +240,7 @@ def g:Test_zip_glob_fname()
   fname = 'a?.txt'
   search('\V' .. fname)
   exe ":normal \<cr>"
-  assert_match('zipfile://.*/X.zip::zipglob/a?.txt', @%)
+  assert_match('zipfile://.*/X\.zip::zipglob/a?\.txt', @%)
   assert_equal('a test file with a?', getline(1))
   bw
 
@@ -216,7 +249,7 @@ def g:Test_zip_glob_fname()
   fname = 'a\.txt'
   search('\V' .. escape(fname, '\\'))
   exe ":normal \<cr>"
-  assert_match('zipfile://.*/X.zip::zipglob/a\\.txt', @%)
+  assert_match('zipfile://.*/X\.zip::zipglob/a\\\.txt', @%)
   assert_equal('a test file with a\', getline(1))
   bw
 
@@ -225,7 +258,7 @@ def g:Test_zip_glob_fname()
   fname = 'a\\.txt'
   search('\V' .. escape(fname, '\\'))
   exe ":normal \<cr>"
-  assert_match('zipfile://.*/X.zip::zipglob/a\\\\.txt', @%)
+  assert_match('zipfile://.*/X\.zip::zipglob/a\\\\\.txt', @%)
   assert_equal('a test file with a double \', getline(1))
   bw
 
@@ -257,6 +290,7 @@ def g:Test_zip_fname_evil_path()
   # needed for writing the zip file
   CheckExecutable zip
 
+  messages clear
   CopyZipFile("evil.zip")
   defer delete("X.zip")
   e X.zip
@@ -273,4 +307,47 @@ def g:Test_zip_fname_evil_path()
   :w
   assert_match('zipfile://.*::etc/ax-pwn', @%)
   bw
+enddef
+
+def g:Test_zip_fname_evil_path2()
+  CheckNotMSWindows
+  # needed for writing the zip file
+  CheckExecutable zip
+
+  messages clear
+  CopyZipFile("evil.zip")
+  defer delete("X.zip")
+  e X.zip
+
+  :1
+  var fname = 'foobar'
+  search('\V' .. fname)
+  exe "normal \<cr>"
+  normal x
+  assert_false(filereadable('/tmp/foobar'))
+  :w
+  var mess  = execute(':mess')
+  assert_match('Path Traversal Attack', mess)
+  assert_match('zipfile://.*::.*tmp/foobar', @%)
+  bw!
+enddef
+
+def g:Test_zip_fname_evil_path3()
+  CheckNotMSWindows
+  # needed for writing the zip file
+  CheckExecutable zip
+
+  messages clear
+  CopyZipFile("evil.zip")
+  defer delete("X.zip")
+  e X.zip
+
+  :1
+  var fname = 'payload.txt'
+  search('\V' .. fname)
+  exe "normal \<cr>"
+  :w!
+  var mess  = execute(':mess')
+  assert_match('Path Traversal Attack', mess)
+  bw!
 enddef

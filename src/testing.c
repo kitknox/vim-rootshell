@@ -188,7 +188,13 @@ fill_assert_error(
 	    exp_tv->vval.v_dict = dict_alloc();
 	    got_tv->vval.v_dict = dict_alloc();
 	    if (exp_tv->vval.v_dict == NULL || got_tv->vval.v_dict == NULL)
+	    {
+		dict_unref(exp_tv->vval.v_dict);
+		exp_tv->vval.v_dict = NULL;
+		dict_unref(got_tv->vval.v_dict);
+		got_tv->vval.v_dict = NULL;
 		return;
+	    }
 
 	    todo = (int)exp_d->dv_hashtab.ht_used;
 	    FOR_ALL_HASHTAB_ITEMS(&exp_d->dv_hashtab, hi, todo)
@@ -1049,6 +1055,8 @@ f_test_override(typval_T *argvars, typval_T *rettv UNUSED)
     }
     else if (STRCMP(name, (char_u *)"nfa_fail") == 0)
 	nfa_fail_for_testing = val;
+    else if (STRCMP(name, (char_u *)"syn_idlist_cache") == 0)
+	disable_syn_idlist_cache_for_testing = val;
     else if (STRCMP(name, (char_u *)"no_query_mouse") == 0)
 	no_query_mouse_for_testing = val;
     else if (STRCMP(name, (char_u *)"no_wait_return") == 0)
@@ -1075,6 +1083,7 @@ f_test_override(typval_T *argvars, typval_T *rettv UNUSED)
 	disable_redraw_for_testing = FALSE;
 	ignore_redraw_flag_for_testing = FALSE;
 	nfa_fail_for_testing = FALSE;
+	disable_syn_idlist_cache_for_testing = FALSE;
 	no_query_mouse_for_testing = FALSE;
 	ui_delay_for_testing = 0;
 	reset_term_props_on_termresponse = FALSE;

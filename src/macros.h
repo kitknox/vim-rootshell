@@ -377,6 +377,15 @@
 	s.length = 0; \
     } while (0)
 
+#define STR_LITERAL_INIT(s) \
+    {(char_u *)(s), STRLEN_LITERAL(s)}
+
+#define STR_LITERAL_SET(str, s) \
+    do { \
+	(str).string = (char_u *)(s); \
+	(str).length = STRLEN_LITERAL(s); \
+    } while (0)
+
 // Whether a command index indicates a user command.
 #define IS_USER_CMDIDX(idx) ((int)(idx) < 0)
 
@@ -496,3 +505,8 @@
 #define TUPLE_LEN(t)	    (t->tv_items.ga_len)
 #define TUPLE_ITEM(t, i) \
 	    (((typval_T *)t->tv_items.ga_data) + i)
+
+// Avoid open() on a non-existing file on MS-Windows
+#if !defined(MSWIN) && !defined(PROTO)
+# define mch_isdir_or_missing(f) mch_isdir(f)
+#endif

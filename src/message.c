@@ -174,7 +174,7 @@ msg_attr_keep(
 	    || (*s != '<'
 		&& last_msg_hist != NULL
 		&& last_msg_hist->msg != NULL
-		&& STRCMP(s, last_msg_hist->msg)))
+		&& STRCMP(s, last_msg_hist->msg) != 0))
 	add_msg_hist((char_u *)s, -1, attr);
 
 #ifdef FEAT_EVAL
@@ -1317,6 +1317,11 @@ wait_return(int redraw)
 
 	    do
 	    {
+#ifdef FEAT_IMAGE
+		// Make sure to update image placements (since their row offset
+		// will have been changed).
+		draw_image_placements();
+#endif
 		// Remember "got_int", if it is set vgetc() probably returns a
 		// CTRL-C, but we need to loop then.
 		had_got_int = got_int;
@@ -1346,7 +1351,7 @@ wait_return(int redraw)
 		// at the hit-enter prompt.  Use CTRL-Y, because the same is
 		// used in Cmdline-mode and it's harmless when there is no
 		// selection.
-		if (c == Ctrl_Y && clip_star.state == SELECT_DONE)
+		if (KeyTyped && c == Ctrl_Y && clip_star.state == SELECT_DONE)
 		{
 		    clip_copy_modeless_selection(TRUE);
 		    c = K_IGNORE;
@@ -1359,7 +1364,7 @@ wait_return(int redraw)
 		* screen, to avoid that typing one 'j' too many makes the
 		* messages disappear.
 		*/
-		if (p_more && !p_cp)
+		if (KeyTyped && p_more && !p_cp)
 		{
 		    if (c == 'b' || c == Ctrl_B || c == 'k' || c == 'u' || c == 'g'
 						|| c == K_UP || c == K_PAGEUP)
@@ -1419,8 +1424,8 @@ wait_return(int redraw)
 	    if (c == K_LEFTMOUSE || c == K_MIDDLEMOUSE || c == K_RIGHTMOUSE
 					|| c == K_X1MOUSE || c == K_X2MOUSE)
 		(void)jump_to_mouse(MOUSE_SETPOS, NULL, 0);
-	    else if (vim_strchr((char_u *)"\r\n ", c) == NULL && c != Ctrl_C
-		    && c != 'q')
+	    else if (!KeyTyped || (vim_strchr((char_u *)"\r\n ", c) == NULL
+						   && c != Ctrl_C && c != 'q'))
 	    {
 		// Put the character back in the typeahead buffer.  Don't use
 		// the stuff buffer, because lmaps wouldn't work.
@@ -1907,14 +1912,15 @@ str2special_save(
     char_u  *str,
     int	    replace_spaces,	// TRUE to replace " " with "<Space>".
 				// used for the lhs of mapping and keytrans().
-    int	    replace_lt)		// TRUE to replace "<" with "<lt>".
+    int	    replace_others)	// TRUE to replace "<" with "<lt>",
+				// "|" with "<Bar>", "\" with "<Bslash>".
 {
     garray_T	ga;
     char_u	*p = str;
 
     ga_init2(&ga, 1, 40);
     while (*p != NUL)
-	ga_concat(&ga, str2special(&p, replace_spaces, replace_lt));
+	ga_concat(&ga, str2special(&p, replace_spaces, replace_others));
     ga_append(&ga, NUL);
     return (char_u *)ga.ga_data;
 }
@@ -1931,7 +1937,8 @@ str2special(
     char_u	**sp,
     int		replace_spaces,	// TRUE to replace " " with "<Space>".
 				// used for the lhs of mapping and keytrans().
-    int		replace_lt)	// TRUE to replace "<" with "<lt>".
+    int		replace_others)	// TRUE to replace "<" with "<lt>",
+				// "|" with "<Bar>", "\" with "<Bslash>".
 {
     int			c;
     static __thread char_u	buf[7];
@@ -1999,7 +2006,7 @@ str2special(
     if (special
 	|| c < ' '
 	|| (replace_spaces && c == ' ')
-	|| (replace_lt && c == '<'))
+	|| (replace_others && (c == '<' || c == '|' || c == '\\')))
 	return get_special_key_name(c, modifiers);
     buf[0] = c;
     buf[1] = NUL;
@@ -2066,7 +2073,8 @@ msg_prt_line(char_u *s, int list)
 	}
 	// find end of leading whitespace
 	if (curwin->w_lcs_chars.lead
-				 || curwin->w_lcs_chars.leadmultispace != NULL)
+				 || curwin->w_lcs_chars.leadmultispace != NULL
+				 || curwin->w_lcs_chars.leadtab1 != NUL)
 	{
 	    lead = s;
 	    while (VIM_ISWHITE(lead[0]))
@@ -2146,11 +2154,22 @@ msg_prt_line(char_u *s, int list)
 		}
 		else
 		{
-		    c = (n_extra == 0 && curwin->w_lcs_chars.tab3)
-						? curwin->w_lcs_chars.tab3
-						: curwin->w_lcs_chars.tab1;
-		    c_extra = curwin->w_lcs_chars.tab2;
-		    c_final = curwin->w_lcs_chars.tab3;
+		    int lcs_tab1 = curwin->w_lcs_chars.tab1;
+		    int lcs_tab2 = curwin->w_lcs_chars.tab2;
+		    int lcs_tab3 = curwin->w_lcs_chars.tab3;
+
+		    // check if leadtab is set in 'listchars'
+		    if (lead != NULL && s <= lead
+					&& curwin->w_lcs_chars.leadtab1 != NUL)
+		    {
+			lcs_tab1 = curwin->w_lcs_chars.leadtab1;
+			lcs_tab2 = curwin->w_lcs_chars.leadtab2;
+			lcs_tab3 = curwin->w_lcs_chars.leadtab3;
+		    }
+
+		    c = (n_extra == 0 && lcs_tab3) ? lcs_tab3 : lcs_tab1;
+		    c_extra = lcs_tab2;
+		    c_final = lcs_tab3;
 		    attr = HL_ATTR(HLF_8);
 		}
 	    }
@@ -2770,8 +2789,8 @@ msg_puts_display(
     if (msg_win != NULL)
 	popup_show_message_win();
 #endif
-    // Store the text for scroll back, unless it's a newline by itself.
-    if (p_more && !recurse && !(s == sb_str + 1 && *sb_str == '\n'))
+    // Store the text for scroll back.
+    if (p_more && !recurse)
 	store_sb_text(&sb_str, s, attr, &sb_col, FALSE);
 
     msg_check();
@@ -2839,26 +2858,30 @@ inc_msg_scrolled(void)
 #ifdef FEAT_EVAL
     if (*get_vim_var_str(VV_SCROLLSTART) == NUL)
     {
-	char_u	    *p = SOURCING_NAME;
+	string_T    p = {SOURCING_NAME, 0};
 	char_u	    *tofree = NULL;
-	int	    len;
 
 	// v:scrollstart is empty, set it to the script/function name and line
 	// number
-	if (p == NULL)
-	    p = (char_u *)_("Unknown");
+	if (p.string == NULL)
+	{
+	    p.string = (char_u *)_("Unknown");
+	    p.length = STRLEN(p.string);
+	}
 	else
 	{
-	    len = (int)STRLEN(p) + 40;
-	    tofree = alloc(len);
+	    size_t  tofreesize;
+
+	    tofreesize = (int)STRLEN(p.string) + 40;
+	    tofree = alloc(tofreesize);
 	    if (tofree != NULL)
 	    {
-		vim_snprintf((char *)tofree, len, _("%s line %ld"),
-						      p, (long)SOURCING_LNUM);
-		p = tofree;
+		p.length = vim_snprintf_safelen((char *)tofree, tofreesize,
+		    _("%s line %ld"), p.string, (long)SOURCING_LNUM);
+		p.string = tofree;
 	    }
 	}
-	set_vim_var_string(VV_SCROLLSTART, p, -1);
+	set_vim_var_string(VV_SCROLLSTART, p.string, (int)p.length);
 	vim_free(tofree);
     }
 #endif
@@ -3078,7 +3101,11 @@ msg_sb_start(msgchunk_T *mps)
     void
 msg_sb_eol(void)
 {
-    if (last_msgchunk != NULL)
+    // A trailing newline starts an empty line that has not been filled yet.
+    // Marking it as finished would introduce an extra empty line.
+    if (last_msgchunk != NULL
+	    && !(last_msgchunk->sb_text[0] == '\n'
+		&& last_msgchunk->sb_text[1] == NUL))
 	last_msgchunk->sb_eol = TRUE;
 }
 

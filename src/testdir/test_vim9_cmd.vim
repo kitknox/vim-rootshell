@@ -97,6 +97,60 @@ def Test_vim9cmd()
   v9.CheckScriptFailure(lines, 'E1017:')
 enddef
 
+def Test_legacy_vim9cmd_preserved_by_options()
+  # Make sure that "legacy" and "vim9cmd" prefix affects value of an option that
+  # is a script expression.
+
+  var lines: list<string>
+
+  lines =<< trim END
+    vim9script
+    try
+      legacy set indentexpr='a'.'b'=='ab'
+      set debug=throw
+      normal O
+    finally
+      set debug& indentexpr&
+    endtry
+  END
+  # "'a'.'b'=='ab'" evaluated as a Vim9 expression produces:
+  #
+  # > E1030: Using a String as a Number: "a"
+  v9.CheckScriptSuccess(lines)
+
+  lines =<< trim END
+    try
+      vim9cmd set indentexpr=type((x)\ =>\ x)\ ==\ v:t_func\ ?\ 1\ :\ 0
+      set debug=throw
+      normal O
+    finally
+      set debug& indentexpr&
+    endtry
+  END
+  # "type((x) => x) == v:t_func ? 1 : 0" evaluated as a legacy expression
+  # produces:
+  #
+  # > E121: Undefined variable: x
+  v9.CheckScriptSuccess(lines)
+enddef
+
+def Test_legacy_vim9cmd_exclusive()
+  # Make sure that only one of the "legacy" or "vim9cmd" prefixes is applied.
+
+  # Invalid as vim9syntax.
+  call assert_fails("legacy vim9cmd echo 'a' . 'b'", 'E15:')
+  call assert_fails("legacy vim9cmd legacy vim9cmd echo 'a' . 'b'", 'E15:')
+
+  # Invalid legacy syntax.
+  call assert_fails("vim9cmd legacy echo (x) => x", 'E121:')
+  call assert_fails("vim9cmd legacy vim9cmd legacy echo (x) => x", 'E121:')
+
+  # Validate legacy/vim9 syntax being used.
+  call assert_equal('ab', trim(execute("vim9cmd legacy echo 'a' . 'b'")))
+  call assert_equal('true',
+    execute('legacy vim9cmd echo type((x) => x) == v:t_func')->trim())
+enddef
+
 def Test_defcompile_fails()
   assert_fails('defcompile NotExists', 'E1061:')
   assert_fails('defcompile debug debug Test_defcompile_fails', 'E488:')
@@ -952,7 +1006,7 @@ func Test_command_modifier_confirm()
   call term_sendkeys(buf, ":call Getout()\n")
   call WaitForAssert({-> assert_match('(Y)es, \[N\]o: ', term_getline(buf, 8))}, 1000)
   call term_sendkeys(buf, "y")
-  call WaitForAssert({-> assert_match('(Y)es, \[N\]o: ', term_getline(buf, 8))}, 1000)
+  call WaitForAssert({-> assert_match('Press ENTER or type command to continue', term_getline(buf, 8))}, 1000)
   call term_sendkeys(buf, "\<CR>")
   call TermWait(buf)
   call StopVimInTerminal(buf)
@@ -1454,6 +1508,25 @@ def Test_user_command_comment()
   v9.CheckScriptFailure(lines, 'E1144: Command "Foo" is not followed by white space: Foo3Bar')
 
   delcommand Foo
+enddef
+
+" A name with an underscore is not a command with an argument: "ch_log" is
+" not ":change".
+def Test_command_name_with_underscore()
+  var lines =<< trim END
+      vim9script
+      ch_log
+  END
+  v9.CheckScriptFailure(lines, 'E492: Not an editor command: ch_log')
+  lines =<< trim END
+      vim9script
+      command Foo echo 'Foo'
+      Foo_bar
+  END
+  v9.CheckScriptFailure(lines, 'E492: Not an editor command: Foo_bar')
+  delcommand Foo
+  v9.CheckDefFailure(['ch_log'], 'E476: Invalid command: ch_log')
+  v9.CheckDefFailure(['echo_x'], 'E476: Invalid command: echo_x')
 enddef
 
 def Test_star_command()
@@ -2094,6 +2167,24 @@ def Test_lambda_crash()
   v9.CheckScriptFailureList(lines, ["E1356:", "E1405:"])
 enddef
 
+def Test_skipped_lambda_after_else()
+  var lines =<< trim END
+    vim9script
+    def g:Warn(msg: string)
+      if has('patch-9.0.0321')
+        echo msg
+      else
+        timer_start(100, (_) => {
+          echohl WarningMsg | echom msg | echohl None
+        }, {repeat: 0})
+      endif
+    enddef
+    defcompile
+  END
+  v9.CheckScriptSuccess(lines)
+  delfunc! g:Warn
+enddef
+
 def s:check_previewpopup(expected_title: string)
   var id = popup_findpreview()
   assert_notequal(id, 0)
@@ -2103,8 +2194,8 @@ def s:check_previewpopup(expected_title: string)
   set previewpopup&
 enddef
 
-" Test for the 'previewpopup' option
 def Test_previewpopup()
+  # Test for the 'previewpopup' option
   CheckFeature quickfix
   set previewpopup=height:10,width:60
   pedit Xppfile
@@ -2127,5 +2218,73 @@ def Test_syntax_enable_clear()
   syntax clear
 enddef
 
+" Test for using legacy expression evaluation in a vim9script map
+def Test_map_legacy_expr()
+  var lines =<< trim END
+    legacy inoremap <expr> <F2> 'hello' . 'world'
+    new
+    feedkeys("a\<F2>", 'xt')
+    assert_equal(['helloworld'], getline(1, '$'))
+    bw!
+  END
+  v9.CheckDefAndScriptSuccess(lines)
+enddef
+
+" :call on a funcref stored in a dict member used to fail with E1017 in Vim9
+" script because get_lval() treated the subscript as a re-declaration.
+def Test_call_dict_funcref()
+  var lines =<< trim END
+      vim9script
+      var d: dict<any> = {}
+      var marker = ''
+      def F()
+        marker = 'called'
+      enddef
+      d.key = F
+      d['k2'] = F
+      call d.key()
+      assert_equal('called', marker)
+      marker = ''
+      call d['k2']()
+      assert_equal('called', marker)
+  END
+  v9.CheckScriptSuccess(lines)
+enddef
+
+" :delfunction on a funcref stored in a dict member used to fail with E1017 in
+" Vim9 script for the same reason as :call.
+def Test_delfunction_dict_funcref()
+  var lines =<< trim END
+      vim9script
+      func g:LegacyFunc()
+      endfunc
+      var d: dict<any> = {}
+      d.key = g:LegacyFunc
+      d['k2'] = g:LegacyFunc
+      delfunction d.key
+      assert_false(has_key(d, 'key'))
+      delfunction d['k2']
+      assert_false(has_key(d, 'k2'))
+      delfunction g:LegacyFunc
+  END
+  v9.CheckScriptSuccess(lines)
+enddef
+
+" Looking ahead at a line that starts with a dict member, to tell an
+" assignment from an expression, must not leave an error behind.
+def Test_no_error_from_looking_ahead()
+  var lines =<< trim END
+      vim9script
+      var d = {Fn: (m: string) => 0}
+      def F(b: bool)
+        d.Fn(b ? 'one'
+               : 'two')
+      enddef
+      v:errmsg = ''
+      defcompile
+      assert_equal('', v:errmsg)
+  END
+  v9.CheckScriptSuccess(lines)
+enddef
 
 " vim: ts=8 sw=2 sts=2 expandtab tw=80 fdm=marker

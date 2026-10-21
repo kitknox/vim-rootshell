@@ -108,8 +108,11 @@ ja.sjis.po: ja.po
 sjiscorr: sjiscorr.c
 	$(CC) -o sjiscorr sjiscorr.c
 
+# Use EUC-JP-MS instead of EUC-JP: the iconv of macOS turns a backslash that
+# follows a multibyte character into a fullwidth one for EUC-JP, which breaks
+# the escaping in the po file. The result is the same for both names.
 ja.euc-jp.po: ja.po
-	iconv -f UTF-8 -t EUC-JP $? | \
+	iconv -f UTF-8 -t EUC-JP-MS $? | \
 		$(SED) -e 's/charset=[uU][tT][fF]-8/charset=EUC-JP/' \
 			-e 's/# Original translations/# Generated from $?, DO NOT EDIT/' \
 			> $@
@@ -274,22 +277,24 @@ $(PACKAGE).pot: $(PO_INPUTLIST) $(PO_VIM_INPUTLIST)
 	rm -f *.js ./vim_to_js allfiles
 
 vim.desktop: vim.desktop.in $(POFILES)
-	echo $(LANGUAGES) | tr " " "\n" |$(SED) -e '/\./d' | sort > LINGUAS
+	echo $(LANGUAGES) | tr " " "\n" |$(SED) -e '/[.]/d' | sort > LINGUAS
 	$(MSGFMT) --desktop -d . --template vim.desktop.in -o tmp_vim.desktop
 	rm -f LINGUAS
 	if command -v desktop-file-validate; \
 		then desktop-file-validate tmp_vim.desktop; fi
 	mv tmp_vim.desktop vim.desktop
+	cp vim.desktop ../../runtime/
 
 # The dependency on vim.desktop is only to avoid the two targets are build at
 # the same time, which causes a race for the LINGUAS file.
 gvim.desktop: gvim.desktop.in $(POFILES) vim.desktop
-	echo $(LANGUAGES) | tr " " "\n" |$(SED) -e '/\./d' | sort > LINGUAS
+	echo $(LANGUAGES) | tr " " "\n" |$(SED) -e '/[.]/d' | sort > LINGUAS
 	$(MSGFMT) --desktop -d . --template gvim.desktop.in -o tmp_gvim.desktop
 	rm -f LINGUAS
 	if command -v desktop-file-validate; \
 		then desktop-file-validate tmp_gvim.desktop; fi
 	mv tmp_gvim.desktop gvim.desktop
+	cp gvim.desktop ../../runtime/
 
 # Only original translations with default encoding should be updated.
 # The files that are converted to a different encoding clearly state "DO NOT EDIT".

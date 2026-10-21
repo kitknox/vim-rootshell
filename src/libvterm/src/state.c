@@ -78,6 +78,7 @@ static VTermState *vterm_state_new(VTerm *vt)
 
   state->callbacks = NULL;
   state->cbdata    = NULL;
+  state->callbacks_has_premove = 0;
 
   state->selection.callbacks = NULL;
   state->selection.user      = NULL;
@@ -121,6 +122,13 @@ static void scroll(VTermState *state, VTermRect rect, int downward, int rightwar
   if(!downward && !rightward)
     return;
 
+  // A degenerate rectangle makes "rows" or "cols" below negative, which
+  // inverts the clamping of "downward" and "rightward" and results in a
+  // negative height being passed to memmove().  This happens when a scroll
+  // region survives a resize that made the terminal smaller.
+  if(rect.end_row <= rect.start_row || rect.end_col <= rect.start_col)
+    return;
+
   rows = rect.end_row - rect.start_row;
   if(downward > rows)
     downward = rows;
@@ -132,6 +140,33 @@ static void scroll(VTermState *state, VTermRect rect, int downward, int rightwar
     rightward = cols;
   else if(rightward < -cols)
     rightward = -cols;
+
+  if(state->callbacks_has_premove && state->callbacks && state->callbacks->premove) {
+    // TODO: technically this logic is wrong if both downward != 0 and rightward != 0
+
+    /* Work out what subsection of the destination area is about to be destroyed */
+    if(downward > 0)
+      /* about to destroy the top */
+      (*state->callbacks->premove)((VTermRect){
+          .start_row = rect.start_row, .end_row = rect.start_row + downward,
+          .start_col = rect.start_col, .end_col = rect.end_col}, state->cbdata);
+    else if(downward < 0)
+      /* about to destroy the bottom */
+      (*state->callbacks->premove)((VTermRect){
+          .start_row = rect.end_row + downward, .end_row = rect.end_row,
+          .start_col = rect.start_col,          .end_col = rect.end_col}, state->cbdata);
+
+    if(rightward > 0)
+      /* about to destroy the left */
+      (*state->callbacks->premove)((VTermRect){
+          .start_row = rect.start_row, .end_row = rect.end_row,
+          .start_col = rect.start_col, .end_col = rect.start_col + rightward}, state->cbdata);
+    else if(rightward < 0)
+      /* about to destroy the right */
+      (*state->callbacks->premove)((VTermRect){
+          .start_row = rect.start_row,           .end_row = rect.end_row,
+          .start_col = rect.end_col + rightward, .end_col = rect.end_col}, state->cbdata);
+  }
 
   // Update lineinfo if full line
   if(rect.start_col == 0 && rect.end_col == state->cols && rightward == 0) {
@@ -391,6 +426,9 @@ static int on_text(const char bytes[], size_t len, void *user)
       if (i == glyph_starts || this_width > width)
 	width = this_width;  // TODO: should be += ?
     }
+
+    if (width < 0)
+      width = 0;
 
     while(i < npoints && vterm_unicode_is_combining(codepoints[i]))
       i++;
@@ -983,6 +1021,7 @@ static int on_csi(const char *leader, const long args[], int argcount, const cha
     switch(leader[0]) {
     case '?':
     case '>':
+    case '<':
       leader_byte = leader[0];
       break;
     default:
@@ -1291,6 +1330,13 @@ static int on_csi(const char *leader, const long args[], int argcount, const cha
 
   case 0x62: { // REP - ECMA-48 8.3.103
     const int row_width = THISROWWIDTH(state);
+
+    // ECMA-48 repeats the preceding graphic character; when none was
+    // printed yet "combine_width" is zero and the loop below would never
+    // advance the cursor.  Ignore the control then, like xterm does.
+    if(state->combine_width < 1)
+      break;
+
     count = CSI_ARG_COUNT(args[0]);
     col = state->pos.col + count;
     UBOUND(col, row_width);
@@ -1611,7 +1657,9 @@ static int on_csi(const char *leader, const long args[], int argcount, const cha
   case 0x74:
     switch(CSI_ARG(args[0])) {
       case 8: // CSI 8 ; rows ; cols t  set size
-	if (argcount == 3)
+        if (argcount == 3 &&
+            !CSI_ARG_IS_MISSING(args[1]) && !CSI_ARG_IS_MISSING(args[2]) &&
+            CSI_ARG(args[1]) > 0 && CSI_ARG(args[2]) > 0)
 	  on_resize(CSI_ARG(args[1]), CSI_ARG(args[2]), state);
 	break;
       default:
@@ -2095,6 +2143,12 @@ static int on_resize(int rows, int cols, void *user)
   VTermState *state = user;
   VTermPos oldpos = state->pos;
 
+  if (cols > VTERM_MAX_COLS)
+    cols = VTERM_MAX_COLS;
+
+  if (rows > VTERM_MAX_ROWS)
+    rows = VTERM_MAX_ROWS;
+
   if(cols != state->cols) {
     unsigned char *newtabstops = vterm_allocator_malloc(state->vt, (cols + 7) / 8);
     if (newtabstops == NULL)
@@ -2129,6 +2183,21 @@ static int on_resize(int rows, int cols, void *user)
     UBOUND(state->scrollregion_bottom, state->rows);
   if(state->scrollregion_right > -1)
     UBOUND(state->scrollregion_right, state->cols);
+
+  // The near edges need clamping as well, otherwise a scroll region that
+  // was set before the terminal was made smaller can start past the last
+  // row or column.  Drop a region that no longer makes sense, just like
+  // DECSTBM and DECSLRM do when it is set.
+  UBOUND(state->scrollregion_top, state->rows);
+  UBOUND(state->scrollregion_left, state->cols);
+  if(SCROLLREGION_BOTTOM(state) <= state->scrollregion_top) {
+    state->scrollregion_top = 0;
+    state->scrollregion_bottom = -1;
+  }
+  if(SCROLLREGION_RIGHT(state) <= state->scrollregion_left) {
+    state->scrollregion_left = 0;
+    state->scrollregion_right = -1;
+  }
 
   VTermStateFields fields;
   fields.pos = state->pos;
@@ -2316,6 +2385,11 @@ void vterm_state_set_callbacks(VTermState *state, const VTermStateCallbacks *cal
     state->callbacks = NULL;
     state->cbdata = NULL;
   }
+}
+
+void vterm_state_callbacks_has_premove(VTermState *state)
+{
+  state->callbacks_has_premove = 1;
 }
 
 void *vterm_state_get_cbdata(VTermState *state)

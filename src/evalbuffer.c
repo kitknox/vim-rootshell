@@ -785,44 +785,58 @@ get_buffer_lines(
     int		retlist,
     typval_T	*rettv)
 {
-    char_u	*p;
-
-    if (retlist)
-    {
-	if (rettv_list_alloc(rettv) == FAIL)
-	    return;
-    }
-    else
+    if (!retlist)
     {
 	rettv->v_type = VAR_STRING;
 	rettv->vval.v_string = NULL;
     }
 
     if (buf == NULL || buf->b_ml.ml_mfp == NULL || start < 0)
+    {
+	if (retlist)
+	    (void)rettv_list_alloc(rettv);
 	return;
+    }
 
     if (!retlist)
     {
 	if (start >= 1 && start <= buf->b_ml.ml_line_count)
-	    p = ml_get_buf(buf, start, FALSE);
+	    rettv->vval.v_string =
+		vim_strnsave(ml_get_buf(buf, start, FALSE),
+		    ml_get_buf_len(buf, start));
 	else
-	    p = (char_u *)"";
-	rettv->vval.v_string = vim_strsave(p);
+	    rettv->vval.v_string = vim_strnsave((char_u *)"", 0);
     }
     else
     {
-	if (end < start)
-	    return;
+	list_T		*l;
+	listitem_T	*li;
 
-	if (start < 1)
-	    start = 1;
-	if (end > buf->b_ml.ml_line_count)
-	    end = buf->b_ml.ml_line_count;
-	while (start <= end)
-	    if (list_append_string(rettv->vval.v_list,
-				 ml_get_buf(buf, start++, FALSE), -1) == FAIL)
-		break;
+	start = MAX(start, 1);
+	end = MIN(end, buf->b_ml.ml_line_count);
+	if (end < start)
+	    goto nolist;
+
+	// The number of lines is known, so allocate the list and its items
+	// in one allocation.
+	l = list_alloc_with_items((int)(end - start + 1));
+	if (l == NULL)
+	    goto nolist;
+	rettv_list_set(rettv, l);
+
+	// The items are already linked and zeroed, so only the string needs
+	// to be filled in.
+	for (li = l->lv_first; start <= end; ++start, li = li->li_next)
+	{
+	    li->li_tv.v_type = VAR_STRING;
+	    li->li_tv.vval.v_string = vim_strnsave(ml_get_buf(buf, start, FALSE),
+						   ml_get_buf_len(buf, start));
+	}
     }
+    return;
+
+nolist:
+    (void)rettv_list_alloc(rettv);
 }
 
 /*

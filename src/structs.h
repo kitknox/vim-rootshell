@@ -142,6 +142,8 @@ typedef struct {
     // only used for cterm.bg_rgb and cterm.fg_rgb: use cterm color
 # define CTERMCOLOR ((guicolor_T)0x1fffffe)
 #endif
+// We have include guard in the file
+#include "image.h"
 #define COLOR_INVALID(x) ((x) == INVALCOLOR || (x) == CTERMCOLOR)
 
 #ifdef FEAT_TERMINAL
@@ -312,6 +314,12 @@ typedef struct
 #ifdef FEAT_STL_OPT
     char_u	*wo_stl;
 # define w_p_stl w_onebuf_opt.wo_stl	// 'statusline'
+    char_u	*wo_stlo;
+# define w_p_stlo w_onebuf_opt.wo_stlo	// 'statuslineopt'
+    int		wo_stlo_fh;
+# define w_p_stlo_fh w_onebuf_opt.wo_stlo_fh // "fixedheight" of 'statuslineopt'
+    int		wo_stlo_mh;
+# define w_p_stlo_mh w_onebuf_opt.wo_stlo_mh // "maxheight:" of 'statuslineopt'
 #endif
     int		wo_scb;
 #define w_p_scb w_onebuf_opt.wo_scb	// 'scrollbind'
@@ -343,6 +351,8 @@ typedef struct
 #define w_p_siso w_onebuf_opt.wo_siso	// 'sidescrolloff' local value
     long	wo_so;
 #define w_p_so w_onebuf_opt.wo_so	// 'scrolloff' local value
+    long	wo_sop;
+#define w_p_sop w_onebuf_opt.wo_sop  // 'scrolloffpad' local value
 #ifdef FEAT_TERMINAL
     char_u	*wo_twk;
 # define w_p_twk w_onebuf_opt.wo_twk	// 'termwinkey'
@@ -368,6 +378,8 @@ typedef struct
     sctx_T	wo_script_ctx[WV_COUNT];	// SCTXs for window-local options
 # define w_p_script_ctx w_onebuf_opt.wo_script_ctx
 #endif
+    char_u	*wo_whl;
+#define w_p_whl w_onebuf_opt.wo_whl	// 'winhighlight'
 } winopt_T;
 
 /*
@@ -435,6 +447,25 @@ typedef struct {
 
 typedef struct u_entry u_entry_T;
 typedef struct u_header u_header_T;
+
+#ifdef FEAT_PROP_POPUP
+// Which line around an undo block a cleared continuation flag was on.
+# define UNDOPROP_NONE	0
+# define UNDOPROP_ABOVE	1
+# define UNDOPROP_BELOW	2
+
+// A continuation flag cleared on a line around an undo block, given back when
+// the block is undone or redone the other way.
+typedef struct
+{
+    int		up_which;	// UNDOPROP_ABOVE or UNDOPROP_BELOW
+    int		up_type;	// tp_type of the property
+    int		up_id;		// tp_id of the property
+    colnr_T	up_col;		// tp_col of the property
+    int		up_flag;	// TP_FLAG_CONT_NEXT or TP_FLAG_CONT_PREV
+} undoprop_T;
+#endif
+
 struct u_entry
 {
     u_entry_T	*ue_next;	// pointer to next entry in list
@@ -443,6 +474,9 @@ struct u_entry
     linenr_T	ue_lcount;	// linecount when u_save called
     undoline_T	*ue_array;	// array of lines in undo block
     long	ue_size;	// number of lines in ue_array
+#ifdef FEAT_PROP_POPUP
+    garray_T	ue_props;	// undoprop_T: flags cleared around the block
+#endif
 #ifdef U_DEBUG
     int		ue_magic;	// magic number to check allocation
 #endif
@@ -655,6 +689,7 @@ typedef struct expand
     xp_prefix_T	xp_prefix;
 #if defined(FEAT_EVAL)
     char_u	*xp_arg;		// completion function
+    int		xp_complete_opt;	// UCC_ flags for user command
     sctx_T	xp_script_ctx;		// SCTX for completion function
 #endif
     int		xp_backslash;		// one of the XP_BS_ values
@@ -668,6 +703,17 @@ typedef struct expand
     int		xp_selected;		// selected index in completion
     char_u	*xp_orig;		// originally expanded string
     char_u	**xp_files;		// list of files
+    char_u	**xp_files_abbr;	// optional parallel array of display
+					// strings (override xp_files for the
+					// pum text); NULL if unused
+    char_u	**xp_files_kind;	// optional parallel array of "kind"
+					// strings; NULL if unused
+    char_u	**xp_files_menu;	// optional parallel array of "menu"
+					// strings (shown after the match);
+					// NULL if unused
+    char_u	**xp_files_info;	// optional parallel array of "info"
+					// strings (shown in info popup);
+					// NULL if unused
     char_u	*xp_line;		// text being completed
 #define EXPAND_BUF_LEN 256
     char_u	xp_buf[EXPAND_BUF_LEN];	// buffer for returned match
@@ -708,6 +754,8 @@ typedef struct
     char_u	*xp_arg;	// user-defined expansion arg
     int		input_fn;	// when TRUE Invoked for input() function
 #endif
+    int		cmdbuff_replaced; // when TRUE cmdline was replaced externally
+				  // (e.g. by setcmdline())
 } cmdline_info_T;
 
 /*
@@ -883,13 +931,22 @@ typedef struct memline
 typedef struct textprop_S
 {
     colnr_T	tp_col;		// start column (one based, in bytes)
-    colnr_T	tp_len;		// length in bytes, when tp_id is negative used
-				// for left padding plus one
+    colnr_T	tp_len;		// length in bytes; for virtual text props
+				// this is STRLEN(vtext) (not including NUL)
     int		tp_id;		// identifier
     int		tp_type;	// property type
     int		tp_flags;	// TP_FLAG_ values
     int		tp_padleft;	// left padding between text line and virtual
 				// text
+    union			// For virtual text props (tp_id < 0):
+    {				// check TP_FLAG_VTEXT_PTR in tp_flags to
+				// determine which member is active.
+	colnr_T	tp_text_offset; // offset to vtext string from the
+				// prop_count position in the memline
+				// (when TP_FLAG_VTEXT_PTR is NOT set)
+	char_u	*tp_text;	// pointer to virtual text string
+				// (when TP_FLAG_VTEXT_PTR IS set)
+    } u;
 } textprop_T;
 
 #define TP_FLAG_CONT_NEXT	0x1	// property continues in next line
@@ -903,9 +960,41 @@ typedef struct textprop_S
 #define TP_FLAG_WRAP		0x080	// virtual text wraps - when missing
 					// text is truncated
 #define TP_FLAG_START_INCL	0x100	// "start_incl" copied from proptype
+#define TP_FLAG_DELETED		0x200	// marked for deletion in
+					// unpacked_memline_T
+#define TP_FLAG_VTEXT_PTR	0x400	// u.tp_text access is valid
+
+#define PROP_COUNT_SIZE	sizeof(uint16_t)    // size of prop_count in memline
 
 #define PROP_TEXT_MIN_CELLS	4	// minimum number of cells to use for
 					// the text, even when truncating
+
+/*
+ * An unpacked form of a single memline with text properties.
+ *
+ * When packed in a memline, the format is:
+ *   [line text] [NUL] [textprop_T...] [vtext strings...]
+ * Virtual text props use u.tp_text_offset (relative to the start of props
+ * area).  When unpacked, u.tp_text is a pointer: either into the memline
+ * data (LOADED) or to separately allocated memory (DETACHED).
+ *
+ * States:
+ * - LOADED: text and u.tp_text point into the memline. Read-only.
+ * - DETACHED: text and u.tp_text are separately allocated. Writable.
+ * - CLOSED: buf == NULL. Unusable (error recovery).
+ */
+typedef struct unpacked_memline_S
+{
+    buf_T	*buf;		// the line's buffer (NULL = closed)
+    linenr_T	lnum;		// line number (0 = no line loaded)
+    bool	detached;	// true when text/vtext are allocated
+    colnr_T	text_size;	// size of text including NUL
+    char_u	*text;		// NUL-terminated text
+    int		prop_size;	// number of allocated prop slots
+    int		prop_count;	// number of properties
+    textprop_T	*props;		// property array
+    bool	text_changed;	// true if text was modified
+} unpacked_memline_T;
 
 /*
  * Structure defining a property type.
@@ -1385,6 +1474,27 @@ typedef struct
     int		userhl;		// 0: no HL, 1-9: User HL, < 0 for syn ID
 } stl_hlrec_T;
 
+/*
+ * Used for statusline click function regions.
+ */
+typedef struct {
+    char_u	*start;		// position in output buffer where region starts
+    char_u	*funcname;	// function name (NULL = end/close marker)
+    int		minwid;		// minwid value from %N@Func@
+} stl_clickrec_T;
+
+/*
+ * Per-window resolved click regions (screen column based).
+ */
+typedef struct {
+    int		row;		// screen row where region lives
+    int		col_start;	// screen column where region starts
+    int		col_end;	// screen column where region ends
+    char_u	*funcname;	// function name (allocated copy)
+    int		minwid;		// minwid value
+    int		tabnr;		// tab page number (tabpanel only, 0 otherwise)
+} stl_click_region_T;
+
 
 /*
  * Syntax items - usually buffer-specific.
@@ -1530,8 +1640,8 @@ typedef enum
 // A type specification.
 struct type_S {
     vartype_T	    tt_type;
-    int8_T	    tt_argcount;    // for func, incl. vararg, -1 for unknown
-    int8_T	    tt_min_argcount; // number of non-optional arguments
+    int	    tt_argcount;    // for func, incl. vararg, -1 for unknown
+    int	    tt_min_argcount; // number of non-optional arguments
     short_u	    tt_flags;	    // TTFLAG_ values
     type_T	    *tt_member;	    // for list, dict, func return type
     class_T	    *tt_class;	    // for class and object
@@ -1675,6 +1785,7 @@ struct typealias_S
     int	    ta_refcount;
     type_T  *ta_type;
     char_u  *ta_name;
+    int	    ta_depth;	    // number of levels of "ta_type"
 };
 
 /*
@@ -2597,9 +2708,12 @@ typedef enum
 {
     CH_MODE_NL = 0,
     CH_MODE_RAW,
+    CH_MODE_BLOB,
     CH_MODE_JSON,
     CH_MODE_JS,
-    CH_MODE_LSP		// Language Server Protocol (http + json)
+    CH_MODE_LSP,	// Language Server Protocol (http + json)
+    CH_MODE_DAP		// Debug Adapter Protocol (like LSP, but does not
+			// strictly follow JSON-RPC standard)
 } ch_mode_T;
 
 typedef enum {
@@ -2698,14 +2812,22 @@ struct channel_S {
     int		ch_to_be_freed; // When TRUE channel must be freed when it's
 				// safe to invoke callbacks.
     int		ch_error;	// When TRUE an error was reported.  Avoids
-				// giving pages full of error messages when
-				// the other side has exited, only mention the
-				// first error until the connection works
-				// again.
+    // giving pages full of error messages when
+    // the other side has exited, only mention the
+    // first error until the connection works
+    // again.
+    int		ch_listen;	// When TRUE channel is listen socket.
 
     void	(*ch_nb_close_cb)(void);
 				// callback for Netbeans when channel is
 				// closed
+#ifdef FEAT_SOCKETSERVER
+    bool	ch_socketserver; // If channel is used by socketserver
+    void	(*ch_ss_close_cb)(channel_T *);
+    void	(*ch_ss_accept_cb)(channel_T *);
+    channel_T	*ch_ss_next;
+    channel_T	*ch_ss_prev;
+#endif
 
 #ifdef MSWIN
     int		ch_named_pipe;	// using named pipe instead of pty
@@ -2876,6 +2998,7 @@ struct listener_S
 {
     listener_T	*lr_next;
     int		lr_id;
+    bool	lr_text;	// include the resulting text in each change
     callback_T	lr_callback;
 };
 
@@ -3085,6 +3208,8 @@ typedef struct {
      * b_sst_array	pointer to an array of synstate_T
      * b_sst_len	number of entries in b_sst_array[]
      * b_sst_first	pointer to first used entry in b_sst_array[] or NULL
+     * b_sst_search	cached entry near the last accessed line, used as a
+     *			start point for forward lookups, or NULL
      * b_sst_firstfree	pointer to first free entry in b_sst_array[] or NULL
      * b_sst_freecount	number of free entries in b_sst_array[]
      * b_sst_check_lnum	entries after this lnum need to be checked for
@@ -3093,10 +3218,14 @@ typedef struct {
     synstate_T	*b_sst_array;
     int		b_sst_len;
     synstate_T	*b_sst_first;
+    synstate_T	*b_sst_search;
     synstate_T	*b_sst_firstfree;
     int		b_sst_freecount;
     linenr_T	b_sst_check_lnum;
     short_u	b_sst_lasttick;	// last display tick
+
+    // Cache for in_id_list(); see idl_cache_T in syntax.c.
+    void	*b_idlist_cache;
 #endif // FEAT_SYN_HL
 
 #ifdef FEAT_SPELL
@@ -3156,7 +3285,7 @@ struct file_buffer
 				// b_sfname
 
 #ifdef UNIX
-    int		b_dev_valid;	// TRUE when b_dev has a valid number
+    bool	b_dev_valid;	// true when b_dev has a valid number
     dev_t	b_dev;		// device number
     ino_t	b_ino;		// inode number
 #endif
@@ -3182,14 +3311,14 @@ struct file_buffer
     varnumber_T	b_last_changedtick_pum; // b:changedtick for TextChangedP
     varnumber_T	b_last_changedtick_i;   // b:changedtick for TextChangedI
 
-    int		b_saving;	// Set to TRUE if we are in the middle of
+    bool	b_saving;	// Set to true if we are in the middle of
 				// saving the buffer.
 
     /*
      * Changes to a buffer require updating of the display.  To minimize the
      * work, remember changes made and update everything at once.
      */
-    int		b_mod_set;	// TRUE when there are changes since the last
+    bool	b_mod_set;	// true when there are changes since the last
 				// time the display was updated
     linenr_T	b_mod_top;	// topmost lnum that was changed
     linenr_T	b_mod_bot;	// lnum below last changed line, AFTER the
@@ -3228,7 +3357,7 @@ struct file_buffer
      */
     pos_T	b_changelist[JUMPLISTSIZE];
     int		b_changelistlen;	// number of active entries
-    int		b_new_change;		// set by u_savecommon()
+    bool	b_new_change;		// set in u_savecommon()
 
     /*
      * Character table, only used in charset.c for 'iskeyword'
@@ -3250,12 +3379,12 @@ struct file_buffer
     pos_T	b_op_end;
 
 #ifdef FEAT_VIMINFO
-    int		b_marks_read;	// Have we read viminfo marks yet?
+    bool	b_marks_read;	// Have we read viminfo marks yet?
 #endif
 
-    int		b_modified_was_set;	// did ":set modified"
-    int		b_did_filetype;		// FileType event found
-    int		b_keep_filetype;	// value for did_filetype when starting
+    bool	b_modified_was_set;	// did ":set modified"
+    bool	b_did_filetype;		// FileType event found
+    bool	b_keep_filetype;	// value for did_filetype when starting
 					// to execute autocommands
 
     // Set by the apply_autocmds_group function if the given event is equal to
@@ -3264,7 +3393,7 @@ struct file_buffer
     //
     // Relying on this value requires one to reset it prior calling
     // apply_autocmds_group().
-    int		b_au_did_filetype;
+    bool	b_au_did_filetype;
 
     /*
      * The following only used in undo.c.
@@ -3274,7 +3403,7 @@ struct file_buffer
 				// if b_u_curhead is not NULL
     u_header_T	*b_u_curhead;	// pointer to current header
     int		b_u_numhead;	// current number of headers
-    int		b_u_synced;	// entry lists are synced
+    bool	b_u_synced;	// entry lists are synced
     long	b_u_seq_last;	// last used undo sequence number
     long	b_u_save_nr_last; // counter for last file write
     long	b_u_seq_cur;	// uh_seq of header below which we are now
@@ -3288,7 +3417,7 @@ struct file_buffer
     linenr_T	b_u_line_lnum;	// line number of line in u_line
     colnr_T	b_u_line_colnr;	// optional column number
 
-    int		b_scanned;	// ^N/^P have scanned this buffer
+    bool	b_scanned;	// ^N/^P have scanned this buffer
 
     // flags for use of ":lmap" and IM control
     long	b_p_iminsert;	// input mode for insert
@@ -3311,7 +3440,7 @@ struct file_buffer
      * They are here because their value depends on the type of file
      * or contents of the file being edited.
      */
-    int		b_p_initialized;	// set when options initialized
+    bool	b_p_initialized;	// set when options initialized
 
 #ifdef FEAT_EVAL
     sctx_T	b_p_script_ctx[BV_COUNT]; // SCTXs for buffer-local options
@@ -3347,6 +3476,7 @@ struct file_buffer
     char_u	*b_p_csl;	// 'completeslash'
 #endif
 #ifdef FEAT_COMPL_FUNC
+    long_u	b_p_cpt_flags;	// flags for 'complete'
     callback_T	*b_p_cpt_cb;	// F{func} in 'complete' callback
     int		b_p_cpt_count;	// Count of values in 'complete'
     char_u	*b_p_cfu;	// 'completefunc'
@@ -3532,12 +3662,12 @@ struct file_buffer
     listener_T	*b_listener;       // Listeners accepting buffered reports.
     listener_T	*b_sync_listener;  // Listeners requiring unbuffered reports.
     list_T	*b_recorded_changes;
+    size_t	b_recorded_text_size;  // bytes of text held by the above
 #endif
 #ifdef FEAT_PROP_POPUP
-    int		b_has_textprop;	// TRUE when text props were added
+    bool	b_has_textprop;	// true when text props were added
     hashtab_T	*b_proptypes;	// text property types local to buffer
     proptype_T	**b_proparray;	// entries of b_proptypes sorted on tp_id
-    garray_T	b_textprop_text; // stores text for props, index by (-id - 1)
 #endif
 
 #if defined(FEAT_BEVAL) && defined(FEAT_EVAL)
@@ -3551,23 +3681,23 @@ struct file_buffer
     // When a buffer is created, it starts without a swap file.  b_may_swap is
     // then set to indicate that a swap file may be opened later.  It is reset
     // if a swap file could not be opened.
-    int		b_may_swap;
-    int		b_did_warn;	// Set to 1 if user has been warned on first
+    bool	b_may_swap;
+    bool	b_did_warn;	// Set to true if user has been warned on first
 				// change of a read-only file
 
     // Two special kinds of buffers:
     // help buffer  - used for help files, won't use a swap file.
     // spell buffer - used for spell info, never displayed and doesn't have a
     //		      file name.
-    int		b_help;		// TRUE for help file buffer (when set b_p_bt
+    bool	b_help;		// true for help file buffer (when set b_p_bt
 				// is "help")
 #ifdef FEAT_SPELL
-    int		b_spell;	// TRUE for a spell file buffer, most fields
+    bool	b_spell;	// true for a spell file buffer, most fields
 				// are not used!  Use the B_SPELL macro to
 				// access b_spell without #ifdef.
 #endif
 
-    int		b_shortname;	// this file has an 8.3 file name
+    bool	b_shortname;	// this file has an 8.3 file name
 
 #ifdef FEAT_JOB_CHANNEL
     char_u	*b_prompt_text;		// set by prompt_setprompt()
@@ -3608,19 +3738,21 @@ struct file_buffer
 
 #ifdef FEAT_SIGNS
     sign_entry_T *b_signlist;	   // list of placed signs
+    sign_entry_T *b_sign_finger;   // last sign inserted, used to speed up
+				   // inserting signs in ascending line order
 # ifdef FEAT_NETBEANS_INTG
-    int		b_has_sign_column; // Flag that is set when a first sign is
+    bool	b_has_sign_column; // Flag that is set when a first sign is
 				   // added and remains set until the end of
 				   // the netbeans session.
 # endif
 #endif
 
 #ifdef FEAT_NETBEANS_INTG
-    int		b_netbeans_file;    // TRUE when buffer is owned by NetBeans
-    int		b_was_netbeans_file;// TRUE if b_netbeans_file was once set
+    bool	b_netbeans_file;    // true when buffer is owned by NetBeans
+    bool	b_was_netbeans_file;// true if b_netbeans_file was once set
 #endif
 #ifdef FEAT_JOB_CHANNEL
-    int		b_write_to_channel; // TRUE when appended lines are written to
+    bool	b_write_to_channel; // true when appended lines are written to
 				    // a channel.
 #endif
 
@@ -3635,7 +3767,7 @@ struct file_buffer
 				// window.
 #endif
 #ifdef FEAT_DIFF
-    int		b_diff_failed;	// internal diff failed for this buffer
+    bool	b_diff_failed;	// internal diff failed for this buffer
 #endif
 }; // file_buffer
 
@@ -3914,6 +4046,9 @@ typedef struct
     int		tab3;
     int		trail;
     int		lead;
+    int		leadtab1;
+    int		leadtab2;
+    int		leadtab3;
     int		*multispace;
     int		*leadmultispace;
 #ifdef FEAT_CONCEAL
@@ -3945,6 +4080,17 @@ typedef struct
 } fill_chars_T;
 
 /*
+ * Represents current highlight overrides (used by 'winhighlight' option). The
+ * highlight group with ID "from" will be overridden by the highlight group with
+ * ID "to"
+ */
+typedef struct
+{
+    int from; // If zero or negative then it is hlf_T enum
+    int to; // Same thing as "from"
+} hl_override_T;
+
+/*
  * Structure which contains all information that belongs to a window
  *
  * All row numbers are relative to the start of the window, except w_winrow.
@@ -3972,7 +4118,7 @@ struct window_S
 				    // used to try to stay in the same column
 				    // for up/down cursor motions.
 
-    int		w_set_curswant;	    // If set, then update w_curswant the next
+    bool	w_set_curswant;	    // If set, then update w_curswant the next
 				    // time through cursupdate() to the
 				    // current virtual column
 
@@ -4003,7 +4149,7 @@ struct window_S
      */
     linenr_T	w_topline;	    // buffer line number of the line at the
 				    // top of the window
-    char	w_topline_was_set;  // flag set to TRUE when topline is set,
+    bool	w_topline_was_set;  // flag set to true when topline is set,
 				    // e.g. by winrestview()
 
     linenr_T	w_botline;	    // number of the line below the bottom of
@@ -4012,9 +4158,9 @@ struct window_S
 #ifdef FEAT_DIFF
     int		w_topfill;	    // number of filler lines above w_topline
     int		w_old_topfill;	    // w_topfill at last redraw
-    int		w_botfill;	    // TRUE when filler lines are actually
+    bool	w_botfill;	    // true when filler lines are actually
 				    // below w_topline (at end of file)
-    int		w_old_botfill;	    // w_botfill at last redraw
+    bool	w_old_botfill;	    // w_botfill at last redraw
 #endif
     colnr_T	w_leftcol;	    // screen column number of the left most
 				    // character in the window; used when
@@ -4048,14 +4194,20 @@ struct window_S
 				    // status/command/winbar line(s)
     int		w_prev_winrow;	    // previous winrow used for 'splitkeep'
     int		w_prev_height;	    // previous height used for 'splitkeep'
-
-    int		w_status_height;    // number of status lines (0 or 1)
+    int		w_stl_rendered_height; // rendered height of window-local 'stl'
+				    // (number of "%@" + 1)
+    stl_click_region_T *w_stl_click;  // statusline click regions
+    int		w_stl_click_count;  // number of click regions
+    int		w_status_height;    // number of status lines.
+				    // If 'statuslineopt' was changed, this
+				    // member holds the previous value until
+				    // frame_change_statusline_height() calls.
     int		w_wincol;	    // Leftmost column of window in screen.
     int		w_width;	    // Width of window, excluding separation.
     int		w_vsep_width;	    // Number of separator columns (0 or 1).
 
     pos_save_T	w_save_cursor;	    // backup of cursor pos and topline
-    int		w_do_win_fix_cursor;// if TRUE cursor may be invalid
+    bool	w_do_win_fix_cursor;// if true cursor may be invalid
 
 #ifdef FEAT_PROP_POPUP
     int		w_popup_flags;	    // POPF_ values
@@ -4063,7 +4215,7 @@ struct window_S
     int		w_popup_handled;    // POPUP_HANDLE[0-9] flags
     char_u	*w_popup_title;
     poppos_T	w_popup_pos;
-    int		w_popup_fixed;	    // do not shift popup to fit on screen
+    bool	w_popup_fixed;	    // do not shift popup to fit on screen
     int		w_popup_prop_type;  // when not zero: textprop type ID
     win_T	*w_popup_prop_win;  // window to search for textprop
     int		w_popup_prop_id;    // when not zero: textprop ID
@@ -4077,17 +4229,26 @@ struct window_S
     int		w_wantcol;	    // "col" for popup window
     int		w_firstline;	    // "firstline" for popup window
     int		w_want_scrollbar;   // when zero don't use a scrollbar
-    int		w_has_scrollbar;    // 1 if scrollbar displayed, 0 otherwise
+    bool	w_has_scrollbar;    // true if scrollbar displayed
     char_u	*w_scrollbar_highlight; // "scrollbarhighlight"
     char_u	*w_thumb_highlight; // "thumbhighlight"
     int		w_popup_padding[4]; // popup padding top/right/bot/left
     int		w_popup_border[4];  // popup border top/right/bot/left
     char_u	*w_border_highlight[4];  // popup border highlight
+    bool	w_border_highlight_isset; // borderhighlight was explicitly set
     int		w_border_char[8];   // popup border characters
     int		w_popup_shadow;     // popup shadow (right and bottom edges)
 
     int		w_popup_leftoff;    // columns left of the screen
     int		w_popup_rightoff;   // columns right of the screen
+    int		w_popup_topoff;	    // rows above the host window's top
+				    // when "clipwindow" is set
+    int		w_popup_bottomoff;  // rows below the host window's bottom
+				    // when "clipwindow" is set
+    int		w_popup_leftclip;   // columns left of the host window's left
+				    // when "clipwindow" is set
+    int		w_popup_rightclip;  // columns right of the host window's right
+				    // when "clipwindow" is set
     varnumber_T	w_popup_last_changedtick; // b:changedtick of popup buffer
 					  // when position was computed
     varnumber_T	w_popup_prop_changedtick; // b:changedtick of buffer with
@@ -4096,6 +4257,14 @@ struct window_S
     int		w_popup_prop_topline; // w_topline of window with
 				      // w_popup_prop_type when position was
 				      // computed
+    int		w_popup_prop_winrow;  // w_winrow of host window when
+				      // position was computed
+    int		w_popup_prop_wincol;  // w_wincol of host window when
+				      // position was computed
+    int		w_popup_prop_width;   // w_width of host window when
+				      // position was computed
+    int		w_popup_prop_winheight; // w_height of host window when
+				      // position was computed
     linenr_T	w_popup_last_curline; // last known w_cursor.lnum of window
 				      // with "cursorline" set
     callback_T	w_close_cb;	    // popup close callback
@@ -4116,6 +4285,7 @@ struct window_S
     char_u	*w_popup_mask_cells; // cached mask cells
     int		w_popup_mask_height; // height of w_popup_mask_cells
     int		w_popup_mask_width;  // width of w_popup_mask_cells
+
 # if defined(FEAT_TIMERS)
     timer_T	*w_popup_timer;	    // timer for closing popup window
 # endif
@@ -4126,6 +4296,10 @@ struct window_S
 				    // w_wcol
 # define WFLAG_WROW_OFF_ADDED	2   // popup border and padding were added to
 				    // w_wrow
+
+# ifdef FEAT_IMAGE
+    image_placement_T *w_popup_imagep;
+# endif
 #endif
 
     /*
@@ -4149,7 +4323,7 @@ struct window_S
      */
     int		w_cline_height;	    // current size of cursor line
 #ifdef FEAT_FOLDING
-    int		w_cline_folded;	    // cursor line is folded
+    bool	w_cline_folded;	    // cursor line is folded
 #endif
 
     int		w_cline_row;	    // starting row of the cursor line
@@ -4172,6 +4346,10 @@ struct window_S
      * buffer, thus w_wrow is relative to w_winrow.
      */
     int		w_wrow, w_wcol;	    // cursor position in window
+#ifdef FEAT_CONCEAL
+    int		w_wcol_conceal_off; // screen cells concealed before w_wcol on
+				    // the cursor's screen line, set by win_line()
+#endif
 
     /*
      * Info about the lines currently in the window is remembered to avoid
@@ -4188,9 +4366,9 @@ struct window_S
 
 #ifdef FEAT_FOLDING
     garray_T	w_folds;	    // array of nested folds
-    char	w_fold_manual;	    // when TRUE: some folds are opened/closed
+    bool	w_fold_manual;	    // when true: some folds are opened/closed
 				    // manually
-    char	w_foldinvalid;	    // when TRUE: folding needs to be
+    bool	w_foldinvalid;	    // when true: folding needs to be
 				    // recomputed
 #endif
 #ifdef FEAT_LINEBREAK
@@ -4198,7 +4376,7 @@ struct window_S
 				    // column being used
 #endif
 #ifdef FEAT_TERMINAL
-    termcellcolor_T w_term_wincolor;	 // cache for term color of 'wincolor'
+    termcellcolor_T w_term_hlfwin;  // cache for term color of HLF_WIN
 #endif
 
     /*
@@ -4210,7 +4388,7 @@ struct window_S
 				    // w_redr_type is UPD_REDRAW_TOP
     linenr_T	w_redraw_top;	    // when != 0: first line needing redraw
     linenr_T	w_redraw_bot;	    // when != 0: last line needing redraw
-    int		w_redr_status;	    // if TRUE status line must be redrawn
+    bool	w_redr_status;	    // if true status line must be redrawn
 
     // remember what is shown in the ruler for this window (if 'ruler' set)
     pos_T	w_ru_cursor;	    // cursor position shown in ruler
@@ -4220,14 +4398,14 @@ struct window_S
 #ifdef FEAT_DIFF
     int		w_ru_topfill;	    // topfill shown in ruler
 #endif
-    char	w_ru_empty;	    // TRUE if ruler shows 0-1 (empty line)
+    bool	w_ru_empty;	    // true if ruler shows 0-1 (empty line)
 
     int		w_alt_fnum;	    // alternate file (for # and CTRL-^)
 
     alist_T	*w_alist;	    // pointer to arglist for this window
     int		w_arg_idx;	    // current index in argument list (can be
 				    // out of range!)
-    int		w_arg_idx_invalid;  // editing another file than w_arg_idx
+    bool	w_arg_idx_invalid;  // editing another file than w_arg_idx
 
     char_u	*w_localdir;	    // absolute path of local directory or
 				    // NULL
@@ -4353,6 +4531,11 @@ struct window_S
 #ifdef FEAT_RUBY
     void	*w_ruby_ref;
 #endif
+
+    hl_override_T *w_hl;
+    int		w_hl_len;
+    int		w_hlfwin_id; // Cached HLF_WIN highlight group id, zero if none,
+			     // or -1 if it was set to itself.
 };
 
 /*
@@ -4529,7 +4712,9 @@ struct VimMenu
 #  if defined(GTK_CHECK_VERSION) && !GTK_CHECK_VERSION(3,4,0)
     GtkWidget	*tearoff_handle;
 #  endif
+#  ifndef USE_GTK4
     GtkWidget   *label;		    // Used by "set wak=" code.
+#  endif
 # endif
 # ifdef FEAT_GUI_MOTIF
     int		sensitive;	    // turn button on/off
@@ -4624,8 +4809,11 @@ typedef struct
     int		do_syntax;
 #endif
     int		user_abort;
+#ifdef FEAT_PRINT_PANGO
+    int		user_abort_msg;
+#endif
     char_u	*jobname;
-#ifdef FEAT_POSTSCRIPT
+#if defined(FEAT_POSTSCRIPT) || defined(FEAT_PRINT_PANGO)
     char_u	*outfile;
     char_u	*arguments;
 #endif
@@ -5151,7 +5339,13 @@ typedef struct {
     char	cts_has_prop_with_text;	// TRUE if a property inserts text
     int		cts_cur_text_width;	// width of current inserted text
     int		cts_prop_lines;		// nr of properties above or below
+    bool	cts_has_below;		// true if a text property below was
+					// counted, its width fills up the line
     int		cts_first_char;		// width text props above the line
+    int		cts_above_width;	// width of text props above the line,
+					// kept for the whole line
+    bool	cts_no_above;		// do not count the width of text props
+					// above the line
     int		cts_with_trailing;	// include size of trailing props with
 					// last character
     int		cts_start_incl;		// prop has true "start_incl" arg
@@ -5256,8 +5450,11 @@ typedef struct {
 #endif
 } spellvars_T;
 
-// Return the length of a string literal
-#define STRLEN_LITERAL(s) (sizeof(s) - 1)
+// Return the length of a string literal.
+// This macro only computes a string's length for a string-literal token; for
+// anything else, including a char*, compilation will fail (note "" following
+// s).
+#define STRLEN_LITERAL(s) (sizeof(s "") - 1)
 
 // Store a key/value (string) pair
 typedef struct
@@ -5302,3 +5499,12 @@ typedef enum {
 
 # endif
 #endif
+
+// Used in term_set_sync_output()
+typedef enum
+{
+    TERM_SYNC_OUTPUT_ENABLE = 1 << 0,
+    TERM_SYNC_OUTPUT_DISABLE = 1 << 1,
+    TERM_SYNC_OUTPUT_OFF = 1 << 2,
+    TERM_SYNC_OUTPUT_FLUSH = 1 << 3,
+} term_sync_output_T;

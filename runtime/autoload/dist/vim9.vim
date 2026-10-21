@@ -3,7 +3,7 @@ vim9script
 # Vim runtime support library
 #
 # Maintainer:   The Vim Project <https://github.com/vim/vim>
-# Last Change:  2026 Jan 31
+# Last Change:  2026 Jul 01
 
 export def IsSafeExecutable(filetype: string, executable: string): bool
   if empty(exepath(executable))
@@ -51,7 +51,7 @@ if has('unix')
         execute $'silent !cmd /c start "" /b {args} {Redir()}' | redraw!
       enddef
     endif
-  elseif exists('$WSL_DISTRO_NAME') # use cmd.exe to start GUI apps in WSL
+  elseif exists('$WSL_DISTRO_NAME') && executable('cmd.exe') # use cmd.exe to start GUI apps in WSL
     export def Launch(args: string)
       const command = (args =~? '\v<\f+\.(exe|com|bat|cmd)>')
         ? $'cmd.exe /c start /b {args} {Redir()}'
@@ -60,7 +60,9 @@ if has('unix')
     enddef
   else
     export def Launch(args: string)
-      execute $':silent ! nohup {args} {Redir()} &' | redraw!
+      # Use job_start, because using !xdg-open is known not to work with zsh
+      # ignore signals on exit
+      job_start(['sh', '-c', args], {'stoponexit': '', 'in_io': 'null', 'out_io': 'null', 'err_io': 'null'})
     enddef
   endif
 elseif has('win32')
@@ -87,15 +89,15 @@ if has('win32unix')
 # Windows
 elseif has('win32')
   os_viewer = '' # Use :!start
+# MacOS
+elseif has('osx')
+  os_viewer = 'open'
 # WSL
 elseif executable('explorer.exe')
   os_viewer = 'explorer.exe'
 # Linux / BSD
 elseif executable('xdg-open')
   os_viewer = 'xdg-open'
-# MacOS
-elseif executable('open')
-  os_viewer = 'open'
 endif
 
 def Viewer(): string
@@ -129,15 +131,18 @@ enddef
 export def Open(file: string)
   # disable shellslash for shellescape, required on Windows #17995
   if exists('+shellslash') && &shellslash
-    &shellslash = false
     defer setbufvar('%', '&shellslash', true)
+    &shellslash = false
   endif
   if &shell == 'pwsh' || &shell == 'powershell'
-    const shell = &shell
+    defer setbufvar('%', '&shell', &shell)
     setlocal shell&
-    defer setbufvar('%', '&shell', shell)
   endif
-  Launch($"{Viewer()} {shellescape(file, 1)}")
+  if has('unix') && !has('win32unix') && !exists('$WSL_DISTRO_NAME')
+    Launch($"{Viewer()} {shellescape(file)}")
+  else
+    Launch($"{Viewer()} {shellescape(file, 1)}")
+  endif
 enddef
 
 # Uncomment this line to check for compilation errors early

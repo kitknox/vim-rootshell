@@ -632,6 +632,47 @@ func Test_multi_assign_from_tuple()
   END
   call v9.CheckSourceSuccess(lines)
 
+  " The rest gets the type of the remaining items, not of the whole tuple
+  let lines =<< trim END
+    vim9script
+    def Fn()
+      var t: tuple<dict<any>, list<any>> = ({}, [])
+      var [a; b] = t
+      assert_equal('tuple<list<any>>', typename(b))
+      b = ([],)
+    enddef
+    Fn()
+  END
+  call v9.CheckSourceSuccess(lines)
+
+  " The rest of a tuple literal also gets the remaining item types
+  let lines =<< trim END
+    vim9script
+    def Fn()
+      var [a; b] = (true, false, true)
+      assert_equal((false, true), b)
+      assert_equal('tuple<bool, bool>', typename(b))
+    enddef
+    Fn()
+  END
+  call v9.CheckSourceSuccess(lines)
+
+  " The rest of a value with type "any" can be a tuple
+  let lines =<< trim END
+    vim9script
+    var d: dict<tuple<dict<any>, list<any>>>
+    def Fn(): tuple<dict<any>, list<any>>
+      return ({}, [])
+    enddef
+    def Test()
+      var [a; b] = d->get('a', (-1, {}, []))
+      b = Fn()
+      assert_equal('tuple<dict<any>, list<any>>', typename(b))
+    enddef
+    Test()
+  END
+  call v9.CheckSourceSuccess(lines)
+
   let lines =<< trim END
     VAR [v1, v2] = ('a', 'b', 'c')
   END
@@ -778,6 +819,20 @@ func Test_tuple_for()
       LET sum += v2
     endfor
     call assert_equal(0, sum)
+
+    #" iterating over string items; the copied item must not be leaked
+    VAR res = ''
+    for v3 in ('a', 'bb', 'ccc')
+      LET res ..= v3
+    endfor
+    call assert_equal('abbccc', res)
+
+    #" iterating over container items must not leak a reference
+    VAR flat = []
+    for v4 in (['a'], ['b', 'c'])
+      LET flat += v4
+    endfor
+    call assert_equal(['a', 'b', 'c'], flat)
   END
   call v9.CheckSourceLegacyAndVim9Success(lines)
 
@@ -786,6 +841,18 @@ func Test_tuple_for()
     vim9script
     var count = 0
     for _ in (1, 2, 3)
+      count += 1
+    endfor
+    assert_equal(3, count)
+  END
+  call v9.CheckSourceSuccess(lines)
+
+  " ignoring the for loop assignment using '_'; string items must not be
+  " leaked
+  let lines =<< trim END
+    vim9script
+    var count = 0
+    for _ in ('a', 'bb', 'ccc')
       count += 1
     endfor
     assert_equal(3, count)
@@ -1688,9 +1755,9 @@ func Test_tuple_extend()
     call extendnew(t, (4, 5))
   END
   call v9.CheckSourceLegacyAndVim9Failure(lines, [
-        \ 'E712: Argument of extend() must be a List or Dictionary',
+        \ 'E896: Argument of extend() must be a List, Dictionary or Blob',
         \ 'E1013: Argument 1: type mismatch, expected list<any> but got tuple<number, number, number>',
-        \ 'E712: Argument of extend() must be a List or Dictionary'])
+        \ 'E896: Argument of extend() must be a List, Dictionary or Blob'])
 endfunc
 
 " Test for filter() with a tuple
@@ -2100,6 +2167,10 @@ func Test_tuple_repeat()
     call assert_equal((), repeat(test_null_tuple(), 3))
   END
   call v9.CheckSourceLegacyAndVim9Success(lines)
+
+  " Overflow
+  call assert_fails('call repeat((1, 2, 3, 4, 5, 6), 715827883)', 'E1510:')
+  call assert_fails('call repeat((1,), 4294967297)', 'E1510:')
 endfunc
 
 " Test for reverse()
@@ -2237,6 +2308,14 @@ func Test_tuple_typename()
     assert_equal('list<tuple<any>>', typename(l))
   END
   call v9.CheckSourceDefAndScriptSuccess(lines)
+
+  " Shared (non-circular) references must not be treated as circular.
+  " repeat() makes all elements point to the same inner tuple object.
+  let lines =<< trim END
+    call assert_equal('tuple<tuple<number, number>, tuple<number, number>, tuple<number, number>>', ((1, 2),)->repeat(3)->typename())
+    call assert_equal('list<tuple<number, number>>', [(1, 2)]->repeat(3)->typename())
+  END
+  call v9.CheckSourceLegacyAndVim9Success(lines)
 
   " When a tuple item is used in a "for" loop, the type is tuple<any>
   let lines =<< trim END
@@ -2453,6 +2532,46 @@ func Test_tuple_multi_assign_in_for_loop_from_import()
           res)
   END
   call v9.CheckSourceScriptSuccess(lines)
+endfunc
+
+" Memory allocation failure while collecting the rest of a tuple in an unpack
+func Test_tuple_unpack_memory_fail()
+  let t = ('1', '2', '3')
+  call test_alloc_fail(GetAllocId('tuple_append'), 0, 0)
+  call assert_fails('let [a; rest] = t', 'E342:')
+  unlet t
+endfunc
+
+" Memory allocation failure while creating a tuple type
+func Test_tuple_type_memory_fail()
+  let lines =<< trim END
+    var t = (1, 'a')
+  END
+  call test_alloc_fail(GetAllocId('tuple_type_args'), 0, 0)
+  call v9.CheckSourceDefFailure(lines, 'E342:')
+
+  let lines =<< trim END
+    var t = (1,) + ('a',)
+  END
+  call test_alloc_fail(GetAllocId('tuple_type_args'), 2, 0)
+  call v9.CheckSourceDefFailure(lines, 'E342:')
+endfunc
+
+" Test for a tuple type with more than 127 items
+func Test_tuple_type_many_items()
+  let types = repeat(['number'], 300)->join(', ')
+  let lines =<< trim eval END
+    var t: tuple<{types}> = ({range(300)->join(', ')})
+    assert_equal(299, t[299])
+    assert_equal('tuple<{types}>', typename(t))
+  END
+  call v9.CheckSourceDefAndScriptSuccess(lines)
+
+  let types = repeat(['number'], 200)->join(', ')
+  let lines =<< trim eval END
+    var t: tuple<{types}> = ({repeat(["'x'"], 200)->join(', ')})
+  END
+  call v9.CheckSourceDefAndScriptFailure(lines, 'E1012:', 1)
 endfunc
 
 " vim: shiftwidth=2 sts=2 expandtab

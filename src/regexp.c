@@ -387,7 +387,7 @@ static __thread int	reg_strict = 0;	// "[abc" is illegal
  */
 
 // META[] is used often enough to justify turning it into a table.
-static __thread char_u META_flags[] = {
+static const char_u META_flags[] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 //		   %  &     (  )  *  +	      .
@@ -417,6 +417,9 @@ static __thread int	nextchr = 0;	// used for ungetchr()
 #define REG_PAREN	1	// \(\)
 #define REG_ZPAREN	2	// \z(\)
 #define REG_NPAREN	3	// \%(\)
+
+// Limit recursive parsing of nested regexp atoms to avoid using up the C stack.
+#define REG_MAX_PAREN_DEPTH	1000
 
 typedef struct
 {
@@ -917,7 +920,7 @@ peekchr(void)
 		     * Next character can never be (made) magic?
 		     * Then backslashing it won't do anything.
 		     */
-		    if (has_mbyte)
+		    if (has_mbyte && c >= 0x80)
 			curchr = (*mb_ptr2char)(regparse + 1);
 		    else
 			curchr = c;
@@ -926,7 +929,9 @@ peekchr(void)
 	    }
 
 	default:
-	    if (has_mbyte)
+	    // curchr already holds regparse[0]; only a multi-byte lead byte
+	    // needs decoding.
+	    if (has_mbyte && curchr >= 0x80)
 		curchr = (*mb_ptr2char)(regparse);
     }
 
@@ -947,8 +952,14 @@ skipchr(void)
     if (regparse[prevchr_len] != NUL)
     {
 	if (enc_utf8)
-	    // exclude composing chars that mb_ptr2len does include
-	    prevchr_len += utf_ptr2len(regparse + prevchr_len);
+	{
+	    // Exclude composing chars that mb_ptr2len does include.  A byte
+	    // below 0x80 is always a single character.
+	    if (regparse[prevchr_len] < 0x80)
+		++prevchr_len;
+	    else
+		prevchr_len += utf_ptr2len(regparse + prevchr_len);
+	}
 	else if (has_mbyte)
 	    prevchr_len += (*mb_ptr2len)(regparse + prevchr_len);
 	else
@@ -1504,8 +1515,8 @@ reg_match_visual(void)
     }
     else if (mode == Ctrl_V)
     {
-	getvvcol(wp, &top, &start, NULL, &end);
-	getvvcol(wp, &bot, &start2, NULL, &end2);
+	getvvcol(wp, &top, &start, NULL, &end, 0);
+	getvvcol(wp, &bot, &start2, NULL, &end2, 0);
 	if (start2 < start)
 	    start = start2;
 	if (end2 > end)
@@ -1777,6 +1788,7 @@ mb_decompose(int c, int *c1, int *c2, int *c3)
 /*
  * Compare two strings, ignore case if rex.reg_ic set.
  * Return 0 if strings match, non-zero otherwise.
+ * "*n" is the byte length of s1 on entry and of the match in s2 on success.
  * Correct the length "*n" when composing characters are ignored
  * or for utf8 when both utf codepoints are considered equal because of
  * case-folding but have different length (e.g. 's' and 'ſ')
@@ -1796,7 +1808,7 @@ cstrncmp(char_u *s1, char_u *s2, int *n)
 	// count the number of characters for byte-length of s1
 	while (n1 > 0 && *p != NUL)
 	{
-	    n1 -= mb_ptr2len(s1);
+	    n1 -= mb_ptr2len(p);
 	    MB_PTR_ADV(p);
 	    n2++;
 	}
@@ -1808,7 +1820,7 @@ cstrncmp(char_u *s1, char_u *s2, int *n)
 	n2 = p - s2;
 
 	result = MB_STRNICMP2(s1, s2, *n, n2);
-	if (result == 0 && n2 < *n)
+	if (result == 0)
 	    *n = n2;
     }
     else
@@ -2917,6 +2929,116 @@ init_regexec_multi(
     rex.reg_maxcol = rmp->rmm_maxcol;
 }
 
+#define CLASS_not		0x80
+#define CLASS_af		0x40
+#define CLASS_AF		0x20
+#define CLASS_az		0x10
+#define CLASS_AZ		0x08
+#define CLASS_o7		0x04
+#define CLASS_o9		0x02
+#define CLASS_underscore	0x01
+
+/*
+ * Parse the "[...]" collection between "start" (the first character after the
+ * "[") and "end" (the "]") into a combination of CLASS_ bits, so that it can
+ * be turned into a faster character class like \d or \x.  Sets "*newl" to TRUE
+ * when the collection also matches a newline.  Returns -1 when the collection
+ * is not a plain combination of the recognized ranges.
+ */
+    static int
+get_char_class_bits(char_u *start, char_u *end, int *newl)
+{
+    char_u	*p = start;
+    int		config = 0;
+
+    *newl = FALSE;
+    if (*end != ']')
+	return -1;
+    if (*p == '^')
+    {
+	config |= CLASS_not;
+	p++;
+    }
+
+    while (p < end)
+    {
+	if (p + 2 < end && *(p + 1) == '-')
+	{
+	    switch (*p)
+	    {
+		case '0':
+		    if (*(p + 2) == '9')
+		    {
+			config |= CLASS_o9;
+			break;
+		    }
+		    if (*(p + 2) == '7')
+		    {
+			config |= CLASS_o7;
+			break;
+		    }
+		    return -1;
+
+		case 'a':
+		    if (*(p + 2) == 'z')
+		    {
+			config |= CLASS_az;
+			break;
+		    }
+		    if (*(p + 2) == 'f')
+		    {
+			config |= CLASS_af;
+			break;
+		    }
+		    return -1;
+
+		case 'A':
+		    if (*(p + 2) == 'Z')
+		    {
+			config |= CLASS_AZ;
+			break;
+		    }
+		    if (*(p + 2) == 'F')
+		    {
+			config |= CLASS_AF;
+			break;
+		    }
+		    return -1;
+
+		default:
+		    return -1;
+	    }
+	    p += 3;
+	}
+	else if (p + 1 < end && *p == '\\' && *(p + 1) == 'n')
+	{
+	    *newl = TRUE;
+	    p += 2;
+	}
+	else if (*p == '_')
+	{
+	    config |= CLASS_underscore;
+	    p++;
+	}
+	else if (*p == '\n')
+	{
+	    *newl = TRUE;
+	    p++;
+	}
+	else
+	    return -1;
+    } // while (p < end)
+
+    if (p != end)
+	return -1;
+
+    // U+017F and U+212A fold to ASCII 's' and 'k', missed by the class opcodes
+    if (enc_utf8 && (config & (CLASS_az | CLASS_AZ)))
+	return -1;
+
+    return config;
+}
+
 #include "regexp_bt.c"
 
 #include "regexp_nfa.c"
@@ -2926,7 +3048,7 @@ init_regexec_multi(
 static __thread int regexp_engine = 0;
 
 #ifdef DEBUG
-static __thread char_u regname[][30] = {
+static const char_u regname[][30] = {
 		    "AUTOMATIC Regexp Engine",
 		    "BACKTRACKING Regexp Engine",
 		    "NFA Regexp Engine"
@@ -3051,6 +3173,12 @@ free_regexp_stuff(void)
     ga_clear(&backpos);
     vim_free(reg_tofree);
     vim_free(reg_prev_sub);
+    vim_free(post_start);   // NFA postfix buffer, reused across compilations
+    post_start = NULL;
+    post_start_len = 0;
+    vim_free(nfa_stack);    // NFA fragment stack, reused across compilations
+    nfa_stack = NULL;
+    nfa_stack_len = 0;
 #if TARGET_OS_IPHONE
     // iOS: Reset regexp state for next vim invocation
     reg_tofree = NULL;
@@ -3135,15 +3263,23 @@ vim_regexec_string(
 	char_u *pat = vim_strsave(((nfa_regprog_T *)rmp->regprog)->pattern);
 
 	p_re = BACKTRACKING_ENGINE;
-	vim_regfree(rmp->regprog);
 	if (pat != NULL)
 	{
+	    regprog_T *prev_prog = rmp->regprog;
+
 #ifdef FEAT_EVAL
 	    report_re_switch(pat);
 #endif
 	    rmp->regprog = vim_regcomp(pat, re_flags);
-	    if (rmp->regprog != NULL)
+	    if (rmp->regprog == NULL)
 	    {
+		// Somehow compiling the pattern failed now, put back the
+		// previous one to avoid "regprog" becoming NULL.
+		rmp->regprog = prev_prog;
+	    }
+	    else
+	    {
+		vim_regfree(prev_prog);
 		rmp->regprog->re_in_use = TRUE;
 		result = rmp->regprog->engine->regexec_nl(rmp, line, col, nl);
 		rmp->regprog->re_in_use = FALSE;

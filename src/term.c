@@ -67,7 +67,7 @@ static void got_code_from_term(char_u *code, int len);
 static void check_for_codes_from_term(void);
 #endif
 static void del_termcode_idx(int idx);
-static int find_term_bykeys(char_u *src);
+static int find_term_bykeys(char_u *src, int *len);
 static int term_is_builtin(char_u *name);
 static int term_7to8bit(char_u *p);
 static void accept_modifiers_for_function_keys(void);
@@ -142,10 +142,12 @@ static __thread termrequest_T rfg_status = TERMREQUEST_INIT;
 static __thread int fg_r = 0;
 static __thread int fg_g = 0;
 static __thread int fg_b = 0;
+# endif
+// Background color values from the OSC 11 response, also used by the
+// image backend to flatten RGBA alpha onto the actual terminal background.
 static __thread int bg_r = 255;
 static __thread int bg_g = 255;
 static __thread int bg_b = 255;
-# endif
 
 // Request background color report:
 static __thread termrequest_T rbg_status = TERMREQUEST_INIT;
@@ -159,12 +161,15 @@ static __thread termrequest_T rcs_status = TERMREQUEST_INIT;
 // Request window's position report:
 static __thread termrequest_T winpos_status = TERMREQUEST_INIT;
 
+// Request DECRQM (DEC mode) report:
+static __thread termrequest_T decrqm_status = TERMREQUEST_INIT;
+
 // Get the array of all termrequests - initialized on first call
 // (TLS variables can't be used in static initializers on iOS)
     static termrequest_T **
 get_all_termrequests(void)
 {
-    static __thread termrequest_T *all_termrequests[10];
+    static __thread termrequest_T *all_termrequests[11];
     static __thread int initialized = FALSE;
 
     if (!initialized)
@@ -180,6 +185,7 @@ get_all_termrequests(void)
 	all_termrequests[i++] = &rbm_status;
 	all_termrequests[i++] = &rcs_status;
 	all_termrequests[i++] = &winpos_status;
+	all_termrequests[i++] = &decrqm_status;
 	all_termrequests[i] = NULL;
 	initialized = TRUE;
     }
@@ -240,6 +246,31 @@ static __thread int initial_cursor_shape_blink = FALSE;
 
 // The blink flag from the blinking-cursor mode response
 static __thread int initial_cursor_blink = FALSE;
+#endif
+
+// 0	Mode is not recognized	not supported
+//
+// 1	Set			supported and screen updates are not shown to
+//				the user until mode is disabled
+//
+// 2	Reset			supported and screen updates are shown as usual
+//				(e.g. as soon as they arrive)
+//
+// 3	Permanently set		undefined
+//
+// 4	Permanently reset	not supported
+//
+static __thread int sync_output_setting = 0;
+
+// > 0: Currently batching output
+// == 0: No synchronized output
+static __thread int sync_output_state = 0;
+
+#ifdef UNIX
+// DEC mode 2048 (in-band window resize events)
+// https://gist.github.com/rockorager/e695fb2924d36b2bcf1fff4a3704bd83
+static __thread int win_resize_setting = 0;
+static __thread bool win_resize_enabled = false;
 #endif
 
 /*
@@ -698,6 +729,29 @@ static tcap_entry_T builtin_kitty[] = {
 
     {(int)KS_NAME,	NULL}  // end marker
 };
+
+#ifdef HAVE_TGETENT
+/*
+ * Additions for enabling/disabling synchronized output mode for terminal.
+ */
+static tcap_entry_T builtin_sync_output[] = {
+    {(int)KS_BSU,	"\033[?2026h"},
+    {(int)KS_ESU,	"\033[?2026l"},
+    {(int)KS_NAME,	NULL}  // end marker
+};
+#endif
+
+#ifdef FEAT_TERMRESPONSE
+/*
+ * List of DECRQM modes that Vim supports
+ */
+static const int dec_modes[] = {
+    2026,   // Synchronized output
+# ifdef UNIX
+    2048    // In-band terminal resize events
+# endif
+};
+#endif
 
 #ifdef FEAT_TERMGUICOLORS
 /*
@@ -1546,10 +1600,25 @@ typedef struct {
 #define TPR_MOUSE		    3
 // term response indicates kitty
 #define TPR_KITTY		    4
+// can send DECRQM requests to terminal
+#define TPR_DECRQM		    5
+// true color, from the color count of the terminal entry
+#define TPR_RGB			    6
 // table size
-#define TPR_COUNT		    5
+#define TPR_COUNT		    7
 
 static __thread termprop_T term_props[TPR_COUNT];
+
+/*
+ * Set the "rgb" terminal property from the color count.  The entry of a
+ * direct color terminal, such as xterm-direct, has 16777216 colors.
+ */
+    static void
+set_rgb_term_prop(void)
+{
+    term_props[TPR_RGB].tpr_status = t_colors == 0x1000000
+						       ? TPR_YES : TPR_UNKNOWN;
+}
 
 /*
  * Initialize the term_props table.
@@ -1571,10 +1640,17 @@ init_term_props(int all)
     term_props[TPR_MOUSE].tpr_set_by_termresponse = TRUE;
     term_props[TPR_KITTY].tpr_name = "kitty";
     term_props[TPR_KITTY].tpr_set_by_termresponse = FALSE;
+    term_props[TPR_DECRQM].tpr_name = "decrqm";
+    term_props[TPR_DECRQM].tpr_set_by_termresponse = TRUE;
+    term_props[TPR_RGB].tpr_name = "rgb";
+    term_props[TPR_RGB].tpr_set_by_termresponse = FALSE;
 
     for (i = 0; i < TPR_COUNT; ++i)
 	if (all || term_props[i].tpr_set_by_termresponse)
 	    term_props[i].tpr_status = TPR_UNKNOWN;
+
+    // Derived from the color count, not reset.
+    set_rgb_term_prop();
 }
 
 #if defined(FEAT_EVAL)
@@ -1594,7 +1670,8 @@ f_terminalprops(typval_T *argvars UNUSED, typval_T *rettv)
 
 	value[0] = term_props[i].tpr_status;
 	value[1] = NUL;
-	dict_add_string(rettv->vval.v_dict, term_props[i].tpr_name, value);
+	dict_add_string_len(rettv->vval.v_dict, term_props[i].tpr_name,
+	    value, (value[0] == NUL) ? 0 : 1);
     }
 # endif
 }
@@ -2223,6 +2300,8 @@ set_termname(char_u *term)
 #ifdef HAVE_TGETENT
 	if (term_strings_not_set(KS_CF))
 	    apply_builtin_tcap(term, special_term, TRUE);
+	if (term_strings_not_set(KS_BSU) && term_strings_not_set(KS_ESU))
+	    apply_builtin_tcap(term, builtin_sync_output, TRUE);
 #endif
     }
 
@@ -2448,6 +2527,10 @@ set_termname(char_u *term)
 
 #ifdef FEAT_TERMRESPONSE
     may_req_termresponse();
+#endif
+
+#ifdef FEAT_IMAGE
+    (void)update_image_backend();
 #endif
 
     return OK;
@@ -2820,7 +2903,7 @@ termcapinit(char_u *name)
 /*
  * The number of calls to ui_write is reduced by using "out_buf".
  */
-#define OUT_SIZE	2047
+#define OUT_SIZE	8191
 
 // add one to allow mch_write() in os_win32.c to append a NUL
 static __thread char_u		out_buf[OUT_SIZE + 1];
@@ -3600,6 +3683,7 @@ ttest(int pairs)
 		set_color_count(colors);
 	}
     }
+    set_rgb_term_prop();
 }
 
 #if defined(FEAT_GUI) && (defined(FEAT_MENU) || !defined(USE_ON_FLY_SCROLL))
@@ -3759,6 +3843,36 @@ win_new_shellsize(void)
     }
 }
 
+#if defined(FEAT_IMAGE) || defined(FEAT_EVAL)
+    void
+update_cell_size(void)
+{
+# ifdef FEAT_GUI
+    if (gui.in_use)
+    {
+	cell_width = gui.char_width;
+	cell_height = gui.char_height;
+    }
+    else
+# endif
+    {
+	struct cellsize cell_sz;
+
+	mch_calc_cell_size(&cell_sz);
+	if (cell_sz.cs_xpixel <= 0 || cell_sz.cs_ypixel <= 0)
+	{
+	    cell_width = 8;
+	    cell_height = 16;
+	}
+	else
+	{
+	    cell_width = cell_sz.cs_xpixel;
+	    cell_height = cell_sz.cs_ypixel;
+	}
+    }
+}
+#endif
+
 /*
  * Call this function when the Vim shell has been resized in any way.
  * Will obtain the current size and redraw (also when size didn't change).
@@ -3766,6 +3880,9 @@ win_new_shellsize(void)
     void
 shell_resized(void)
 {
+#if defined(FEAT_IMAGE) || defined(FEAT_EVAL)
+    update_cell_size();
+#endif
     set_shellsize(0, 0, FALSE);
 }
 
@@ -5247,16 +5364,21 @@ handle_version_response(int first, int *arg, int argc, char_u *tp)
 	if (version == 95)
 	{
 	    // Mac Terminal.app sends 1;95;0
+	    //
+	    // Terminal.app doesn't seem to handle DECRQM sequences
+	    // properly, see issue #19852.
 	    if (arg[0] == 1 && arg[2] == 0)
 	    {
 		term_props[TPR_UNDERLINE_RGB].tpr_status = TPR_YES;
 		term_props[TPR_MOUSE].tpr_status = TPR_MOUSE_SGR;
+		term_props[TPR_DECRQM].tpr_status = TPR_NO;
 	    }
 	    // iTerm2 sends 0;95;0
 	    else if (arg[0] == 0 && arg[2] == 0)
 	    {
 		// iTerm2 can do SGR mouse reporting
 		term_props[TPR_MOUSE].tpr_status = TPR_MOUSE_SGR;
+		term_props[TPR_DECRQM].tpr_status = TPR_YES;
 	    }
 	    // old iTerm2 sends 0;95;
 	    else if (arg[0] == 0 && arg[2] == -1)
@@ -5294,7 +5416,9 @@ handle_version_response(int first, int *arg, int argc, char_u *tp)
 	// Assuming any version number over 2500 is not an
 	// xterm (without the limit for rxvt and screen).
 	if (arg[1] >= 2500)
+	{
 	    term_props[TPR_UNDERLINE_RGB].tpr_status = TPR_YES;
+	}
 
 	else if (version == 136 && arg[2] == 0)
 	{
@@ -5322,6 +5446,14 @@ handle_version_response(int first, int *arg, int argc, char_u *tp)
 
 	    // Kitty can handle SGR mouse reporting.
 	    term_props[TPR_MOUSE].tpr_status = TPR_MOUSE_SGR;
+	    term_props[TPR_DECRQM].tpr_status = TPR_YES;
+	}
+
+	// foot terminal sends 1;12700;0
+	if (arg[0] == 1 && version == 12700 && arg[2] == 0)
+	{
+	    term_props[TPR_MOUSE].tpr_status = TPR_MOUSE_SGR;
+	    term_props[TPR_DECRQM].tpr_status = TPR_YES;
 	}
 
 	// GNU screen sends 83;30600;0, 83;40500;0, etc.
@@ -5332,6 +5464,9 @@ handle_version_response(int first, int *arg, int argc, char_u *tp)
 	{
 	    term_props[TPR_CURSOR_STYLE].tpr_status = TPR_NO;
 	    term_props[TPR_CURSOR_BLINK].tpr_status = TPR_NO;
+	    term_props[TPR_DECRQM].tpr_status = TPR_NO; // screen doesn't seem
+							// to handle DECRQM
+							// sequences
 	}
 
 	// Xterm first responded to this request at patch level
@@ -5415,6 +5550,24 @@ handle_version_response(int first, int *arg, int argc, char_u *tp)
 	    need_flush = TRUE;
 	}
 
+	// Only request DEC modes via DECRQM when the terminal is known to
+	// handle it.  Not for Apple Terminal.app or GNU screen, they echo
+	// the trailing "p" to the screen.  See issue #19852.
+	if (decrqm_status.tr_progress == STATUS_GET
+		&& term_props[TPR_DECRQM].tpr_status == TPR_YES)
+	{
+	    MAY_WANT_TO_LOG_THIS;
+	    LOG_TR1("Sending DECRQM requests");
+	    for (int i = 0; i < (int)ARRAY_LENGTH(dec_modes); i++)
+	    {
+		vim_snprintf((char *)IObuff, IOSIZE, "\033[?%d$p", dec_modes[i]);
+		out_str(IObuff);
+	    }
+	    termrequest_sent(&decrqm_status);
+	    need_flush = TRUE;
+
+	}
+
 	if (need_flush)
 	    out_flush();
 #endif
@@ -5466,8 +5619,13 @@ put_key_modifiers_in_typebuf(
     modifiers = may_remove_shift_modifier(modifiers, key);
 
     // Produce modifiers with K_SPECIAL KS_MODIFIER {mod}
-    char_u string[MAX_KEY_CODE_LEN + 1];
+    // worst-case: 3-byte modifier + 4 byte multi-char key + NUL
+    char_u string[MAX_KEY_CODE_LEN + 2];
     int new_slen = modifiers2keycode(modifiers, &key, string);
+
+    // reject overlong key that would overflow string
+    if (key > 0x10FFFF)
+	return -1;
 
     // Add the bytes for the key.
     new_slen += add_key_to_buf(key, string + new_slen);
@@ -5683,6 +5841,8 @@ handle_csi_function_key(
  *
  * - DA1 query response: {lead}?...;c
  *
+ * - DECRPM response: {lead}?2026;{mode}$y
+ *
  * Return 0 for no match, -1 for partial match, > 0 for full match.
  */
     static int
@@ -5734,7 +5894,9 @@ handle_csi(
 			return -1;
 		    if (!VIM_ISDIGIT(*ap))
 			break;
-		    arg[argc] = arg[argc] * 10 + (*ap - '0');
+		    // avoid overflow
+		    if (arg[argc] <= (INT_MAX - 9) / 10)
+			arg[argc] = arg[argc] * 10 + (*ap - '0');
 		    ++ap;
 		}
 		++argc;
@@ -5795,6 +5957,31 @@ handle_csi(
 	*slen = csi_len;
     }
 
+#if (defined(UNIX) || defined(MSWIN)) \
+    && (defined(FEAT_IMAGE) || defined(FEAT_EVAL))
+    // Response to CSI 14 t or CSI 16 t
+    else if (first == -1 && argc >= 3
+	    && (arg[0] == 4 || arg[0] == 6) && trail == 't')
+    {
+	if (arg[0] == 4)
+	{
+	    LOG_TRN("Received CSI 14 t response: %s", tp);
+	    cell_width = arg[2] / Columns;
+	    cell_height = arg[1] / Rows;
+	}
+	else
+	{
+	    LOG_TRN("Received CSI 16 t response: %s", tp);
+	    cell_width = arg[2];
+	    cell_height = arg[1];
+	}
+
+	key_name[0] = (int)KS_EXTRA;
+	key_name[1] = (int)KE_IGNORE;
+	*slen = csi_len;
+    }
+#endif
+
     // Primary device attributes (DA1) response
     else if (first == '?' && trail == 'c')
     {
@@ -5809,7 +5996,66 @@ handle_csi(
 
 	key_name[0] = (int)KS_EXTRA;
 	key_name[1] = (int)KE_IGNORE;
+	*slen = csi_len;
     }
+
+    // DECRPM mode 2026 or 2048.
+    else if (first == '?' && trail == 'y' && argc == 2
+	    && (arg[0] == 2026 || arg[0] == 2048))
+    {
+	int setting = arg[1];
+
+	*slen = csi_len;
+	key_name[0] = (int)KS_EXTRA;
+	key_name[1] = (int)KE_IGNORE;
+
+#ifdef FEAT_TERMRESPONSE
+	// Mark the DECRQM request as answered so it is not sent again and
+	// stoptermcap() does not wait for it.
+	if (decrqm_status.tr_progress == STATUS_SENT)
+	    decrqm_status.tr_progress = STATUS_GOT;
+#endif
+
+	if (setting >= 0 && setting <= 4)
+	{
+	    LOG_TRN("Received DECRPM mode %d: %s", arg[0], tp);
+
+	    switch (arg[0])
+	    {
+		case 2026:
+		    sync_output_setting = setting;
+		    set_option_value_give_err((char_u *)"termsync",
+			    setting == 1 || setting == 2, NULL, 0);
+		    break;
+#ifdef UNIX
+		case 2048:
+		    win_resize_setting = setting;
+
+		    term_set_win_resize(true);
+		    break;
+#endif
+	    }
+	}
+	else
+	    LOG_TRN("Unknown DECRPM mode %d setting %d", arg[0], setting);
+    }
+
+#ifdef UNIX
+    // In-band window resize event
+    else if (win_resize_enabled && argc >= 3 && arg[0] == 48)
+    {
+	int height = arg[1], width = arg[2];
+
+	*slen = csi_len;
+	key_name[0] = (int)KS_EXTRA;
+	key_name[1] = (int)KE_IGNORE;
+
+	// Only update if needed. Avoids intro message from disappearing on
+	// startup (due to initial event).
+	if (height != Rows || width != Columns)
+	    set_shellsize(width, height, true);
+    }
+#endif
 
     // Version string: Eat it when there is at least one digit and
     // it ends in 'c'
@@ -5959,7 +6205,7 @@ check_for_color_response(char_u *resp, int len)
 		    char_u *tp_r = resp + j + 7;
 		    char_u *tp_g = resp + j + (is_4digit ? 12 : 10);
 		    char_u *tp_b = resp + j + (is_4digit ? 17 : 13);
-#if defined(FEAT_TERMRESPONSE) && defined(FEAT_TERMINAL)
+#ifdef FEAT_TERMRESPONSE
 		    int rval, gval, bval;
 
 		    rval = hexhex2nr(tp_r);
@@ -5971,14 +6217,12 @@ check_for_color_response(char_u *resp, int len)
 			char *new_bg_val = (3 * '6' < *tp_r + *tp_g +
 					     *tp_b) ? "light" : "dark";
 
-			LOG_TRN("Received RBG response: %s", tp);
+			LOG_TRN("Received RBG response: r=%d g=%d b=%d", rval, gval, bval);
 #ifdef FEAT_TERMRESPONSE
 			rbg_status.tr_progress = STATUS_GOT;
-# ifdef FEAT_TERMINAL
 			bg_r = rval;
 			bg_g = gval;
 			bg_b = bval;
-# endif
 #endif
 			if (!option_was_set((char_u *)"bg")
 				      && STRCMP(p_bg, new_bg_val) != 0)
@@ -5993,7 +6237,7 @@ check_for_color_response(char_u *resp, int len)
 #if defined(FEAT_TERMRESPONSE) && defined(FEAT_TERMINAL)
 		    else
 		    {
-			LOG_TRN("Received RFG response: %s", tp);
+			LOG_TRN("Received RFG response: r=%d g=%d b=%d", rval, gval, bval);
 			rfg_status.tr_progress = STATUS_GOT;
 			fg_r = rval;
 			fg_g = gval;
@@ -6375,9 +6619,12 @@ check_termcode(
 #endif
 	{
 	    int  mouse_index_found = -1;
+	    int keypad_index_found = -1;
+	    int keypad_slen_found = 0;
 
 	    for (idx = 0; idx < tc_len; ++idx)
 	    {
+		int     is_keypad = FALSE;
 		/*
 		 * Ignore the entry if we are not at the start of
 		 * typebuf.tb_buf[]
@@ -6403,16 +6650,16 @@ check_termcode(
 		     * key code.
 		     */
 		    if (termcodes[idx].name[0] == 'K'
-				       && VIM_ISDIGIT(termcodes[idx].name[1]))
+				       && (VIM_ISDIGIT(termcodes[idx].name[1])
+						|| ASCII_ISUPPER(termcodes[idx].name[1])))
 		    {
-			for (j = idx + 1; j < tc_len; ++j)
-			    if (termcodes[j].len == slen &&
-				    STRNCMP(termcodes[idx].code,
-					    termcodes[j].code, slen) == 0)
-			    {
-				idx = j;
-				break;
-			    }
+			is_keypad = TRUE;
+			// Only use it when there is no other match.
+			if (keypad_index_found < 0)
+			{
+			    keypad_index_found = idx;
+			    keypad_slen_found = slen;
+			}
 		    }
 
 		    if (slen == 2 && len > 2
@@ -6460,7 +6707,7 @@ check_termcode(
 			if (mouse_index_found < 0)
 			    mouse_index_found = idx;
 		    }
-		    else
+		    else if (!is_keypad)
 		    {
 			key_name[0] = termcodes[idx].name[0];
 			key_name[1] = termcodes[idx].name[1];
@@ -6522,13 +6769,33 @@ check_termcode(
 
 			    slen = j;
 			}
-			key_name[0] = termcodes[idx].name[0];
-			key_name[1] = termcodes[idx].name[1];
-			break;
+			if (termcodes[idx].name[0] == 'K'
+					   && (VIM_ISDIGIT(termcodes[idx].name[1])
+						    || ASCII_ISUPPER(termcodes[idx].name[1])))
+			{
+			    is_keypad = TRUE;
+			    if (keypad_index_found < 0)
+			    {
+				keypad_index_found = idx;
+				keypad_slen_found = slen;
+			    }
+			}
+			if (!is_keypad)
+			{
+			    key_name[0] = termcodes[idx].name[0];
+			    key_name[1] = termcodes[idx].name[1];
+			    break;
+			}
 		    }
 		}
 	    }
-	    if (idx == tc_len && mouse_index_found >= 0)
+	    if (idx == tc_len && keypad_index_found >= 0)
+	    {
+		key_name[0] = termcodes[keypad_index_found].name[0];
+		key_name[1] = termcodes[keypad_index_found].name[1];
+		slen = keypad_slen_found;
+	    }
+	    else if (idx == tc_len && mouse_index_found >= 0)
 	    {
 		key_name[0] = termcodes[mouse_index_found].name[0];
 		key_name[1] = termcodes[mouse_index_found].name[1];
@@ -6891,19 +7158,23 @@ term_get_fg_color(char_u *r, char_u *g, char_u *b)
     *g = fg_g;
     *b = fg_b;
 }
+#endif
 
+#ifdef FEAT_TERMRESPONSE
 /*
- * Get the text background color, if known.
+ * Get the text background color, if known.  Returns OK when the OSC 11
+ * response has been parsed and *r, *g, *b are populated; FAIL otherwise.
  */
-    void
+    int
 term_get_bg_color(char_u *r, char_u *g, char_u *b)
 {
     if (rbg_status.tr_progress != STATUS_GOT)
-	return;
+	return FAIL;
 
     *r = bg_r;
     *g = bg_g;
     *b = bg_b;
+    return OK;
 }
 #endif
 
@@ -7079,13 +7350,14 @@ replace_termcodes(
 	 */
 	if (do_key_code)
 	{
-	    i = find_term_bykeys(src);
+	    int len;
+	    i = find_term_bykeys(src, &len);
 	    if (i >= 0)
 	    {
 		result[dlen++] = K_SPECIAL;
 		result[dlen++] = termcodes[i].name[0];
 		result[dlen++] = termcodes[i].name[1];
-		src += termcodes[i].len;
+		src += len;
 		// If terminal code matched, continue after it.
 		continue;
 	    }
@@ -7193,18 +7465,95 @@ replace_termcodes(
  * Return the index in termcodes[], or -1 if not found.
  */
     static int
-find_term_bykeys(char_u *src)
+find_term_bykeys(char_u *src, int *matchlen)
 {
-    int		i;
-    int		slen = (int)STRLEN(src);
+    int		i, j;
+    int		len = (int)STRLEN(src);
+    int         found = -1;
+    // Don't return a match for a single character
+    int         foundlen = 1;
+    int         slen, modslen;
+    int         thislen;
 
+    // Most input bytes cannot start a terminal code.  Reuse the same leader
+    // table as check_termcode() to avoid scanning termcodes[] unnecessarily.
+    if (need_gather)
+	gather_termleader();
+    if (*src == NUL || vim_strchr(termleader, *src) == NULL)
+	return -1;
+
+    // find longest match
+    // borrows part of check_termcode
     for (i = 0; i < tc_len; ++i)
     {
-	if (slen == termcodes[i].len
+	slen = termcodes[i].len;
+	modslen = termcodes[i].modlen;
+
+	/*
+	 * Check for code with modifier, like xterm uses:
+	 * <Esc>[123;*X  (modslen == slen - 3)
+	 * <Esc>[@;*X    (matches <Esc>[X and <Esc>[1;9X )
+	 * Also <Esc>O*X and <M-O>*X (modslen == slen - 2).
+	 * When there is a modifier the * matches a number.
+	 * When there is no modifier the ;* or * is omitted.
+	 */
+	if (modslen > 0)
+	{
+	    if (len > modslen
+			&& STRNCMP(termcodes[i].code, src, (size_t)modslen) == 0)
+	    {
+		thislen = 0;
+
+		if (src[modslen] == termcodes[i].code[slen - 1])
+		    // no modifiers
+		    thislen = modslen + 1;
+		else if (src[modslen] != ';' && modslen == slen - 3)
+		    // no match for "code;*X" with "code;"
+		    continue;
+		else if (termcodes[i].code[modslen] == '@'
+				&& (src[modslen] != '1'
+					    || src[modslen + 1] != ';'))
+		    // no match for "<Esc>[@" with "<Esc>[1;"
+		    continue;
+		else
+		{
+		    // Skip over the digits, the final char must
+		    // follow. URXVT can use a negative value, thus
+		    // also accept '-'.
+		    for (j = slen - 2; j < len && (SAFE_isdigit(src[j])
+			       || src[j] == '-' || src[j] == ';'); ++j)
+			;
+		    ++j;
+		    if (len < j)	// got a partial sequence
+			continue;
+		    if (src[j - 1] != termcodes[i].code[slen - 1])
+			continue;	// no match
+
+		    thislen = j;
+		}
+
+		if (thislen > foundlen)
+		{
+		    found = i;
+		    foundlen = thislen;
+		}
+	    }
+	}
+	else
+	{
+	    if (slen > foundlen && len >= slen
 			&& STRNCMP(termcodes[i].code, src, (size_t)slen) == 0)
-	    return i;
+	    {
+		found = i;
+		foundlen = slen;
+	    }
+	}
     }
-    return -1;
+
+    if (matchlen != NULL && found >= 0)
+	*matchlen = foundlen;
+
+    return found;
 }
 
 /*
@@ -7221,6 +7570,21 @@ gather_termleader(void)
     if (gui.in_use)
 	termleader[len++] = CSI;    // the GUI codes are not in termcodes[]
 #endif
+
+    // Querying cell size uses CSI 14 t
+#if defined(MSWIN) && (defined(FEAT_IMAGE) || defined(FEAT_EVAL))
+# ifdef FEAT_GUI
+    if (!gui.in_use)
+# endif
+    {
+	termleader[len++] = ESC;
+# ifdef FEAT_GUI
+	if (!gui.in_use)
+# endif
+	    termleader[len++] = CSI;
+    }
+#endif
+
 #ifdef FEAT_TERMRESPONSE
     if (check_for_codes || *T_CRS != NUL)
 	termleader[len++] = DCS;    // the termcode response starts with DCS
@@ -7510,7 +7874,7 @@ got_code_from_term(char_u *code, int len)
 # endif
 	    else
 	    {
-		i = find_term_bykeys(str);
+		i = find_term_bykeys(str, NULL);
 		if (i >= 0 && name[0] == termcodes[i].name[0]
 					    && name[1] == termcodes[i].name[1])
 		{
@@ -7518,6 +7882,14 @@ got_code_from_term(char_u *code, int len)
 # ifdef FEAT_EVAL
 		    ch_log(NULL, "got_code_from_term(): Entry %c%c did not change",
 							     name[0], name[1]);
+# endif
+		}
+		else if (i >= 0 && name[0] == 'K' && VIM_ISDIGIT(name[1]))
+		{
+		    // Would replace existing entry with keypad key - skip.
+# ifdef FEAT_EVAL
+		    ch_log(NULL, "got_code_from_term(): Skipping entry %c%c in favor of %c%c with matching keys %s",
+			    name[0], name[1], termcodes[i].name[0], termcodes[i].name[1], str);
 # endif
 		}
 		else
@@ -7748,11 +8120,11 @@ swap_tcap(void)
 
 
 #if (defined(MSWIN) && (!defined(FEAT_GUI_MSWIN) || defined(VIMDLL))) || defined(FEAT_TERMINAL)
-static __thread int cube_value[] = {
+static const int cube_value[] = {
     0x00, 0x5F, 0x87, 0xAF, 0xD7, 0xFF
 };
 
-static __thread int grey_ramp[] = {
+static const int grey_ramp[] = {
     0x08, 0x12, 0x1C, 0x26, 0x30, 0x3A, 0x44, 0x4E, 0x58, 0x62, 0x6C, 0x76,
     0x80, 0x8A, 0x94, 0x9E, 0xA8, 0xB2, 0xBC, 0xC6, 0xD0, 0xDA, 0xE4, 0xEE
 };
@@ -7898,4 +8270,155 @@ term_replace_keycodes(char_u *ta_buf, int ta_len, int len_arg)
 	    i += (*mb_ptr2len_len)(ta_buf + i, ta_len + len - i) - 1;
     }
     return len;
+}
+
+/*
+ * Should be called when cleaning up terminal state.
+ */
+    void
+term_disable_dec(void)
+{
+    term_set_sync_output(TERM_SYNC_OUTPUT_OFF);
+#ifdef UNIX
+    term_set_win_resize(false);
+#endif
+    // Make sure to always flush the output buffer, because this may be called
+    // before starting the GUI
+    out_flush();
+}
+
+#ifdef UNIX
+/*
+ * Enable or disable receiving in-band window resize events from the terminal.
+ * If "state" is true, then if the terminal supports DEC mode 2048 and
+ * 'termresize' is "" or "inband", then enable it and disable the SIGWINCH
+ * signal handling. Otherwise disable the mode if it is enabled and reinstall
+ * the SIGWINCH handler.
+ */
+    void
+term_set_win_resize(bool state)
+{
+# ifdef FEAT_GUI
+    bool    in_gui = gui.in_use;
+
+    if (state && in_gui)
+	return;
+# endif
+
+    if (!state || win_resize_setting == 0 || win_resize_setting == 4)
+    {
+	// Make sure it update internal window size if DEC mode 2048 is
+	// unavailable now.
+	if (win_resize_enabled)
+	{
+	    set_shellsize(0, 0, false);
+# ifndef VIM_APPLE_SANDBOX
+	    set_sigwinch_handler();
+# endif
+	    out_str((char_u *)"\033[?2048l");
+	}
+	win_resize_enabled = false;
+    }
+    else if ((*p_trz == NUL || STRCMP(p_trz, "inband") == 0)
+	    && !win_resize_enabled)
+    {
+	if (win_resize_setting == 2)
+	    out_str((char_u *)"\033[?2048h");
+	// SIGWINCH is process-wide in the sandbox; other sessions share the handler.
+# if defined(SIGWINCH) && !defined(VIM_APPLE_SANDBOX)
+	mch_signal(SIGWINCH, SIG_DFL);
+# endif
+	win_resize_enabled = true;
+    }
+}
+#endif
+
+    int
+sync_output_active(void)
+{
+#ifdef FEAT_GUI
+    if (gui.in_use)
+	return TRUE;
+#endif
+    return p_tsy && (sync_output_setting == 1 || sync_output_setting == 2)
+	&& *T_BSU != NUL && *T_ESU != NUL;
+}
+
+/*
+ * Enable or disable synchronized output if possible. Specification can be found
+ * here:
+ * https://github.com/contour-terminal/vt-extensions/blob/master/synchronized-output.md
+ *
+ * BSU/ESU do not need to bypass out_buf and go straight to ui_write().
+ * What matters is the order in which they reach the terminal:
+ * - BSU must be emitted before the batched redraw bytes.
+ * - ESU must be emitted after those redraw bytes.
+ * - A FLUSH must emit ESU and BSU together, then flush immediately.
+ * As long as out_flush() is done at those boundaries, putting BSU/ESU in
+ * out_buf reduces small writes without changing the observable protocol.
+ */
+    void
+term_set_sync_output(int flags)
+{
+    bool    allowed;
+#ifdef FEAT_GUI
+    bool    in_gui = gui.in_use;
+#else
+    bool    in_gui = false;
+#endif
+
+    allowed = p_tsy && (sync_output_setting == 1 || sync_output_setting == 2);
+
+    if (flags & TERM_SYNC_OUTPUT_FLUSH)
+    {
+	// Tell terminal to display screen contents, then resume batching.
+	if (allowed && !in_gui && sync_output_state > 0 && *T_ESU != NUL &&
+		*T_BSU != NUL)
+	{
+	    out_str_nf(T_ESU);
+	    out_str_nf(T_BSU);
+	    out_flush();
+	}
+	return;
+    }
+
+    // Forcibly turn off synchronized output (e.g. 'notermsync')
+    if (flags & TERM_SYNC_OUTPUT_OFF)
+    {
+	if (sync_output_state > 0 && *T_ESU != NUL)
+	{
+	    out_str_nf(T_ESU);
+	    out_flush();
+	    sync_output_state = 0;
+	}
+	return;
+    }
+
+    if (!allowed || in_gui || *T_BSU == NUL || *T_ESU == NUL)
+	return;
+
+    // Only enable if we aren't already, and only disable if we have reached
+    // zero.
+    if (flags & TERM_SYNC_OUTPUT_ENABLE)
+    {
+	if (sync_output_state++ > 0)
+	    return;
+	out_str_nf(T_BSU);
+    }
+    else if (flags & TERM_SYNC_OUTPUT_DISABLE)
+    {
+	if (sync_output_state == 0 || --sync_output_state > 0)
+	    return;
+	// Flush the output buffer before ending the sync batch so that
+	// all drawing output is sent to the terminal within the
+	// BSU..ESU window.  Without this, the drawing data remaining in
+	// out_buf would be sent after ESU, outside the sync batch.
+	out_str_nf(T_ESU);
+	out_flush();
+    }
+    else
+    {
+	siemsg("Unknown sync output value %d", flags);
+	return;
+    }
 }

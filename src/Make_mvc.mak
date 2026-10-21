@@ -392,6 +392,24 @@ TERM_DEPS = \
 	libvterm/src/vterm_internal.h
 !ENDIF
 
+#
+# Pixman library support (used by the +image feature)
+# PIXMAN=[path to pixman directory] (default is no)
+#   Expects $(PIXMAN)\include\pixman-1 for headers and
+#   $(PIXMAN)\lib\pixman-1.lib for the import/static library.
+#
+!IFNDEF PIXMAN
+PIXMAN = no
+!ENDIF
+
+!IF "$(PIXMAN)" != "no"
+IMAGE_DEFS = -DHAVE_PIXMAN
+IMAGE_INC = /I "$(PIXMAN)\include\pixman-1"
+IMAGE_LIB = "$(PIXMAN)\lib\pixman-1.lib"
+IMAGE_OBJ = $(OUTDIR)/image.obj $(OUTDIR)/image_kitty.obj \
+	$(OUTDIR)/image_sixel.obj
+!ENDIF
+
 !IFNDEF SOUND
 ! IF "$(FEATURES)" == "HUGE"
 SOUND = yes
@@ -530,8 +548,9 @@ CON_LIB = $(CON_LIB) /DELAYLOAD:comdlg32.dll /DELAYLOAD:ole32.dll DelayImp.lib
 CFLAGS = -c /W3 /GF /nologo -I. -Iproto -DHAVE_PATHDEF -DWIN32 -DHAVE_STDINT_H \
 	$(CSCOPE_DEFS) $(TERM_DEFS) $(SOUND_DEFS) $(NETBEANS_DEFS) \
 	$(NBDEBUG_DEFS) $(XPM_DEFS) $(SOD_DEFS) $(SOD_INC) $(CHANNEL_DEFS) \
+	$(IMAGE_DEFS) $(IMAGE_INC) \
 	$(DEFINES) $(CI_CFLAGS) -DWINVER=$(WINVER) -D_WIN32_WINNT=$(WINVER) \
-	/source-charset:utf-8
+	/utf-8
 
 RCFLAGS = -DVIM_VERSION_PATCHLEVEL=$(PATCHLEVEL)
 
@@ -729,6 +748,7 @@ OBJ = \
 	$(OUTDIR)\gc.obj \
 	$(OUTDIR)\gui_xim.obj \
 	$(OUTDIR)\hardcopy.obj \
+	$(OUTDIR)\hardcopy_postscript.obj \
 	$(OUTDIR)\hashtab.obj \
 	$(OUTDIR)\help.obj \
 	$(OUTDIR)\highlight.obj \
@@ -772,6 +792,7 @@ OBJ = \
 	$(OUTDIR)\session.obj \
 	$(OUTDIR)\sha256.obj \
 	$(OUTDIR)\sign.obj \
+	$(OUTDIR)\socketserver.obj \
 	$(OUTDIR)\spell.obj \
 	$(OUTDIR)\spellfile.obj \
 	$(OUTDIR)\spellsuggest.obj \
@@ -785,6 +806,7 @@ OBJ = \
 	$(OUTDIR)\textobject.obj \
 	$(OUTDIR)\textprop.obj \
 	$(OUTDIR)\time.obj \
+	$(OUTDIR)\strptime.obj \
 	$(OUTDIR)\tuple.obj \
 	$(OUTDIR)\typval.obj \
 	$(OUTDIR)\ui.obj \
@@ -803,6 +825,10 @@ OBJ = \
 	$(OUTDIR)\viminfo.obj \
 	$(OUTDIR)\winclip.obj \
 	$(OUTDIR)\window.obj \
+
+!IF "$(PIXMAN)" != "no"
+OBJ = $(OBJ) $(IMAGE_OBJ)
+!ENDIF
 
 !IF "$(VIMDLL)" == "yes"
 OBJ = $(OBJ) $(OUTDIR)\os_w32dll.obj $(OUTDIR)\vimd.res
@@ -1245,7 +1271,7 @@ LINKARGS1 = /nologo
 LINKARGS2 = $(CON_LIB) $(GUI_LIB) $(LIBC) $(OLE_LIB) \
 	$(LUA_LIB) $(MZSCHEME_LIB) $(PERL_LIB) $(PYTHON_LIB) \
 	$(PYTHON3_LIB) $(RUBY_LIB) $(TCL_LIB) $(SOUND_LIB) \
-	$(NETBEANS_LIB) $(XPM_LIB) $(SOD_LIB) $(LINK_PDB)
+	$(NETBEANS_LIB) $(XPM_LIB) $(SOD_LIB) $(IMAGE_LIB) $(LINK_PDB)
 
 !IFDEF NODEBUG
 # Add /opt:ref to remove unreferenced functions and data even when /DEBUG is
@@ -1617,6 +1643,8 @@ $(OUTDIR)/gui_xim.obj: $(OUTDIR) gui_xim.c $(INCL)
 
 $(OUTDIR)/hardcopy.obj: $(OUTDIR) hardcopy.c $(INCL) version.h
 
+$(OUTDIR)/hardcopy_postscript.obj: $(OUTDIR) hardcopy_postscript.c $(INCL) version.h
+
 $(OUTDIR)/hashtab.obj: $(OUTDIR) hashtab.c $(INCL)
 
 $(OUTDIR)/help.obj: $(OUTDIR) help.c $(INCL)
@@ -1636,6 +1664,12 @@ $(OUTDIR)/gui_w32.obj: $(OUTDIR) gui_w32.c $(INCL) $(GUI_INCL) version.h
 $(OUTDIR)/gui_dwrite.obj: $(OUTDIR) gui_dwrite.cpp gui_dwrite.h
 
 $(OUTDIR)/if_cscope.obj: $(OUTDIR) if_cscope.c $(INCL)
+
+$(OUTDIR)/image.obj: $(OUTDIR) image.c $(INCL)
+
+$(OUTDIR)/image_kitty.obj: $(OUTDIR) image_kitty.c $(INCL)
+
+$(OUTDIR)/image_sixel.obj: $(OUTDIR) image_sixel.c $(INCL)
 
 $(OUTDIR)/if_lua.obj: $(OUTDIR) if_lua.c $(INCL)
 	$(CC) $(CFLAGS_OUTDIR) $(LUA_INC) if_lua.c
@@ -1766,6 +1800,10 @@ $(OUTDIR)/sha256.obj: $(OUTDIR) sha256.c $(INCL)
 
 $(OUTDIR)/sign.obj: $(OUTDIR) sign.c $(INCL)
 
+$(OUTDIR)/socketserver.obj: $(OUTDIR) socketserver.c $(INCL)
+
+$(OUTDIR)/sound.obj: $(OUTDIR) sound.c $(INCL)
+
 $(OUTDIR)/spell.obj: $(OUTDIR) spell.c $(INCL)
 
 $(OUTDIR)/spellfile.obj: $(OUTDIR) spellfile.c $(INCL)
@@ -1782,7 +1820,7 @@ $(OUTDIR)/tag.obj: $(OUTDIR) tag.c $(INCL)
 
 $(OUTDIR)/term.obj: $(OUTDIR) term.c $(INCL)
 
-$(OUTDIR)/term.obj: $(OUTDIR) testing.c $(INCL)
+$(OUTDIR)/testing.obj: $(OUTDIR) testing.c $(INCL)
 
 $(OUTDIR)/textformat.obj: $(OUTDIR) textformat.c $(INCL)
 
@@ -1791,6 +1829,8 @@ $(OUTDIR)/textobject.obj: $(OUTDIR) textobject.c $(INCL)
 $(OUTDIR)/textprop.obj: $(OUTDIR) textprop.c $(INCL)
 
 $(OUTDIR)/time.obj: $(OUTDIR) time.c $(INCL)
+
+$(OUTDIR)/strptime.obj: $(OUTDIR) strptime.c $(INCL)
 
 $(OUTDIR)/tuple.obj: $(OUTDIR) tuple.c $(INCL)
 
@@ -1972,6 +2012,8 @@ proto.h: \
 	proto/gc.pro \
 	proto/gui_xim.pro \
 	proto/hardcopy.pro \
+	proto/hardcopy_pango.pro \
+	proto/hardcopy_postscript.pro \
 	proto/hashtab.pro \
 	proto/help.pro \
 	proto/highlight.pro \
@@ -2014,6 +2056,7 @@ proto.h: \
 	proto/session.pro \
 	proto/sha256.pro \
 	proto/sign.pro \
+	proto/socketserver.pro \
 	proto/spell.pro \
 	proto/spellfile.pro \
 	proto/spellsuggest.pro \

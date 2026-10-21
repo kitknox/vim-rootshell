@@ -165,7 +165,9 @@ func Test_sign()
 
   sign define Sign5 text=X\  linehl=Comment
   sign undefine Sign5
-  sign define Sign5 linehl=Comment text=X\ 
+  " The use of :execute in the next line is just to ensure the space for
+  " the text value is obvious and does not get accidentally deleted.
+  execute "sign define Sign5 linehl=Comment text=X\ "
   sign undefine Sign5
 
   " define sign with backslash
@@ -2119,6 +2121,68 @@ func Test_sign_number_without_signtext()
   call VerifyScreenDump(buf, 'Test_sign_number_without_signtext', {})
 
   call StopVimInTerminal(buf)
+endfunc
+
+func Test_sign_signcolumn_change_no_clear()
+  " In the GUI, sign icons need UPD_CLEAR to redraw properly,
+  " so this optimization only applies to non-GUI mode.
+  CheckNotGui
+  new
+  call setline(1, ['a', 'b', 'c'])
+  set number signcolumn=auto
+  sign define SignA text=>> texthl=Search
+  exe 'sign place 1 line=1 name=SignA buffer=' .. bufnr()
+  redraw!
+
+  " Put a marker on the command line
+  echon 'SIGNTEST'
+  " Change signcolumn - with P_RWIN this should NOT trigger UPD_CLEAR,
+  " so the command line should retain the marker text.
+  " With P_RCLR, UPD_CLEAR would blank the entire screen including
+  " the command line, causing the marker to disappear.
+  set signcolumn=number
+  redraw
+
+  " Verify sign and number column are correctly displayed after the change.
+  " Line 1 has sign '>>' shown in the number column.
+  " Line 2 has no sign, so line number '2' is shown.
+  call assert_equal(' >> a', s:ScreenLine(1, 1, 5))
+  call assert_equal('  2 b', s:ScreenLine(2, 1, 5))
+
+  " Verify the command line was NOT cleared (P_RWIN does not trigger
+  " UPD_CLEAR, unlike P_RCLR).
+  let cmdline = ''
+  for i in range(1, 8)
+    let cmdline ..= screenstring(&lines, i)
+  endfor
+  call assert_equal('SIGNTEST', cmdline)
+
+  sign unplace * group=*
+  sign undefine SignA
+  set signcolumn& number&
+  bwipe!
+endfunc
+
+" A buffer name containing a bar must not be interpreted as an Ex command
+" separator when jumping to a sign in a buffer that is not displayed.
+func Test_sign_jump_name_with_bar()
+  let bufnr = bufadd('Xsign|call setline(1, "PWNED")')
+  " The name is not valid for a file on MS-Windows, do not create a swap file.
+  call setbufvar(bufnr, '&swapfile', 0)
+  call bufload(bufnr)
+  call setbufline(bufnr, 1, ['one', 'two', 'three'])
+
+  sign define sjTest text=x
+  call sign_place(1, '', 'sjTest', bufnr, #{lnum: 2})
+
+  call sign_jump(1, '', bufnr)
+
+  call assert_equal(bufnr, bufnr('%'))
+  call assert_equal(2, line('.'))
+  call assert_equal('two', getline(2))
+
+  call sign_undefine('sjTest')
+  exe 'bwipe! ' .. bufnr
 endfunc
 
 " vim: shiftwidth=2 sts=2 expandtab

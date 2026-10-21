@@ -49,6 +49,10 @@ static __thread int pum_border = 0;
 static __thread int pum_margin = 0;	// margin of 1 cell on left and right
 static __thread int pum_shadow = 0;
 
+#ifdef FEAT_IMAGE_POPUP
+static image_placement_T *pum_imagep = NULL;
+#endif
+
 // Border characters
 static __thread struct {
     int top;
@@ -290,8 +294,10 @@ pum_compute_horizontal_placement(int cursor_col)
 pum_display(
 	pumitem_T   *array,
 	int	    size,
-	int	    selected)   // index of initially selected item, -1 if
+	int	    selected,   // index of initially selected item, -1 if
 				// out of range
+	int	    pum_wcol)   // screen column to align the menu to, or -1
+				// to use the cursor column
 {
     int	    cursor_col;
     int	    above_row;
@@ -326,7 +332,7 @@ pum_display(
 	    pum_win_row = curwin->w_wrow + W_WINROW(curwin);
 	pum_win_height = curwin->w_height;
 	pum_win_col = curwin->w_wincol;
-	pum_win_wcol = curwin->w_wcol;
+	pum_win_wcol = pum_wcol >= 0 ? pum_wcol : curwin->w_wcol;
 	pum_win_width = curwin->w_width;
 
 #if defined(FEAT_QUICKFIX)
@@ -359,8 +365,23 @@ pum_display(
 	    cursor_col = cmdline_compl_startcol();
 	else
 	{
-	    // w_wcol includes virtual text "above"
-	    int wcol = curwin->w_wcol % curwin->w_width;
+	    int wcol = pum_wcol >= 0 ? pum_wcol : curwin->w_wcol;
+	    // w_wcol includes virtual text "above".
+	    if (curwin->w_width > 0)
+		wcol %= curwin->w_width;
+	    else
+		wcol = 0;
+#ifdef FEAT_CONCEAL
+	    // w_wcol does not account for text concealed before the cursor;
+	    // shift by the offset win_line() recorded for the cursor line so the
+	    // menu lines up with the visible text.
+	    if (curwin->w_p_cole > 0 && conceal_cursor_line(curwin))
+	    {
+		wcol -= curwin->w_wcol_conceal_off;
+		if (wcol < 0)
+		    wcol = 0;
+	    }
+#endif
 #ifdef FEAT_RIGHTLEFT
 	    if (pum_rl)
 		cursor_col = curwin->w_wincol + curwin->w_width - wcol - 1;
@@ -406,11 +427,45 @@ pum_call_update_screen(void)
     int
 pum_under_menu(int row, int col, int only_redrawing)
 {
-    return (!only_redrawing || pum_will_redraw)
-	    && row >= pum_row
-	    && row < pum_row + pum_height
-	    && col >= pum_col - 1
-	    && col < pum_col + pum_width + pum_scrollbar;
+    int	extra_left = pum_border + (pum_margin && pum_border ? 1 : 0);
+    int	extra_right = pum_border + (pum_margin && pum_border ? 1 : 0)
+						+ (pum_shadow ? 2 : 0);
+    int	extra_above = pum_border;
+    int	extra_below = pum_border + (pum_shadow ? 1 : 0);
+    int	top = pum_row - extra_above;
+    int	bot = pum_row + pum_height + extra_below;
+    int	left = pum_col - 1 - extra_left;
+    int	right = pum_col + pum_width + pum_scrollbar + extra_right;
+
+    if (!((!only_redrawing || pum_will_redraw)
+	    && row >= top && row < bot && col >= left && col < right))
+	return FALSE;
+
+    if (pum_shadow)
+    {
+	// The shadow recolors the cells underneath.  When the menu will be
+	// redrawn, leave the shadow cells unprotected so the window refreshes
+	// them first, clearing stale content left by a larger menu.
+	if (only_redrawing)
+	{
+	    if (col >= right - 2 || row == bot - 1)
+		return FALSE;
+	}
+	else
+	{
+	    // Menu stays as-is: exclude only the corner cells the shadow never
+	    // draws.
+	    int	    right_margin, left_margin, left_padding;
+
+	    compute_margins(&right_margin, &left_margin, &left_padding);
+	    if (row == top && col >= right - 2)
+		return FALSE;
+	    if (row == bot - 1 && col < pum_col + 2 - left_padding - pum_border
+		    - left_margin)
+		return FALSE;
+	}
+    }
+    return TRUE;
 }
 
 /*
@@ -878,6 +933,42 @@ pum_align_order(int *order)
     order[2] = is_default ? CPT_MENU : cia_flags % 10;
 }
 
+static void pum_free_bg(void);
+
+/*
+ * Called when the pum opacity value has changed.
+ * Invalidates cached background and triggers redraw if pum is visible.
+ */
+    void
+pum_opacity_changed(void)
+{
+    // Invalidate cached background so it gets re-saved.
+    pum_free_bg();
+
+    if (pum_visible())
+    {
+	// Force full screen clear so ScreenAttrs doesn't retain
+	// stale blended values from the previous pumopacity.
+	redraw_all_later(UPD_CLEAR);
+	call_update_screen = TRUE;
+	pum_redraw();
+    }
+}
+
+    static void
+pum_free_bg(void)
+{
+    int k;
+    VIM_CLEAR(pum_bg_attrs);
+    VIM_CLEAR(pum_bg_lines);
+    VIM_CLEAR(pum_bg_linesUC);
+    for (k = 0; k < MAX_MCO; ++k)
+	VIM_CLEAR(pum_bg_linesC[k]);
+    pum_bg_top = 0;
+    pum_bg_bot = 0;
+    pum_bg_cols = 0;
+}
+
 /*
  * Redraw the popup menu, using "pum_first" and "pum_selected".
  */
@@ -905,6 +996,31 @@ pum_redraw(void)
     int		last_isabbr = FALSE;
     int		orig_attr = -1;
     int		scroll_range = pum_size - pum_height;
+    bool	override_success;
+    int		opacity_active = (p_po > 0 && p_po < 100);
+
+    // Use current window for highlight overrides when using 'winhighlight'
+    override_success = push_highlight_overrides(curwin->w_hl, curwin->w_hl_len);
+
+    // Batch the underlying screen update and the pum drawing into a single
+    // synchronized output frame to avoid flicker.
+    term_set_sync_output(TERM_SYNC_OUTPUT_ENABLE);
+
+#ifdef FEAT_IMAGE_POPUP
+    // Create a image placement so that other images are clipped correctly
+    if (pum_imagep == NULL)
+	// Make pom always be on top of any image placement with same zindex.
+	pum_imagep = image_placement_new(NULL, UINT_MAX,
+		IMAGE_PLACEMENT_USE_PUM, true);
+    if (pum_imagep != NULL)
+    {
+	image_placement_set_zindex(pum_imagep, POPUPMENU_ZINDEX);
+	image_placement_set_position(pum_imagep, pum_row, pum_col);
+	image_placement_set_bounding_box(pum_imagep, pum_row, pum_col,
+		pum_height, pum_width);
+	image_placement_set_enable(pum_imagep, true);
+    }
+#endif
 
     hlf_T	hlfsNorm[3];
     hlf_T	hlfsSel[3];
@@ -921,11 +1037,97 @@ pum_redraw(void)
     if (call_update_screen)
     {
 	call_update_screen = FALSE;
-	// Do not redraw in pum_may_redraw() and don't draw in the area where
-	// the popup menu will be.
-	pum_will_redraw = TRUE;
-	update_screen(0);
-	pum_will_redraw = FALSE;
+	// Invalidate cached background if screen size changed (e.g.
+	// after window resize).
+	if (opacity_active && pum_bg_lines != NULL
+		&& (pum_bg_cols != screen_Columns
+		    || pum_bg_bot > screen_Rows))
+	    pum_free_bg();
+
+	if (opacity_active && pum_bg_lines != NULL)
+	{
+	    // Already have saved background; skip update_screen to avoid
+	    // flickering.  Just do a normal pum_will_redraw update.
+	    pum_will_redraw = TRUE;
+	    update_screen(0);
+	    pum_will_redraw = FALSE;
+	}
+	else if (opacity_active)
+	{
+	    // For opacity: draw background including the area under the
+	    // pum, then save it.
+	    pum_pretend_not_visible = TRUE;
+	    update_screen(0);
+	    pum_pretend_not_visible = FALSE;
+
+	    // Save background to static buffers.
+	    if (ScreenLines != NULL && ScreenAttrs != NULL)
+	    {
+		int	save_top, save_bot, save_ncells, k;
+
+		pum_free_bg();
+		save_top = pum_row - pum_border;
+		save_bot = pum_row + pum_height + pum_border
+					    + (pum_shadow ? 1 : 0) + 1;
+		if (save_top < 0)
+		    save_top = 0;
+		if (save_bot > screen_Rows)
+		    save_bot = screen_Rows;
+		pum_bg_top = save_top;
+		pum_bg_bot = save_bot;
+		pum_bg_cols = screen_Columns;
+		if (save_top < save_bot)
+		{
+		    save_ncells = (save_bot - save_top) * screen_Columns;
+		    pum_bg_attrs = LALLOC_MULT(sattr_T, save_ncells);
+		    pum_bg_lines = LALLOC_MULT(schar_T, save_ncells);
+		    if (enc_utf8)
+		    {
+			pum_bg_linesUC = LALLOC_MULT(u8char_T, save_ncells);
+			for (k = 0; k < MAX_MCO; ++k)
+			    pum_bg_linesC[k] = LALLOC_MULT(u8char_T,
+							    save_ncells);
+		    }
+		    if (pum_bg_attrs != NULL && pum_bg_lines != NULL)
+		    {
+			for (int r = save_top; r < save_bot; ++r)
+			{
+			    int soff = (r - save_top) * screen_Columns;
+			    int loff = LineOffset[r];
+
+			    mch_memmove(pum_bg_attrs + soff,
+				    ScreenAttrs + loff,
+				    screen_Columns * sizeof(sattr_T));
+			    mch_memmove(pum_bg_lines + soff,
+				    ScreenLines + loff,
+				    screen_Columns * sizeof(schar_T));
+			    if (enc_utf8 && pum_bg_linesUC != NULL
+						&& ScreenLinesUC != NULL)
+			    {
+				mch_memmove(pum_bg_linesUC + soff,
+					ScreenLinesUC + loff,
+					screen_Columns * sizeof(u8char_T));
+				for (k = 0; k < MAX_MCO; ++k)
+				    if (pum_bg_linesC[k] != NULL
+						    && ScreenLinesC[k] != NULL)
+					mch_memmove(pum_bg_linesC[k] + soff,
+						ScreenLinesC[k] + loff,
+						screen_Columns
+						    * sizeof(u8char_T));
+			    }
+			}
+		    }
+		}
+	    }
+	}
+	else
+	{
+	    // Do not redraw in pum_may_redraw() and don't draw in the area
+	    // where the popup menu will be.
+	    pum_will_redraw = TRUE;
+	    update_screen(0);
+	    pum_will_redraw = FALSE;
+	}
     }
 
     // never display more than we have
@@ -946,11 +1148,17 @@ pum_redraw(void)
     screen_zindex = POPUPMENU_ZINDEX;
 #endif
 
-    // Draw border and shadow first if enabled
+    // Draw border and shadow first if enabled, before setting blend
+    // so that border/shadow characters are drawn without opacity.
     if (pum_border)
 	pum_draw_border();
     if (pum_shadow)
 	pum_draw_shadow();
+
+    // Set blend for screen_puts_len / screen_fill to use.
+    // Only the pum content area should be blended, not border/shadow.
+    if (opacity_active)
+	screen_pum_blend = 100 - (int)p_po;
 
     for (i = 0; i < pum_height; ++i)
     {
@@ -963,7 +1171,8 @@ pum_redraw(void)
 #ifdef FEAT_RIGHTLEFT
 	if (pum_rl)
 	{
-	    if (pum_col < curwin->w_wincol + curwin->w_width - 1 - pum_border)
+	    if (pum_col < curwin->w_wincol + curwin->w_width - 1
+							    - pum_border)
 		screen_putchar(' ', row, pum_col + 1, attr);
 	}
 	else
@@ -1028,8 +1237,8 @@ pum_redraw(void)
 
 #ifdef FEAT_RIGHTLEFT
 	if (pum_rl)
-	    screen_fill(row, row + 1, pum_col - pum_width + 1, col + 1, ' ',
-							    ' ', orig_attr);
+	    screen_fill(row, row + 1, pum_col - pum_width + 1, col + 1,
+							    ' ', ' ', orig_attr);
 	else
 #endif
 	    screen_fill(row, row + 1, col, pum_col + pum_width, ' ', ' ',
@@ -1039,9 +1248,16 @@ pum_redraw(void)
 	++row;
     }
 
+    screen_pum_blend = 0;
+
 #ifdef FEAT_PROP_POPUP
     screen_zindex = 0;
 #endif
+
+    if (override_success)
+	pop_highlight_overrides();
+
+    term_set_sync_output(TERM_SYNC_OUTPUT_DISABLE);
 }
 
 #if defined(FEAT_PROP_POPUP) && defined(FEAT_QUICKFIX)
@@ -1332,7 +1548,7 @@ pum_set_selected(int n, int repeat UNUSED)
 			// window is not resized, skip the preview window's
 			// status line redrawing.
 			if (ins_compl_active() && !resized)
-			    curwin->w_redr_status = FALSE;
+			    curwin->w_redr_status = false;
 
 			// Return cursor to where we were
 			validate_cursor();
@@ -1362,7 +1578,7 @@ pum_set_selected(int n, int repeat UNUSED)
 			// StatusLineNC for a moment and cause flicker.
 			pum_will_redraw = !resized;
 			save_redr_status = curwin_save->w_redr_status;
-			curwin_save->w_redr_status = FALSE;
+			curwin_save->w_redr_status = false;
 			update_screen(0);
 			pum_pretend_not_visible = FALSE;
 			pum_will_redraw = FALSE;
@@ -1420,6 +1636,14 @@ pum_set_selected(int n, int repeat UNUSED)
     void
 pum_undisplay(void)
 {
+#ifdef FEAT_IMAGE_POPUP
+    if (pum_imagep != NULL)
+    {
+	image_placement_free(pum_imagep);
+	pum_imagep = NULL;
+    }
+#endif
+    pum_free_bg();
     pum_array = NULL;
     redraw_all_later(UPD_NOT_VALID);
     redraw_tabline = TRUE;
@@ -1465,8 +1689,12 @@ pum_visible(void)
     static int
 pum_in_same_position(void)
 {
+    int	    row = (State & MODE_CMDLINE)
+			? cmdline_row
+			: curwin->w_wrow + W_WINROW(curwin);
+
     return pum_window != curwin
-	    || (pum_win_row == curwin->w_wrow + W_WINROW(curwin)
+	    || (pum_win_row == row
 		&& pum_win_height == curwin->w_height
 		&& pum_win_col == curwin->w_wincol
 		&& pum_win_width == curwin->w_width);
@@ -1504,16 +1732,11 @@ pum_may_redraw(void)
     }
     else
     {
-	int wcol = curwin->w_wcol;
-
 	// Window layout changed, recompute the position.
 	// Use the remembered w_wcol value, the cursor may have moved when a
 	// completion was inserted, but we want the menu in the same position.
 	pum_undisplay();
-	curwin->w_wcol = pum_win_wcol;
-	curwin->w_valid |= VALID_WCOL;
-	pum_display(array, len, selected);
-	curwin->w_wcol = wcol;
+	pum_display(array, len, selected, pum_win_wcol);
     }
 }
 

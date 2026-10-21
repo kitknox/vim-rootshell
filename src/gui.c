@@ -20,7 +20,9 @@ static void set_guifontwide(char_u *font_name);
 static void gui_check_pos(void);
 static void gui_reset_scroll_region(void);
 static void gui_outstr(char_u *, int);
+#ifndef USE_GTK4
 static int gui_screenchar(int off, int flags, guicolor_T fg, guicolor_T bg, int back);
+#endif
 static int gui_outstr_nowrap(char_u *s, int len, int flags, guicolor_T fg, guicolor_T bg, int back);
 static void gui_delete_lines(int row, int count);
 static void gui_insert_lines(int row, int count);
@@ -77,6 +79,9 @@ gui_start(char_u *arg UNUSED)
     if (full_screen)
 	cursor_on();			// needed for ":gui" in .vimrc
     full_screen = FALSE;
+
+    // If GUI fails to start, then we will recover afterwards
+    term_disable_dec();
 
 #ifdef GUI_MAY_FORK
     ++recursive;
@@ -141,24 +146,27 @@ gui_start(char_u *arg UNUSED)
 	termcapinit(old_term);
 	settmode(TMODE_RAW);		// restart RAW mode
 	set_title_defaults();		// set 'title' and 'icon' again
+#ifdef UNIX
+	term_set_win_resize(true);
+#endif
 #if defined(GUI_MAY_SPAWN) && defined(EXPERIMENTAL_GUI_CMD)
 	if (msg != NULL)
 	    emsg(msg);
 #endif
     }
-#ifdef HAVE_CLIPMETHOD
     else
+    {
+#ifdef HAVE_CLIPMETHOD
 	// Reset clipmethod to CLIPMETHOD_NONE
 	choose_clipmethod();
 #endif
-
-#if defined(FEAT_SOCKETSERVER) && defined(FEAT_GUI_GTK)
-    // Install socket server listening socket if we are running it
-    if (socket_server_valid())
-	gui_gtk_init_socket_server();
+#ifdef FEAT_IMAGE
+	update_cell_size();
+	update_image_backend();
 #endif
+    }
 
-#ifdef FEAT_GUI_MSWIN
+#if defined(FEAT_GUI_MSWIN) || defined(FEAT_GUI_GTK)
     // Enable fullscreen mode
     if (vim_strchr(p_go, GO_FULLSCREEN) != NULL)
        gui_mch_set_fullscreen(TRUE);
@@ -192,7 +200,7 @@ gui_attempt_start(void)
     static int recursive = 0;
 
     ++recursive;
-    gui.starting = TRUE;
+    gui.starting = true;
 
 #ifdef FEAT_GUI_GTK
     gui.event_time = GDK_CURRENT_TIME;
@@ -221,7 +229,7 @@ gui_attempt_start(void)
 #ifdef GUI_MAY_FORK
 
 // for waitpid()
-# if defined(HAVE_SYS_WAIT_H) || defined(HAVE_UNION_WAIT)
+# if defined(HAVE_SYS_WAIT_H)
 #  include <sys/wait.h>
 # endif
 
@@ -277,11 +285,7 @@ gui_do_fork(void)
 		// The child failed to start the GUI, so the caller must
 		// continue. There may be more error information written
 		// to stderr by the child.
-# ifdef __NeXT__
-		wait4(pid, &exit_status, 0, (struct rusage *)0);
-# else
 		waitpid(pid, &exit_status, 0);
-# endif
 		emsg(_(e_the_child_process_failed_to_start_GUI));
 		return;
 	    }
@@ -386,8 +390,8 @@ gui_read_child_pipe(int fd)
     void
 gui_prepare(int *argc, char **argv)
 {
-    gui.in_use = FALSE;		    // No GUI yet (maybe later)
-    gui.starting = FALSE;	    // No GUI yet (maybe later)
+    gui.in_use = false;		    // No GUI yet (maybe later)
+    gui.starting = false;	    // No GUI yet (maybe later)
     gui_mch_prepare(argc, argv);
 }
 
@@ -410,17 +414,17 @@ gui_init_check(void)
     }
 
     gui.shell_created = false;
-    gui.dying = FALSE;
-    gui.in_focus = TRUE;		// so the guicursor setting works
+    gui.dying = false;
+    gui.in_focus = true;		// so the guicursor setting works
     gui.dragged_sb = SBAR_NONE;
     gui.dragged_wp = NULL;
-    gui.pointer_hidden = FALSE;
+    gui.pointer_hidden = false;
     gui.col = 0;
     gui.row = 0;
     gui.num_cols = Columns;
     gui.num_rows = Rows;
 
-    gui.cursor_is_valid = FALSE;
+    gui.cursor_is_valid = false;
     gui.scroll_region_top = 0;
     gui.scroll_region_bot = Rows - 1;
     gui.scroll_region_left = 0;
@@ -455,7 +459,7 @@ gui_init_check(void)
     gui.menu_font = NOFONT;
 #  endif
 # endif
-    gui.menu_is_active = TRUE;	    // default: include menu
+    gui.menu_is_active = true;	    // default: include menu
 # ifndef FEAT_GUI_GTK
     gui.menu_height = MENU_DEFAULT_HEIGHT;
     gui.menu_width = 0;
@@ -483,6 +487,11 @@ gui_init_check(void)
     result = OK;
 #else
 # ifdef FEAT_GUI_GTK
+    gui.is_x11 = false;
+#  ifdef FEAT_GUI_DIALOG
+    gui.dialogs_active = 0;
+    gui.dialog_focus_pending = 0;
+#  endif
 #  ifdef GDK_WINDOWING_WAYLAND
     gui.is_wayland = false;
 #  endif
@@ -672,7 +681,10 @@ gui_init(void)
     /*
      * Create the GUI shell.
      */
-    gui.in_use = TRUE;		// Must be set after menus have been set up
+    gui.in_use = true;		// Must be set after menus have been set up
+#if defined(FEAT_GUI_GTK) && defined(FEAT_IMAGE)
+    gui.scale = 1.0; // Default value
+#endif
     if (gui_mch_init() == FAIL)
 	goto error;
 
@@ -778,9 +790,11 @@ gui_init(void)
 	// It was still there to make F10 work.
 	if (vim_strchr(p_go, GO_MENUS) == NULL)
 	{
-	    --gui.starting;
+	    bool save_starting = gui.starting;
+
+	    gui.starting = false;
 	    gui_mch_enable_menu(FALSE);
-	    ++gui.starting;
+	    gui.starting = save_starting;
 	    gui_mch_update();
 	}
 # endif
@@ -853,7 +867,7 @@ error2:
 #endif
 
 error:
-    gui.in_use = FALSE;
+    gui.in_use = false;
     clip_init(FALSE);
 }
 
@@ -864,7 +878,7 @@ gui_exit(int rc)
     // don't free the fonts, it leads to a BUS error
     // richard@whitequeen.com Jul 99
     free_highlight_fonts();
-    gui.in_use = FALSE;
+    gui.in_use = false;
     gui_mch_exit(rc);
 }
 
@@ -1161,7 +1175,7 @@ gui_check_pos(void)
     if (gui.col >= screen_Columns)
 	gui.col = screen_Columns - 1;
     if (gui.cursor_row >= screen_Rows || gui.cursor_col >= screen_Columns)
-	gui.cursor_is_valid = FALSE;
+	gui.cursor_is_valid = false;
 }
 
 /*
@@ -1187,6 +1201,9 @@ gui_update_cursor(
     int		cattr;		// cursor attributes
     int		attr;
     attrentry_T *aep = NULL;
+#if (defined(FEAT_GUI_GTK) || defined(FEAT_GUI_MSWIN)) && !defined(USE_GTK4)
+    bool	lig_left = false, lig_right = false;
+#endif
 
     // Don't update the cursor when halfway busy scrolling or the screen size
     // doesn't match 'columns' and 'lines.  ScreenLines[] isn't valid then.
@@ -1227,7 +1244,7 @@ gui_update_cursor(
     if (gui.row >= screen_Rows || gui.col >= screen_Columns)
 	return;
 
-    gui.cursor_is_valid = TRUE;
+    gui.cursor_is_valid = true;
 
     /*
      * How the cursor is drawn depends on the current mode.
@@ -1352,13 +1369,77 @@ gui_update_cursor(
      */
     if (!gui.in_focus)
     {
+#ifdef USE_GTK4
+	gui_gtk4_draw_cursor(cbg, cfg, -1, -1);
+#else
 	gui_mch_draw_hollow_cursor(cbg);
+#endif
 	return;
     }
+
+#ifdef USE_GTK4
+    // Make sure that character underneath is drawn again in case it is part of
+    // a ligature.
+    gui_redraw_block(gui.row, gui.col, gui.row, gui.col, GUI_MON_NOCLEAR);
+    // gui_redraw_block() will invalidate the cursor
+    gui.cursor_is_valid = true;
+#endif
+#if defined(FEAT_GUI_GTK) || defined(FEAT_GUI_MSWIN)
+    // If cursor is in the middle of a ligature, then split the ligature at
+    // the cursor boundaries by redrawing those cells again.
+    for (int c = gui.col - 1; c >= 0; c--)
+	if (!gui.ligatures_map[ScreenLines[LineOffset[gui.row] + c]])
+	{
+	    if (c < gui.col - 1)
+	    {
+		gui_redraw_block(gui.row, c + 1, gui.row, gui.col - 1,
+			GUI_MON_NOCLEAR);
+# ifndef USE_GTK4
+		lig_left = true;
+# endif
+	    }
+	    break;
+	}
+
+    for (int c = gui.col + 1; c < screen_Columns - 1; c++)
+	if (!gui.ligatures_map[ScreenLines[LineOffset[gui.row] + c]])
+	{
+	    if (c > gui.col + 1)
+	    {
+		gui_redraw_block(gui.row, gui.col + 1, gui.row, c - 1,
+			GUI_MON_NOCLEAR);
+# ifndef USE_GTK4
+		lig_right = true;
+# endif
+	    }
+	    break;
+	}
+
+# ifndef USE_GTK4
+    if ((lig_left || lig_right) && shape->shape != SHAPE_BLOCK)
+    {
+	// Because the cursor is not drawn with gui_screenchar(), must blit the
+	// cell again (with its background), so that old ligature does not
+	// remain on screen. Not needed for GtkSnapshot, because char beneath is
+	// always rerendered (see above ifdef).
+	int old = gui.col;
+	gui.highlight_mask = ScreenAttrs[LineOffset[gui.row] + gui.col];
+	(void)gui_screenchar(LineOffset[gui.row] + gui.col,
+		GUI_MON_NOCLEAR, (guicolor_T)0, (guicolor_T)0, 0);
+	gui.col = old;
+    }
+# endif
+    // gui_redraw_block()/gui_screenchar() may invalidate the cursor, make sure
+    // to validate it again.
+    gui.cursor_is_valid = true;
+#endif
 
     old_hl_mask = gui.highlight_mask;
     if (shape->shape == SHAPE_BLOCK)
     {
+#ifdef USE_GTK4
+	gui_gtk4_draw_cursor(cbg, cfg, 0, 0);
+#else
 	/*
 	 * Draw the text character with the cursor colors.	Use the
 	 * character attributes plus the cursor attributes.
@@ -1366,6 +1447,7 @@ gui_update_cursor(
 	gui.highlight_mask = (cattr | attr);
 	(void)gui_screenchar(LineOffset[gui.row] + gui.col,
 		GUI_MON_IS_CURSOR | GUI_MON_NOCLEAR, cfg, cbg, 0);
+#endif
     }
     else
     {
@@ -1404,13 +1486,19 @@ gui_update_cursor(
 	    }
 #endif
 	}
+#ifdef USE_GTK4
+	gui_gtk4_draw_cursor(cbg, cfg, cur_width, cur_height);
+#else
 	gui_mch_draw_part_cursor(cur_width, cur_height, cbg);
+#endif
 #if defined(FEAT_RIGHTLEFT)
 	if (col_off)
 	    --gui.col;
 #endif
 
-#ifndef FEAT_GUI_MSWIN	    // doesn't seem to work for MSWindows
+	// Doesn't seem to work for MSWindows. We call gui_redraw_block() above
+	// for GtkSnapshot.
+#if !defined(FEAT_GUI_MSWIN) && !defined(USE_GTK4)
 	gui.highlight_mask = ScreenAttrs[LineOffset[gui.row] + gui.col];
 	(void)gui_screenchar(LineOffset[gui.row] + gui.col,
 		GUI_MON_TRS_CURSOR | GUI_MON_NOCLEAR,
@@ -1596,12 +1684,27 @@ again:
 
     // Flush pending output before redrawing
     out_flush();
+#if defined(FEAT_GUI_GTK) && defined(USE_GTK4)
+    gui_gtk_init_decor_height();
+#endif
 
     gui.num_cols = (pixel_width - gui_get_base_width()) / gui.char_width;
     gui.num_rows = (pixel_height - gui_get_base_height()) / gui.char_height;
 
+#ifdef USE_GTK4
+    gui_gtk4_update_size();
+#endif
+
     gui_position_components(pixel_width);
     gui_reset_scroll_region();
+
+#if defined(FEAT_GUI_GTK) && defined(USE_GTK4) && !defined(USE_GTK4)
+    // We do not resize the draw area via the "resize" signal. This is because
+    // when the window is resized, the form widget is the one that is resized,
+    // so let that call gui_resize_shell() which will allocate the surface and
+    // allocate the drawing area size/position.
+    gui_gtk4_resize(pixel_width, pixel_height);
+#endif
 
     /*
      * At the "more" and ":confirm" prompt there is no redraw, put the cursor
@@ -1625,6 +1728,9 @@ again:
 
     gui_update_scrollbars(TRUE);
     gui_update_cursor(FALSE, TRUE);
+#if defined(FEAT_GUI_GTK) && defined(USE_GTK4)
+    gui_gtk4_calculate_bleed(pixel_width, pixel_height);
+#endif
 #if defined(FEAT_XIM) && !defined(FEAT_GUI_GTK)
     xim_set_status_area();
 #endif
@@ -1657,9 +1763,11 @@ again:
 gui_may_resize_shell(void)
 {
     if (new_pixel_height)
+    {
 	// careful: gui_resize_shell() may postpone the resize again if we
 	// were called indirectly by it
 	gui_resize_shell(new_pixel_width, new_pixel_height);
+    }
 }
 
     int
@@ -1703,6 +1811,12 @@ gui_set_shellsize(
 #if defined(MSWIN) || defined(FEAT_GUI_GTK)
     // If not setting to a user specified size and maximized, calculate the
     // number of characters that fit in the maximized window.
+    // FIXME: gui_mch_newfont() is called here even when the font hasn't
+    // changed at all.  For example, ":set guioptions=k" triggers this path
+    // via gui_init_which_components() -> gui_set_shellsize(FALSE, ...).
+    // The intent is to keep the window size and recalculate Rows/Columns,
+    // which has nothing to do with fonts.  This should be a separate
+    // function with a more descriptive name.
     if (!mustset && (vim_strchr(p_go, GO_KEEPWINSIZE) != NULL
 						       || gui_mch_maximized()))
     {
@@ -1752,6 +1866,10 @@ gui_set_shellsize(
     limit_screen_size();
     gui.num_cols = Columns;
     gui.num_rows = Rows;
+#ifdef USE_GTK4
+    // Keep the drawing area in sync with the size Vim is going to draw.
+    gui_gtk4_update_size();
+#endif
 
     min_width = base_width + MIN_COLUMNS * gui.char_width;
     min_height = base_height + MIN_LINES * gui.char_height;
@@ -1786,6 +1904,10 @@ gui_set_shellsize(
     gui_position_components(width);
     gui_update_scrollbars(TRUE);
     gui_reset_scroll_region();
+
+#if defined(FEAT_GUI_GTK) && defined(USE_GTK4)
+    gui_gtk4_calculate_bleed(width, height);
+#endif
 }
 
 /*
@@ -1846,7 +1968,7 @@ gui_clear_block(
     // Invalidate cursor if it was in this block
     if (       gui.cursor_row >= row1 && gui.cursor_row <= row2
 	    && gui.cursor_col >= col1 && gui.cursor_col <= col2)
-	gui.cursor_is_valid = FALSE;
+	gui.cursor_is_valid = false;
 }
 
 /*
@@ -1918,7 +2040,7 @@ gui_write(
 		case 'C':	// Clear screen
 		    clip_scroll_selection(9999);
 		    gui_mch_clear_all();
-		    gui.cursor_is_valid = FALSE;
+		    gui.cursor_is_valid = false;
 		    force_scrollbar = TRUE;
 		    break;
 		case 'M':	// Move cursor
@@ -2177,6 +2299,7 @@ gui_outstr(char_u *s, int len)
     }
 }
 
+#ifndef USE_GTK4
 /*
  * Output one character (may be one or two display cells).
  * Caller must check for valid "off".
@@ -2213,6 +2336,7 @@ gui_screenchar(
 	    enc_dbcs ? (*mb_ptr2len)(ScreenLines + off) : 1,
 							 flags, fg, bg, back);
 }
+#endif
 
 #ifdef FEAT_GUI_GTK
 /*
@@ -2687,7 +2811,7 @@ gui_outstr_nowrap(
 	if (gui.cursor_row == gui.row
 		&& gui.cursor_col >= col
 		&& gui.cursor_col < col + len)
-	    gui.cursor_is_valid = FALSE;
+	    gui.cursor_is_valid = false;
     }
 
 #ifdef FEAT_SIGN_ICONS
@@ -2727,7 +2851,7 @@ gui_undraw_cursor(void)
 
     // Cursor_is_valid is reset when the cursor is undrawn, also reset it
     // here in case it wasn't needed to undraw it.
-    gui.cursor_is_valid = FALSE;
+    gui.cursor_is_valid = false;
 }
 
     void
@@ -2939,7 +3063,7 @@ gui_delete_lines(int row, int count)
 		&& gui.cursor_col <= gui.scroll_region_right)
 	{
 	    if (gui.cursor_row < row + count)
-		gui.cursor_is_valid = FALSE;
+		gui.cursor_is_valid = false;
 	    else if (gui.cursor_row <= gui.scroll_region_bot)
 		gui.cursor_row -= count;
 	}
@@ -2967,7 +3091,7 @@ gui_insert_lines(int row, int count)
 	    if (gui.cursor_row <= gui.scroll_region_bot - count)
 		gui.cursor_row += count;
 	    else if (gui.cursor_row <= gui.scroll_region_bot)
-		gui.cursor_is_valid = FALSE;
+		gui.cursor_is_valid = false;
 	}
     }
 }
@@ -3022,6 +3146,7 @@ gui_wait_for_chars_buf(
     int		tb_change_cnt)
 {
     int	    retval;
+    int	    keep_blinking; // Guard against restarting blink cycle on CursorHold
 
 #ifdef FEAT_MENU
     // If we're going to wait a bit, update the menus and mouse shape for the
@@ -3033,6 +3158,8 @@ gui_wait_for_chars_buf(
     gui_mch_update();
     if (input_available())	// Got char, return immediately
     {
+	if (gui_mch_is_blinking())
+	    gui_mch_stop_blink(TRUE);
 	if (buf != NULL && !typebuf_changed(tb_change_cnt))
 	    return read_from_input_buf(buf, (long)maxlen);
 	return 0;
@@ -3044,14 +3171,21 @@ gui_wait_for_chars_buf(
     gui_mch_flush();
 
     // Blink while waiting for a character.
-    gui_mch_start_blink();
+    if (!gui_mch_is_blinking())
+	gui_mch_start_blink();
 
     // Common function to loop until "wtime" is met, while handling timers and
     // other callbacks.
     retval = inchar_loop(buf, maxlen, wtime, tb_change_cnt,
 			 gui_wait_for_chars_or_timer, NULL);
 
-    gui_mch_stop_blink(TRUE);
+    // Keep blinking when CursorHold wakes the input loop. (See PR #21115)
+    keep_blinking = retval == 3 && buf != NULL
+	&& buf[0] == K_SPECIAL && buf[1] == KS_EXTRA
+	&& buf[2] == (int)KE_CURSORHOLD;
+
+    if (!keep_blinking)
+	gui_mch_stop_blink(TRUE);
 
     return retval;
 }
@@ -3506,7 +3640,9 @@ gui_init_which_components(char_u *oldval UNUSED)
 #ifdef FEAT_GUI_MSWIN
     static int	prev_titlebar = FALSE;
     int		using_titlebar = FALSE;
+#endif
 
+#if defined(FEAT_GUI_MSWIN) || defined(FEAT_GUI_GTK)
     static int	prev_fullscreen = FALSE;
     int		using_fullscreen = FALSE;
 #endif
@@ -3541,30 +3677,30 @@ gui_init_which_components(char_u *oldval UNUSED)
 	    p_go = temp;
 	}
     }
-    gui.menu_is_active = FALSE;
+    gui.menu_is_active = false;
 #endif
 
     for (i = 0; i < 3; i++)
-	gui.which_scrollbars[i] = FALSE;
+	gui.which_scrollbars[i] = false;
     for (p = p_go; *p; p++)
 	switch (*p)
 	{
 	    case GO_LEFT:
-		gui.which_scrollbars[SBAR_LEFT] = TRUE;
+		gui.which_scrollbars[SBAR_LEFT] = true;
 		break;
 	    case GO_RIGHT:
-		gui.which_scrollbars[SBAR_RIGHT] = TRUE;
+		gui.which_scrollbars[SBAR_RIGHT] = true;
 		break;
 	    case GO_VLEFT:
 		if (win_hasvertsplit())
-		    gui.which_scrollbars[SBAR_LEFT] = TRUE;
+		    gui.which_scrollbars[SBAR_LEFT] = true;
 		break;
 	    case GO_VRIGHT:
 		if (win_hasvertsplit())
-		    gui.which_scrollbars[SBAR_RIGHT] = TRUE;
+		    gui.which_scrollbars[SBAR_RIGHT] = true;
 		break;
 	    case GO_BOT:
-		gui.which_scrollbars[SBAR_BOTTOM] = TRUE;
+		gui.which_scrollbars[SBAR_BOTTOM] = true;
 		break;
 #ifdef FEAT_GUI_DARKTHEME
 	    case GO_DARKTHEME:
@@ -3573,7 +3709,7 @@ gui_init_which_components(char_u *oldval UNUSED)
 #endif
 #ifdef FEAT_MENU
 	    case GO_MENUS:
-		gui.menu_is_active = TRUE;
+		gui.menu_is_active = true;
 		break;
 #endif
 	    case GO_GREY:
@@ -3583,6 +3719,8 @@ gui_init_which_components(char_u *oldval UNUSED)
 	    case GO_TITLEBAR:
 		using_titlebar = TRUE;
 		break;
+#endif
+#if defined(FEAT_GUI_MSWIN) || defined(FEAT_GUI_GTK)
 	    case GO_FULLSCREEN:
 		using_fullscreen = TRUE;
 		break;
@@ -3614,7 +3752,9 @@ gui_init_which_components(char_u *oldval UNUSED)
 	gui_mch_set_titlebar_colors();
 	prev_titlebar = using_titlebar;
     }
+#endif
 
+#if defined(FEAT_GUI_MSWIN) || defined(FEAT_GUI_GTK)
     if (using_fullscreen != prev_fullscreen)
     {
 	gui_mch_set_fullscreen(using_fullscreen);
@@ -3735,12 +3875,24 @@ gui_init_which_components(char_u *oldval UNUSED)
 	// Don't do this while starting up though.
 	// Don't change Rows when adding menu/toolbar/tabline.
 	// Don't change Columns when adding vertical toolbar.
-	if (!gui.starting && need_set_size != (RESIZE_VERT | RESIZE_HOR))
-	    (void)char_avail();
-	if ((need_set_size & RESIZE_VERT) == 0)
-	    Rows = prev_Rows;
-	if ((need_set_size & RESIZE_HOR) == 0)
-	    Columns = prev_Columns;
+	{
+	    // Save the size gui_set_shellsize() determined before
+	    // char_avail() processes spurious configure events that may
+	    // corrupt Rows/Columns.
+	    long    post_Rows = Rows;
+	    long    post_Columns = Columns;
+
+	    if (!gui.starting && need_set_size != (RESIZE_VERT | RESIZE_HOR))
+		(void)char_avail();
+	    if ((need_set_size & RESIZE_VERT) == 0)
+		Rows = prev_Rows;
+	    else
+		Rows = post_Rows;
+	    if ((need_set_size & RESIZE_HOR) == 0)
+		Columns = prev_Columns;
+	    else
+		Columns = post_Columns;
+	}
 #endif
     }
     // When the console tabline appears or disappears the window positions
@@ -3791,14 +3943,29 @@ gui_update_tabline(void)
 	out_flush();
 
 	if (!showit != !shown)
+	{
+	    // Save Rows/Columns before showing/hiding the tabline.
+	    // gui_mch_show_tabline() processes GTK events (via
+	    // gui_mch_update) which may trigger a spurious configure event
+	    // that temporarily corrupts Rows.  Restore the original values so
+	    // that gui_set_shellsize() uses the correct row/column count.
+	    int save_Rows = Rows;
+	    int save_Columns = Columns;
+
 	    gui_mch_show_tabline(showit);
+	    Rows = save_Rows;
+	    Columns = save_Columns;
+
+	    // Resize the outer window to compensate for the tabline height
+	    // change.  This is also needed when called from draw_tabline()
+	    // (e.g. after :tabclose), where no caller will do the resize.
+	    // When called from gui_init_which_components() the subsequent
+	    // gui_set_shellsize() call will redo this to the same dimensions,
+	    // which is harmless.
+	    gui_set_shellsize(FALSE, showit, RESIZE_VERT);
+	}
 	if (showit != 0)
 	    gui_mch_update_tabline();
-
-	// When the tabs change from hidden to shown or from shown to
-	// hidden the size of the text area should remain the same.
-	if (!showit != !shown)
-	    gui_set_shellsize(FALSE, showit, RESIZE_VERT);
     }
 }
 
@@ -3839,7 +4006,7 @@ get_tabline_label(
 
 	// Can't use NameBuff directly, build_stl_str_hl() uses it.
 	build_stl_str_hl(curwin, res, MAXPATHL, *opt, opt_name, 0,
-						 0, (int)Columns, NULL, NULL);
+					   0, (int)Columns, NULL, NULL, NULL);
 	STRCPY(NameBuff, res);
 
 	// Back to the original curtab.
@@ -4074,6 +4241,8 @@ gui_drag_scrollbar(scrollbar_T *sb, long value, int still_dragging)
 	// Keep the "dragged_wp" value until after the scrolling, for when the
 	// mouse button is released.  GTK2 doesn't send the button-up event.
 	gui.dragged_wp = NULL;
+	// WinScrolled event
+	gui_focus_change(TRUE);
 #endif
     }
 
@@ -4803,7 +4972,11 @@ gui_focus_change(int in_focus)
     // Put events in the input queue only when allowed.
     // ui_focus_change() isn't called directly, because it invokes
     // autocommands and that must not happen asynchronously.
-    if (!hold_gui_events)
+    if (!hold_gui_events
+# if defined(FEAT_GUI_GTK) && defined(FEAT_GUI_DIALOG)
+	    && gui.dialogs_active == 0
+# endif
+       )
     {
 	char_u  bytes[3];
 
@@ -4979,13 +5152,15 @@ xy2win(int x, int y, mouse_find_T popup)
 	else
 	    update_mouseshape(SHAPE_IDX_MORE);
     }
-    else if (row > wp->w_height)	// below status line
+    else if (row >= wp->w_height + wp->w_status_height)	// below status line
 	update_mouseshape(SHAPE_IDX_CLINE);
     else if (!(State & MODE_CMDLINE) && wp->w_vsep_width > 0 && col == wp->w_width
-	    && (row != wp->w_height || !stl_connected(wp)) && msg_scrolled == 0)
+	    && (!(row >= wp->w_height && row < wp->w_height
+	    + wp->w_status_height) || !stl_connected(wp)) && msg_scrolled == 0)
 	update_mouseshape(SHAPE_IDX_VSEP);
     else if (!(State & MODE_CMDLINE) && wp->w_status_height > 0
-				  && row == wp->w_height && msg_scrolled == 0)
+	    && row >= wp->w_height && row < wp->w_height + wp->w_status_height
+	    && msg_scrolled == 0)
 	update_mouseshape(SHAPE_IDX_STATUS);
     else
 	update_mouseshape(-2);
@@ -5310,26 +5485,26 @@ gui_do_findrepl(
 
     ga_init2(&ga, 1, 100);
     if (type == FRD_REPLACEALL)
-	ga_concat_len(&ga, (char_u *)"%s/", 3);
+	GA_CONCAT_LITERAL(&ga, "%s/");
 
-    ga_concat_len(&ga, (char_u *)"\\V", 2);
+    GA_CONCAT_LITERAL(&ga, "\\V");
     if (flags & FRD_MATCH_CASE)
-	ga_concat_len(&ga, (char_u *)"\\C", 2);
+	GA_CONCAT_LITERAL(&ga, "\\C");
     else
-	ga_concat_len(&ga, (char_u *)"\\c", 2);
+	GA_CONCAT_LITERAL(&ga, "\\c");
     if (flags & FRD_WHOLE_WORD)
-	ga_concat_len(&ga, (char_u *)"\\<", 2);
+	GA_CONCAT_LITERAL(&ga, "\\<");
     // escape slash and backslash
     p = vim_strsave_escaped(find_text, (char_u *)"/\\");
     if (p != NULL)
 	ga_concat(&ga, p);
     vim_free(p);
     if (flags & FRD_WHOLE_WORD)
-	ga_concat_len(&ga, (char_u *)"\\>", 2);
+	GA_CONCAT_LITERAL(&ga, "\\>");
 
     if (type == FRD_REPLACEALL)
     {
-	ga_concat_len(&ga, (char_u *)"/", 1);
+	GA_CONCAT_LITERAL(&ga, "/");
 	// Escape slash and backslash.
 	// Also escape tilde and ampersand if 'magic' is set.
 	p = vim_strsave_escaped(repl_text,
@@ -5337,7 +5512,7 @@ gui_do_findrepl(
 	if (p != NULL)
 	    ga_concat(&ga, p);
 	vim_free(p);
-	ga_concat_len(&ga, (char_u *)"/g", 2);
+	GA_CONCAT_LITERAL(&ga, "/g");
     }
     ga_append(&ga, NUL);
 

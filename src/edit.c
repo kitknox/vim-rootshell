@@ -100,12 +100,17 @@ static __thread int	ins_need_undo = 0;		// call u_save() before inserting a
 static __thread int	dont_sync_undo = FALSE;	// CTRL-G U prevents syncing undo for
 					// the next left/right cursor key
 
+// With 'autocompletedelay' set, arm the delay and let the main loop fire
+// Insert-mode autocommands; the popup is shown later on K_COMPLETE_DELAY.
+// Otherwise trigger completion right away.
 #define TRIGGER_AUTOCOMPLETE()			\
     do {					\
 	update_screen(UPD_VALID);  /* Show char (deletion) immediately */ \
 	out_flush();				\
 	ins_compl_enable_autocomplete();	\
-	goto docomplete;			\
+	ins_compl_arm_autostart();		\
+	if (!ins_compl_arm_autocomplete_delay())\
+	    goto docomplete;			\
     } while (0)
 
 #define MAY_TRIGGER_AUTOCOMPLETE(c)				\
@@ -468,7 +473,7 @@ edit(
 
 	// set curwin->w_curswant for next K_DOWN or K_UP
 	if (!arrow_used)
-	    curwin->w_set_curswant = TRUE;
+	    curwin->w_set_curswant = true;
 
 	// If there is no typeahead may check for timestamps (e.g., for when a
 	// menu invoked a shell command).
@@ -601,7 +606,7 @@ edit(
 	/*
 	 * Get a character for Insert mode.  Ignore K_IGNORE and K_NOP.
 	 */
-	if (c != K_CURSORHOLD)
+	if (c != K_CURSORHOLD && c != K_COMPLETE_DELAY)
 	    lastc = c;		// remember the previous char for CTRL-D
 
 	// After using CTRL-G U the next cursor key will not break undo.
@@ -627,12 +632,16 @@ edit(
 		    if (vim_isprintc(c))
 		    {
 			ins_compl_enable_autocomplete();
+			ins_compl_arm_autostart();
 			ins_compl_init_get_longest();
 #ifdef FEAT_RIGHTLEFT
 			if (p_hkmap)
 			    c = hkmap(c);		// Hebrew mode mapping
 #endif
-			goto docomplete;
+			// Defer until the delay expires (K_COMPLETE_DELAY), or
+			// trigger now when no delay is in effect.
+			if (!ins_compl_arm_autocomplete_delay())
+			    goto docomplete;
 		    }
 		}
 	    }
@@ -670,6 +679,15 @@ edit(
 
 	// Don't want K_CURSORHOLD for the second key, e.g., after CTRL-V.
 	did_cursorhold = TRUE;
+	if (c != K_CURSORHOLD && c != K_COMPLETE_DELAY)
+	{
+	    // Don't want delayed autocompletion from the previous key either.
+	    ins_compl_clear_autocomplete_delay();
+	    ins_compl_disarm_autostart();
+	    // A completion already on screen goes on being what it was.
+	    if (!ins_compl_active())
+		ins_compl_disable_autocomplete();
+	}
 
 #ifdef FEAT_RIGHTLEFT
 	if (p_hkmap && KeyTyped)
@@ -891,6 +909,8 @@ do_intr:
 		break;
 	    }
 doESCkey:
+	    // Drop a pending autocomplete so it does not outlive Insert mode.
+	    ins_compl_clear_autocomplete_delay();
 	    /*
 	     * This is the ONLY return from edit()!
 	     */
@@ -1132,6 +1152,10 @@ doESCkey:
 	case K_COMMAND:		    // <Cmd>command<CR>
 	case K_SCRIPT_COMMAND:	    // <ScriptCmd>command<CR>
 	    {
+		bufref_T    save_curbuf;
+		varnumber_T tick = CHANGEDTICK(curbuf);
+
+		set_bufref(&save_curbuf, curbuf);
 		do_cmdkey_command(c, 0);
 
 #ifdef FEAT_TERMINAL
@@ -1139,10 +1163,15 @@ doESCkey:
 		    // Started a terminal that gets the input, exit Insert mode.
 		    goto doESCkey;
 #endif
-		if (curbuf->b_u_synced)
-		    // The command caused undo to be synced.  Need to save the
-		    // line for undo before inserting the next char.
+		if (curbuf->b_u_synced
+			|| (bufref_valid(&save_curbuf)
+			    && curbuf == save_curbuf.br_buf
+			    && tick != CHANGEDTICK(curbuf)))
+		{
+		    // The command synced undo or changed this buffer.
+		    // Save the cursor line before the next typed edit.
 		    ins_need_undo = TRUE;
+		}
 	    }
 	    break;
 
@@ -1153,6 +1182,23 @@ doESCkey:
 	    if (dont_sync_undo == TRUE)
 		dont_sync_undo = MAYBE;
 	    break;
+
+	case K_COMPLETE_DELAY:	// 'autocompletedelay' expired
+	    // If CTRL-G U was used apply it to the next typed key.
+	    if (dont_sync_undo == TRUE)
+		dont_sync_undo = MAYBE;
+	    ins_compl_clear_autocomplete_delay();
+	    if (!ins_compl_has_autocomplete() || char_avail()
+		    || curwin->w_cursor.col == 0)
+		break;
+	    c = char_before_cursor();
+	    if (!vim_isprintc(c))
+		break;
+	    // The completion may have been cleared while waiting, so re-enable
+	    // autocomplete to match a zero delay.
+	    ins_compl_enable_autocomplete();
+	    ins_compl_arm_autostart();
+	    goto docomplete;
 
 #ifdef FEAT_GUI_MSWIN
 	    // On MS-Windows ignore <M-F4>, we get it when closing the window
@@ -1224,7 +1270,21 @@ doESCkey:
 	case K_PAGEUP:
 	case K_KPAGEUP:
 	    if (pum_visible())
+	    {
+#ifdef FEAT_PROP_POPUP
+		// CTRL-SHIFT-<Up> scrolls the info popup up a line,
+		// CTRL-SHIFT-<PageUp> a page.  Shift is folded into K_S_UP but
+		// stays in mod_mask for PageUp, hence the asymmetric check.
+		if (c == K_S_UP ? (mod_mask & MOD_MASK_CTRL)
+			: ((mod_mask & MOD_MASK_CTRL)
+			    && (mod_mask & MOD_MASK_SHIFT)))
+		{
+		    popup_scroll_info(-1, c != K_S_UP);
+		    break;
+		}
+#endif
 		goto docomplete;
+	    }
 	    ins_pageup();
 	    break;
 
@@ -1241,7 +1301,19 @@ doESCkey:
 	case K_PAGEDOWN:
 	case K_KPAGEDOWN:
 	    if (pum_visible())
+	    {
+#ifdef FEAT_PROP_POPUP
+		// CTRL-SHIFT-<Down>/<PageDown> scroll the info popup down.
+		if (c == K_S_DOWN ? (mod_mask & MOD_MASK_CTRL)
+			: ((mod_mask & MOD_MASK_CTRL)
+			    && (mod_mask & MOD_MASK_SHIFT)))
+		{
+		    popup_scroll_info(1, c != K_S_DOWN);
+		    break;
+		}
+#endif
 		goto docomplete;
+	    }
 	    ins_pagedown();
 	    break;
 
@@ -1356,6 +1428,15 @@ doESCkey:
 
 	case Ctrl_P:	// Do previous/next pattern completion
 	case Ctrl_N:
+#ifdef FEAT_PROP_POPUP
+	    // CTRL-SHIFT-P/N scroll the info popup one line.
+	    if (pum_visible() && (mod_mask & MOD_MASK_SHIFT)
+		    && (c == Ctrl_P || c == Ctrl_N))
+	    {
+		popup_scroll_info(c == Ctrl_P ? -1 : 1, false);
+		break;
+	    }
+#endif
 	    // if 'complete' is empty then plain ^P is no longer special,
 	    // but it is under other ^X modes
 	    if (*curbuf->b_p_cpt == NUL
@@ -1364,6 +1445,7 @@ doESCkey:
 		goto normalchar;
 
 docomplete:
+	    ins_compl_clear_autocomplete_delay();
 	    compl_busy = TRUE;
 #ifdef FEAT_FOLDING
 	    disable_fold_update++;  // don't redraw folds here
@@ -1468,8 +1550,9 @@ normalchar:
 	    break;
 	}   // end of switch (c)
 
-	// If typed something may trigger CursorHoldI again.
-	if (c != K_CURSORHOLD
+	// If typed something may trigger CursorHoldI again; K_COMPLETE_DELAY is
+	// injected, not typed.
+	if (c != K_CURSORHOLD && c != K_COMPLETE_DELAY
 #ifdef FEAT_COMPL_FUNC
 		// but not in CTRL-X mode, a script can't restore the state
 		&& ctrl_x_mode_normal()
@@ -2502,7 +2585,19 @@ stop_arrow(void)
     else if (ins_need_undo)
     {
 	if (u_save_cursor() == OK)
+	{
+	    // A command or event may have moved the cursor before the next
+	    // edit. Pull Insstart back only when the cursor moved above it,
+	    // so that later edits can properly decide whether an extra undo
+	    // entry is needed. Advancing Insstart would mis-place '[ after a
+	    // register paste.
+	    if (LT_POS(curwin->w_cursor, Insstart))
+	    {
+		Insstart = curwin->w_cursor;
+		Insstart_textlen = (colnr_T)linetabsize_str(ml_get_curline());
+	    }
 	    ins_need_undo = FALSE;
+	}
     }
 
 #ifdef FEAT_FOLDING
@@ -2597,34 +2692,50 @@ stop_insert(
 	{
 	    pos_T	tpos = curwin->w_cursor;
 	    colnr_T	prev_col = end_insert_pos->col;
+	    colnr_T	strip_col;
 
 	    curwin->w_cursor = *end_insert_pos;
 	    check_cursor_col();  // make sure it is not past the line
-	    for (;;)
-	    {
-		if (gchar_cursor() == NUL && curwin->w_cursor.col > 0)
-		    --curwin->w_cursor.col;
-		cc = gchar_cursor();
-		if (!VIM_ISWHITE(cc))
-		    break;
-		if (del_char(TRUE) == FAIL)
-		    break;  // should not happen
-	    }
-	    if (curwin->w_cursor.lnum != tpos.lnum)
-		curwin->w_cursor = tpos;
-	    else if (curwin->w_cursor.col < prev_col)
-	    {
-		// reset tpos, could have been invalidated in the loop above
-		tpos = curwin->w_cursor;
-		tpos.col++;
-		if (cc != NUL && gchar_pos(&tpos) == NUL)
-		    ++curwin->w_cursor.col;	// put cursor back on the NUL
-	    }
 
-	    // <C-S-Right> may have started Visual mode, adjust the position for
-	    // deleted characters.
-	    if (VIsual_active)
-		check_visual_pos();
+	    // Where the loop would actually start (back up if on NUL).
+	    strip_col = curwin->w_cursor.col;
+	    if (gchar_cursor() == NUL && strip_col > 0)
+		--strip_col;
+
+	    // Don't strip if non-whitespace follows: setline() from a <Cmd>
+	    // mapping or CursorHoldI autocmd may have inserted content.
+	    if (*skipwhite(ml_get_curline() + strip_col) == NUL)
+	    {
+		curwin->w_cursor.col = strip_col;
+		for (;;)
+		{
+		    if (gchar_cursor() == NUL && curwin->w_cursor.col > 0)
+			--curwin->w_cursor.col;
+		    cc = gchar_cursor();
+		    if (!VIM_ISWHITE(cc))
+			break;
+		    if (del_char(TRUE) == FAIL)
+			break;  // should not happen
+		}
+		if (curwin->w_cursor.lnum != tpos.lnum)
+		    curwin->w_cursor = tpos;
+		else if (curwin->w_cursor.col < prev_col)
+		{
+		    // reset tpos, could have been invalidated in the loop above
+		    tpos = curwin->w_cursor;
+		    tpos.col++;
+		    if (cc != NUL && gchar_pos(&tpos) == NUL)
+			++curwin->w_cursor.col;	// put cursor back on the NUL
+		}
+
+		// <C-S-Right> may have started Visual mode, adjust the position for
+		// deleted characters.
+		if (VIsual_active)
+		    check_visual_pos();
+	    }
+	    else
+		// Non-whitespace follows, keep original cursor.
+		curwin->w_cursor = tpos;
 	}
     }
     did_ai = FALSE;
@@ -2740,7 +2851,7 @@ beginline(int flags)
 			       && !((flags & BL_FIX) && ptr[1] == NUL); ++ptr)
 		++curwin->w_cursor.col;
 	}
-	curwin->w_set_curswant = TRUE;
+	curwin->w_set_curswant = true;
     }
     adjust_skipcol();
 }
@@ -2768,7 +2879,7 @@ oneright(void)
 	coladvance(getviscol() + ((*ptr != TAB
 					  && vim_isprintc((*mb_ptr2char)(ptr)))
 		    ? ptr2cells(ptr) : 1));
-	curwin->w_set_curswant = TRUE;
+	curwin->w_set_curswant = true;
 	// Return OK if the cursor moved, FAIL otherwise (at window edge).
 	return (prevpos.col != curwin->w_cursor.col
 		    || prevpos.coladd != curwin->w_cursor.coladd) ? OK : FAIL;
@@ -2789,7 +2900,7 @@ oneright(void)
 	return FAIL;
     curwin->w_cursor.col += l;
 
-    curwin->w_set_curswant = TRUE;
+    curwin->w_set_curswant = true;
     adjust_skipcol();
     return OK;
 }
@@ -2836,7 +2947,7 @@ oneleft(void)
 		curwin->w_cursor.coladd = 0;
 	}
 
-	curwin->w_set_curswant = TRUE;
+	curwin->w_set_curswant = true;
 	adjust_skipcol();
 	return OK;
     }
@@ -2844,7 +2955,7 @@ oneleft(void)
     if (curwin->w_cursor.col == 0)
 	return FAIL;
 
-    curwin->w_set_curswant = TRUE;
+    curwin->w_set_curswant = true;
     --curwin->w_cursor.col;
 
     // if the character on the left of the current cursor is a multi-byte
@@ -3354,7 +3465,7 @@ replace_do_bs(int limit_col)
 	{
 	    // Get the number of screen cells used by the character we are
 	    // going to delete.
-	    getvcol(curwin, &curwin->w_cursor, NULL, &start_vcol, NULL);
+	    getvcol(curwin, &curwin->w_cursor, NULL, &start_vcol, NULL, 0);
 	    orig_vcols = chartabsize(ml_get_cursor(), start_vcol);
 	}
 	if (has_mbyte)
@@ -3381,7 +3492,7 @@ replace_do_bs(int limit_col)
 	    for (i = 0; i < ins_len; ++i)
 	    {
 		vcol += chartabsize(p + i, vcol);
-		i += (*mb_ptr2len)(p) - 1;
+		i += (*mb_ptr2len)(p + i) - 1;
 	    }
 	    vcol -= start_vcol;
 
@@ -3791,7 +3902,7 @@ ins_esc(
     // When an autoindent was removed, curswant stays after the
     // indent
     if (restart_edit == NUL && (colnr_T)temp == curwin->w_cursor.col)
-	curwin->w_set_curswant = TRUE;
+	curwin->w_set_curswant = true;
 
     // Remember the last Insert position in the '^ mark.
     if ((cmdmod.cmod_flags & CMOD_KEEPJUMPS) == 0)
@@ -4740,7 +4851,7 @@ ins_left(void)
 	start_arrow(&tpos);
 	--(curwin->w_cursor.lnum);
 	coladvance((colnr_T)MAXCOL);
-	curwin->w_set_curswant = TRUE;	// so we stay at the end
+	curwin->w_set_curswant = true;	// so we stay at the end
     }
     else
 	vim_beep(BO_CRSR);
@@ -4800,7 +4911,7 @@ ins_s_left(void)
 	if (!end_change)
 	    AppendCharToRedobuff(K_S_LEFT);
 	(void)bck_word(1L, FALSE, FALSE);
-	curwin->w_set_curswant = TRUE;
+	curwin->w_set_curswant = true;
     }
     else
 	vim_beep(BO_CRSR);
@@ -4822,7 +4933,7 @@ ins_right(void)
 	start_arrow_with_change(&curwin->w_cursor, end_change);
 	if (!end_change)
 	    AppendCharToRedobuff(K_RIGHT);
-	curwin->w_set_curswant = TRUE;
+	curwin->w_set_curswant = true;
 	if (virtual_active())
 	    oneright();
 	else
@@ -4845,7 +4956,7 @@ ins_right(void)
 	    && curwin->w_cursor.lnum < curbuf->b_ml.ml_line_count)
     {
 	start_arrow(&curwin->w_cursor);
-	curwin->w_set_curswant = TRUE;
+	curwin->w_set_curswant = true;
 	++curwin->w_cursor.lnum;
 	curwin->w_cursor.col = 0;
     }
@@ -4870,7 +4981,7 @@ ins_s_right(void)
 	if (!end_change)
 	    AppendCharToRedobuff(K_S_RIGHT);
 	(void)fwd_word(1L, FALSE, 0);
-	curwin->w_set_curswant = TRUE;
+	curwin->w_set_curswant = true;
     }
     else
 	vim_beep(BO_CRSR);
@@ -5152,8 +5263,8 @@ ins_tab(void)
 	}
 
 	// compute virtual column numbers of first white and cursor
-	getvcol(curwin, &fpos, &vcol, NULL, NULL);
-	getvcol(curwin, cursor, &want_vcol, NULL, NULL);
+	getvcol(curwin, &fpos, &vcol, NULL, NULL, 0);
+	getvcol(curwin, cursor, &want_vcol, NULL, NULL, 0);
 
 	init_chartabsize_arg(&cts, curwin, 0, vcol, tab, tab);
 

@@ -1,4 +1,4 @@
-/* window.c */
+// window.c
 void window_layout_lock(void);
 void window_layout_unlock(void);
 int frames_locked(void);
@@ -90,6 +90,11 @@ void win_new_width(win_T *wp, int width);
 void win_comp_scroll(win_T *wp);
 void command_height(void);
 void last_status(int morewin);
+void update_stl_rendered_height(win_T *wp);
+int frame_change_statusline_height(void);
+void set_stlo_mh(int mh);
+int statuslineopt_changed(char_u *stlopt, win_T *wp);
+int statusline_height(win_T *wp);
 int tabline_height(void);
 int last_stl_height(int morewin);
 int min_rows(void);
@@ -106,4 +111,4 @@ int get_tab_number(tabpage_T *tp);
 char *check_colorcolumn(char_u *cc, win_T *wp);
 int get_last_winid(void);
 int win_locked(win_T *wp);
-/* vim: set ft=c : */
+// vim: ft=c

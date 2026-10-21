@@ -10,8 +10,8 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Vim(Serbian)\n"
 "Report-Msgid-Bugs-To: vim-dev@vim.org\n"
-"POT-Creation-Date: 2026-02-19 17:55+0000\n"
-"PO-Revision-Date: 2026-02-20 09:34+0400\n"
+"POT-Creation-Date: 2026-09-08 18:52+0000\n"
+"PO-Revision-Date: 2026-09-14 12:45+0400\n"
 "Last-Translator: Ivan Pešić <ivan.pesic@gmail.com>\n"
 "Language-Team: Serbian\n"
 "Language: sr\n"
@@ -261,9 +261,6 @@ msgstr ": Слање није успело. Покушава се локално
 #, c-format
 msgid "%d of %d edited"
 msgstr "%d од %d уређено"
-
-msgid "Socket server not online:Send expression failed"
-msgstr "Сокет сервер није на мрежи: Није успело слање израза"
 
 msgid "No display: Send expression failed.\n"
 msgstr "Нема приказа: Није успело слање израза.\n"
@@ -979,6 +976,21 @@ msgstr "Замени све"
 msgid "_Close"
 msgstr "_Затвори"
 
+msgid "Close Tab"
+msgstr "Затвори картицу"
+
+msgid "New Tab"
+msgstr "Нова картица"
+
+msgid "Open Tab..."
+msgstr "Отвори картицу..."
+
+msgid "Direction:"
+msgstr "Смер:"
+
+msgid "Close"
+msgstr "Затвори"
+
 msgid "Vim: Received \"die\" request from session manager\n"
 msgstr "Vim: Примљен је „die” захтев од менаџера сесије\n"
 
@@ -987,9 +999,6 @@ msgstr "Затвори картицу"
 
 msgid "New tab"
 msgstr "Нова картица"
-
-msgid "Open Tab..."
-msgstr "Отвори картицу..."
 
 msgid "Vim: Main window unexpectedly destroyed\n"
 msgstr "Vim: Главни прозор је неочекивано уништен\n"
@@ -1705,6 +1714,9 @@ msgstr "--gui-dialog-file {имеф}  За тестирање: испиши те
 msgid "--ttyfail\t\tExit if input or output is not a terminal"
 msgstr "--ttyfail\t\tИзађи ако улаз или излаз нису терминал"
 
+msgid "--stdio-channel\tUse stdin and stdout as a channel"
+msgstr "--stdio-channel\tКористи stdin и stdout као канал"
+
 msgid "-u <vimrc>\t\tUse <vimrc> instead of any .vimrc"
 msgstr "-u <vimrc>\t\tКористи <vimrc> уместо било ког .vimrc"
 
@@ -1760,9 +1772,11 @@ msgstr "-X\t\t\tНе повезуј се на X сервер"
 msgid "-Y\t\t\tDo not connect to Wayland compositor"
 msgstr "-X\t\t\tНе повезуј се на Wayland композитор"
 
-msgid "--clientserver <socket|x11> Backend for clientserver communication"
+msgid ""
+"--clientserver <socket|x11|mswin> Backend for clientserver communication"
 msgstr ""
-"--clientserver <socket|x11> Позадински механизам за clientserver комуникацију"
+"--clientserver <socket|x11|mswin> Позадински механизам за clientserver "
+"комуникацију"
 
 msgid "--remote <files>\tEdit <files> in a Vim server if possible"
 msgstr "--remote <фајлови>\tУређуј <фајлови> у Vim серверу ако је могуће"
@@ -1865,6 +1879,13 @@ msgstr "+reverse\t\tНемој да користиш обрнути видео (
 
 msgid "-xrm <resource>\tSet the specified resource"
 msgstr "-xrm <ресурс>\tПостави наведени ресурс"
+
+msgid ""
+"\n"
+"Arguments recognised by gvim (GTK4 version):\n"
+msgstr ""
+"\n"
+"Аргументи које препознаје gvim (GTK4 верзија):\n"
 
 msgid ""
 "\n"
@@ -2038,11 +2059,20 @@ msgstr "???ПРАЗАН БЛОК"
 msgid "???LINES MISSING"
 msgstr "???НЕДОСТАЈУ ЛИНИЈЕ"
 
+msgid "???ILLEGAL BLOCK NUMBER"
+msgstr "???НЕИСПРАВАН БРОЈ БЛОКА"
+
 msgid "???BLOCK MISSING"
 msgstr "???НЕДОСТАЈЕ БЛОК"
 
+msgid "??? BLOCK PAGE COUNT MISMATCH"
+msgstr "??? НЕ ПОДУДАРА СЕ БРОЈ СТРАНИЦА БЛОКА"
+
 msgid "??? from here until ???END lines may be messed up"
 msgstr "??? одавде па до ???КРАЈ линије су можда забрљане"
+
+msgid "??? block header corrupted"
+msgstr "??? заглавље блока је покварено"
 
 msgid "??? from here until ???END lines may have been inserted/deleted"
 msgstr "??? одавде па до ???КРАЈ линије су можда уметане/брисане"
@@ -2256,11 +2286,11 @@ msgstr "Привремени фајл „"
 msgid "\" already exists!"
 msgstr "” већ постоји!"
 
-msgid "VIM - ATTENTION"
-msgstr "VIM - ПАЖЊА"
-
 msgid "Swap file already exists!"
 msgstr "Привремени фајл већ постоји!"
+
+msgid "VIM - ATTENTION"
+msgstr "VIM - ПАЖЊА"
 
 msgid ""
 "&Open Read-Only\n"
@@ -2385,6 +2415,10 @@ msgstr " (Прекинуто)"
 
 msgid "Beep!"
 msgstr "Биип!"
+
+#, c-format
+msgid "Executing directly: \"%s\""
+msgstr "Директно се извршава: „%s”"
 
 #, c-format
 msgid "Calling shell to execute: \"%s\""
@@ -2600,7 +2634,7 @@ msgid ""
 "Cannot execute shell sh\n"
 msgstr ""
 "\n"
-"Командно окружење sh не може да се изврши\n"
+"Не може да се изврши командно окружење sh\n"
 
 msgid ""
 "\n"
@@ -2614,7 +2648,7 @@ msgid ""
 "Cannot create pipes\n"
 msgstr ""
 "\n"
-"Токови података не могу да се креирају\n"
+"Не могу да се креирају токови података\n"
 
 msgid ""
 "\n"
@@ -2628,7 +2662,7 @@ msgid ""
 "Cannot execute shell "
 msgstr ""
 "\n"
-"Командно окружење не може да се изврши "
+"Не може да се изврши командно окружење "
 
 msgid ""
 "\n"
@@ -2642,14 +2676,14 @@ msgstr "XSMP је изгубио ICE везу"
 
 #, c-format
 msgid "Could not load gpm library: %s"
-msgstr "Библиотека gpm није могла да се учита: %s"
+msgstr "Није могла да се учита gpm библиотека: %s"
 
 #, c-format
 msgid "dlerror = \"%s\""
 msgstr "dlerror = „%s”"
 
 msgid "Opening the X display failed"
-msgstr "Отварање X приказа није успело"
+msgstr "Није успело отварање X приказа"
 
 msgid "XSMP handling save-yourself request"
 msgstr "XSMP опслужује сачувај-се захтев"
@@ -2664,12 +2698,8 @@ msgstr "XSMP ICE надгледање везе није успело"
 msgid "XSMP SmcOpenConnection failed: %s"
 msgstr "XSMP SmcOpenConnection није успело: %s"
 
-#, c-format
-msgid "Failed creating socket directory: %s"
-msgstr "Не може да се креира сокет директоријум: %s"
-
 msgid "At line"
-msgstr "Код линије"
+msgstr "На линији"
 
 #, c-format
 msgid "Vim: Caught %s event\n"
@@ -2947,6 +2977,10 @@ msgstr " (НИЈЕ ПРОНАЂЕНО)"
 
 msgid " (not supported)"
 msgstr " (није подржано)"
+
+#, c-format
+msgid "Failed creating socket directory: %s"
+msgstr "Не може да се креира сокет директоријум: %s"
 
 #, c-format
 msgid "Warning: Cannot find word list \"%s_%s.spl\" or \"%s_ascii.spl\""
@@ -3249,18 +3283,6 @@ msgstr "синтаксна iskeyword није постављена"
 msgid "syncing on C-style comments"
 msgstr "синхронизација на коментарима C-стила"
 
-msgid "no syncing"
-msgstr "без синхронизације"
-
-msgid "syncing starts at the first line"
-msgstr "синхронизација почиње од прве линије"
-
-msgid "syncing starts "
-msgstr "синхронизација почиње "
-
-msgid " lines before top line"
-msgstr " линија пре линије на врху"
-
 msgid ""
 "\n"
 "--- Syntax sync items ---"
@@ -3274,6 +3296,18 @@ msgid ""
 msgstr ""
 "\n"
 "синхро на ставкама"
+
+msgid "no syncing"
+msgstr "без синхронизације"
+
+msgid "syncing starts at the first line"
+msgstr "синхронизација почиње од прве линије"
+
+msgid "syncing starts "
+msgstr "синхронизација почиње "
+
+msgid " lines before top line"
+msgstr " линија пре линије на врху"
 
 msgid ""
 "\n"
@@ -3649,6 +3683,9 @@ msgstr ""
 msgid "without GUI."
 msgstr "без ГКИ."
 
+msgid "with GTK4 GUI."
+msgstr "са GTK4 ГКИ."
+
 msgid "with GTK3 GUI."
 msgstr "са GTK3 ГКИ."
 
@@ -3790,7 +3827,7 @@ msgstr "Спонзоришите Vim развој!"
 msgid "type  :help sponsor<Enter>    for information "
 msgstr "откуцајте  :help sponsor<Ентер>    за информације   "
 
-msgid "menu  Help->Sponsor  for information    "
+msgid "menu  Help->Sponsor           for information    "
 msgstr "мени  Помоћ->Спонзор  за информације    "
 
 msgid "global"
@@ -5465,10 +5502,6 @@ msgstr "E456: PostScript resource фајл „%s.ps” не може да се �
 msgid "E457: Can't read PostScript resource file \"%s\""
 msgstr "E457: PostScript resource фајл „%s” не може да се чита"
 
-msgid "E458: Cannot allocate colormap entry, some colors may be incorrect"
-msgstr ""
-"E458: colormap ставка не може да се алоцира, неке боје су можда неисправне"
-
 msgid "E459: Cannot go back to previous directory"
 msgstr "E459: Не може да се оде назад на претходни директоријум"
 
@@ -6122,6 +6155,9 @@ msgstr "E647: Неисправни идентификатор бафера у se
 
 msgid "E648: Invalid buffer identifier in close"
 msgstr "E648: Неисправни идентификатор бафера у close"
+
+msgid "E649: Invalid identifier name in defineAnnoType"
+msgstr "E649: Неисправно име идентификатора у defineAnnoType"
 
 msgid "E650: Invalid buffer identifier in defineAnnoType"
 msgstr "E650: Неисправни идентификатор бафера у defineAnnoType"
@@ -6931,12 +6967,9 @@ msgstr "E881: Број линија се неочекивано променио
 msgid "E882: Uniq compare function failed"
 msgstr "E882: Uniq функција поређења није успела"
 
-msgid ""
-"E883: Search pattern and expression register may not contain two or more "
-"lines"
-msgstr ""
-"E883: Шаблон претраге и регистар за израз не смеју да садрже две или више "
-"линија"
+#, c-format
+msgid "E883: Register '%c' cannot contain multiple lines"
+msgstr "E883: Регистар ’%c’ не може да садржи више линија"
 
 #, c-format
 msgid "E884: Function name cannot contain a colon: %s"
@@ -7046,10 +7079,11 @@ msgstr "E910: Посао се користи као Број"
 msgid "E911: Using a Job as a Float"
 msgstr "E911: Посао се користи као Покретни"
 
-msgid "E912: Cannot use ch_evalexpr()/ch_sendexpr() with a raw or nl channel"
+msgid ""
+"E912: Cannot use ch_evalexpr()/ch_sendexpr() with a raw, nl or blob channel"
 msgstr ""
-"E912: Функција ch_evalexpr()/ch_sendexpr() не може да се користи са raw или "
-"nl каналом"
+"E912: Функција ch_evalexpr()/ch_sendexpr() не може да се користи са raw, nl "
+"или blob каналом"
 
 msgid "E913: Using a Channel as a Number"
 msgstr "E913: Канал се користи као Број"
@@ -8411,10 +8445,8 @@ msgstr "E1291: Неважећи аргумент: %ld"
 msgid "E1292: Command-line window is already open"
 msgstr "E1292: Прозор командне линије је већ отворен"
 
-msgid "E1293: Cannot use a negative id after adding a textprop with text"
-msgstr ""
-"E1293: Након додавања текст особине са текстом не може да се употреби "
-"негативан id"
+msgid "E1293: Cannot use a negative id for a text property"
+msgstr "E1293: За текст особину може да се употреби негативан id"
 
 msgid "E1294: Can only use text_align when column is zero"
 msgstr "E1294: Када је колона нула, може да се користи само text_align"
@@ -8558,13 +8590,6 @@ msgstr "E1335: У променљиву „%s” у класи „%s” не мо
 #, c-format
 msgid "E1337: Class variable \"%s\" not found in class \"%s\""
 msgstr "E1337: Променљива класе „%s” није пронађена у класи „%s”"
-
-msgid ""
-"E1339: Cannot add a textprop with text after using a textprop with a "
-"negative id"
-msgstr ""
-"E1339: Текст особина са текстом не може да се дода након употребе текст "
-"особине са негативним id"
 
 #, c-format
 msgid "E1340: Argument already declared in the class: %s"
@@ -8802,6 +8827,10 @@ msgstr "E1404: Abstract не може да се користи у интерфе
 #, c-format
 msgid "E1405: Class \"%s\" cannot be used as a value"
 msgstr "E1405: Класа „%s” не може да се користи као вредност"
+
+#, c-format
+msgid "E1406: Public and protected member have the same name: %s and _%s"
+msgstr "E1406: Јавни и заштићени члан имају исто име: %s и _%s"
 
 msgid "E1407: Cannot use a Typealias as a variable or value"
 msgstr "E1407: Алијас типа не може да се користи као променљива или вредност"
@@ -9100,7 +9129,7 @@ msgstr "E1545: Стек Quickfix листе није доступан"
 msgid "E1546: Cannot switch to a closing buffer"
 msgstr "E1546: Не може да се пређе на бафер који се затвара"
 
-msgid "E1547: This version of Vim does support :redrawtabpanel"
+msgid "E1547: This version of Vim does not support :redrawtabpanel"
 msgstr "E1547: Ова верзија Vim едитора не подржава :redrawtabpanel"
 
 msgid "E1548: Wayland connection is unavailable"
@@ -9159,22 +9188,25 @@ msgstr "E1561: Дуплирано име променљиве типа: %s"
 msgid "E1562: Diff anchors cannot be used with hidden diff windows"
 msgstr "E1562: Diff не могу да се користе са скривеним diff прозорима"
 
-msgid "E1563: Socket path is too big"
-msgstr "E1563: Путања до сокета је сувише дугачка"
-
-msgid "E1564: Socket name cannot have slashes in it without being a path"
-msgstr "E1564: Име сокета не сме да са садржи косе црте осим ако није путања"
+#, c-format
+msgid "E1564: Socket name '%s' cannot have slashes in it without being a path"
+msgstr ""
+"E1564: Име сокета ’%s’ не сме да са садржи косе црте осим ако није путања"
 
 msgid "E1565: Socket server is not online, call remote_startserver() first"
 msgstr ""
 "E1565: Сокет сервер није на мрежи, најпре позовите remote_startserver()"
 
 #, c-format
-msgid "E1566: Failed connecting to socket %s: %s"
-msgstr "E1566: Није успело повезивање на сокет: %s: %s"
+msgid "E1566: Failed connecting to socket '%s'"
+msgstr "E1566: Није успело повезивање на сокет ’%s’"
 
-msgid "E1567: Cannot start socket server, socket path is unavailable"
-msgstr "E1567: Не може да се покрене сокет сервер, није доступна путања сокета"
+msgid ""
+"E1567: Socket server protocol version mismatch, check what Vim version you "
+"are using"
+msgstr ""
+"E1567: Не подудара се верзија протокола сокет сервера, проверите коју Vim "
+"верзију користите"
 
 #, c-format
 msgid "E1568: OSC command response timed out: %.*s"
@@ -9193,26 +9225,46 @@ msgstr ""
 "E1571: Мора да се наведе барем једна функција повратног позива за "
 "redraw_listener_add"
 
+msgid "E1572: 'listchars' field \"leadtab\" requires \"tab\" to be specified"
+msgstr "E1572: 'listchars' поље „leadtab” захтева да се наведе „tab”"
+
+msgid "E1573: Cannot listen on port"
+msgstr "E1573: Не може да се слуша на порту"
+
+msgid "E1574: gethostbyname(): cannot resolve hostname in channel_listen()"
+msgstr ""
+"E1574: gethostbyname(): не може да се разреши име хоста у channel_listen()"
+
+msgid "E1575: Cannot create pipes"
+msgstr "E1575: Не могу да се креирају токови података"
+
+msgid "E1576: Tag file entry must not be a URL"
+msgstr "E1576: Ставка у фајлу ознака не сме да буде URL"
+
+#, c-format
+msgid "E1577: Invalid format string, only one \"%s\" is allowed"
+msgstr "E1577: Неисправан стринг формата, дозвољено је само једно „%s”"
+
+msgid "E1578: Too many postponed prefixes and/or compound flags"
+msgstr "E1578: Превише закашњених префикса и/или индикатора сложеница"
+
+msgid "E1579: -completeopt=escape cannot be used with -nargs=_"
+msgstr "E1579: -completeopt=escape не може да се користи са -nargs=_"
+
+msgid "E1580: Too many text properties on a single line"
+msgstr "E1580: Превише текст особина на једној линији"
+
+msgid "E1581: Cannot extend a null blob"
+msgstr "E1581: Не може да се прошири null блоб"
+
+msgid "E1582: Not started with --stdio-channel"
+msgstr "E1582: Није покренуто са --stdio-channel"
+
+msgid "E1583: Cannot open stdio channel"
+msgstr "E1583: Не може да се отвори stdio канал"
+
 msgid "--No lines in buffer--"
 msgstr "--У баферу нема линија--"
-
-msgid "int"
-msgstr "целобројни"
-
-msgid "long int"
-msgstr "дуги целобројни"
-
-msgid "long long int"
-msgstr "дуги дуги целобројни"
-
-msgid "unsigned int"
-msgstr "неозначени целобројни"
-
-msgid "unsigned long int"
-msgstr "неозначени дуги целобројни"
-
-msgid "unsigned long long int"
-msgstr "неозначени дуги дуги целобројни"
 
 msgid "pointer"
 msgstr "показивач"
@@ -9220,14 +9272,8 @@ msgstr "показивач"
 msgid "percent"
 msgstr "проценат"
 
-msgid "char"
-msgstr "карактер"
-
 msgid "string"
 msgstr "стринг"
-
-msgid "float"
-msgstr "покретни"
 
 msgid "search hit TOP, continuing at BOTTOM"
 msgstr "претрага је достигла ВРХ, наставља се од ДНА"
@@ -9732,6 +9778,9 @@ msgstr ""
 msgid "file names in a tags file are relative to the tags file"
 msgstr "имена фајлова у фајлу ознака су релативна у односу на фајл ознака"
 
+msgid "a :tag command cannot access remote files"
+msgstr ":tag не може да приступи удаљеним фајловима"
+
 msgid "a :tag command will use the tagstack"
 msgstr "Команда :tag ће да користи стек ознака"
 
@@ -9773,6 +9822,9 @@ msgstr "скроловање по екранској линији"
 
 msgid "number of screen lines to show around the cursor"
 msgstr "број екранских линија које се приказују око курсора"
+
+msgid "vertically center cursor even at end of file"
+msgstr "центрирај курсор по вертикали чак и на крају фајла"
 
 msgid "long lines wrap"
 msgstr "дуге линије се обавијају"
@@ -9828,6 +9880,12 @@ msgstr "број линија који скролују CTRL-F и CTRL-B"
 
 msgid "don't redraw while executing macros"
 msgstr "екран се не исцртава током извршавања макроа"
+
+msgid "configure method of receiving terminal size changes"
+msgstr "конфигурисање методе пријема промена величине терминала"
+
+msgid "enable terminal sync mode"
+msgstr "укључивање режима синхронизације терминала"
 
 msgid "timeout for 'hlsearch' and :match highlighting in msec"
 msgstr "тајмаут за 'hlsearch' и :match истицање у милисекундама"
@@ -9890,6 +9948,9 @@ msgstr "истичу се сва подударања последње кори�
 msgid "highlight group to use for the window"
 msgstr "група истицања која се користи за прозор"
 
+msgid "highlight group mappings for the window"
+msgstr "мапирања група истицања за прозор"
+
 msgid "use GUI colors for the terminal"
 msgstr "за терминал се користе ГКИ боје"
 
@@ -9934,6 +9995,9 @@ msgstr "0, 1 или 2; када се користи статусна линиј�
 
 msgid "alternate format to be used for a status line"
 msgstr "алтернативни формат који ће се користити за статусну линију"
+
+msgid "optional settings for the status line"
+msgstr "необавезна подешавања за статусну линију"
 
 msgid "make all windows the same size when adding/removing windows"
 msgstr ""
@@ -10339,11 +10403,6 @@ msgstr ""
 msgid "Wayland seat to use"
 msgstr "Wayland седиште које се користи"
 
-msgid ""
-"Enable wayland focus stealing functionality in order to access the clipboard"
-msgstr ""
-"Укључује wayland функционалност крађе фокуса да би се приступило клипборду"
-
 msgid "\"startsel\" and/or \"stopsel\"; what special keys can do"
 msgstr "„startsel” и/или „stopsel”; шта могу да ураде специјални тастери"
 
@@ -10448,6 +10507,9 @@ msgstr "максимална ширина искачућег менија"
 
 msgid "popup border style"
 msgstr "стил оквира искачућег прозора"
+
+msgid "additional options for the popup menu"
+msgstr "додатне опције за искачући мени"
 
 msgid "user defined function for Insert mode completion"
 msgstr "кориснички дефинисана функција за довршавање у режиму Уметање"
@@ -10663,6 +10725,9 @@ msgstr ""
 
 msgid "allow setting expression options from a modeline"
 msgstr "омогућавање постављања опција израза из режимске линије"
+
+msgid "only allow safe options to be set from a modeline"
+msgstr "из режимске линије могу да се поставе само безбедне опције"
 
 msgid "number of lines to check for modelines"
 msgstr "број линија које се проверавају на постојање режимске линије"

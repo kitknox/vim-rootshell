@@ -38,6 +38,19 @@ func Test_viminfo_read_and_write()
   call assert_equal(3, done)
 endfunc
 
+func Test_viminfo_clear_search_pattern()
+  let save = @/
+  let @/ = 'foobar'
+  defer delete('Xviminfo')
+  wviminfo Xviminfo
+  call assert_notequal(-1, match(readfile('Xviminfo'), 'foobar'))
+
+  let @/ = ''
+  wviminfo Xviminfo
+  call assert_equal(-1, match(readfile('Xviminfo'), 'foobar'))
+  call setreg('/', save)
+endfunc
+
 func Test_global_vars()
   let g:MY_GLOBAL_STRING = "Vim Editor"
   let g:MY_GLOBAL_NUM = 345
@@ -1349,6 +1362,52 @@ func Test_viminfo_global_var()
   call assert_equal(str2float("-inf"), g:VAR)
   let &viminfofile = _viminfofile
   let &viminfo = _viminfo
+endfunc
+
+func Test_viminfo_len_one()
+  let _viminfofile = &viminfofile
+  let &viminfofile=''
+  let viminfo_file = tempname()
+  call histadd('cmd', '" TEST')
+  defer delete(viminfo_file)
+
+  " Craft a viminfo entry with ^V1 length prefix (len == 1)
+  call writefile([
+      \ '*encoding=utf-8',
+      \ ':' .. "\x161" .. 'X',
+      \ ], viminfo_file, 'b')
+
+  " Should not crash or cause memory errors
+  exe 'rviminfo! ' .. viminfo_file
+  call assert_equal('" TEST', histget(':', -1))
+
+  let &viminfofile = _viminfofile
+endfunc
+
+func Test_viminfo_len_overflow()
+  CheckNotAsan
+  let _viminfofile = &viminfofile
+  let &viminfofile=''
+  let viminfo_file = tempname()
+  defer delete(viminfo_file)
+
+  " Craft a viminfo entry with size_t length overflow
+  call writefile(['# Viminfo',
+        \ '|1,4', '|2,>4294967311',
+        \ '|<"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+        \ '|<BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB',
+        \ '|<CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC',
+        \ '|<DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD'], viminfo_file, 'b')
+
+  " Should not crash or cause memory errors.
+  " E342 (out of memory) may be thrown depending on the platform's memory
+  " allocation behavior, which is an acceptable outcome.
+  try
+    exe 'rviminfo! ' .. viminfo_file
+  catch /E342/
+  endtry
+
+  let &viminfofile = _viminfofile
 endfunc
 
 " vim: shiftwidth=2 sts=2 expandtab

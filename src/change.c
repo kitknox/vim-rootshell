@@ -61,7 +61,7 @@ change_warning(int col)
 	out_flush();
 	ui_delay(1002L, TRUE); // give the user time to think about it
     }
-    curbuf->b_did_warn = TRUE;
+    curbuf->b_did_warn = true;
     redraw_cmdline = FALSE;	// don't redraw and erase the message
     if (msg_row < Rows - 1)
 	showmode();
@@ -207,6 +207,7 @@ clean_listener_list(buf_T *buf, listener_T **list, bool all)
 	{
 	    list_unref(buf->b_recorded_changes);
 	    buf->b_recorded_changes = NULL;
+	    buf->b_recorded_text_size = 0;
 	}
     }
 }
@@ -267,6 +268,68 @@ check_recorded_changes(
     }
 }
 
+// Amount of recorded text after which the listeners are invoked, to bound the
+// memory used by a long sequence of changes.
+# define LISTENER_TEXT_MAX (4 * 1024 * 1024)
+
+/*
+ * Return true when any listener in "list" asked for the resulting text.
+ */
+    static bool
+listeners_want_text(listener_T *list)
+{
+    listener_T	*lnr;
+
+    for (lnr = list; lnr != NULL; lnr = lnr->lr_next)
+	if (lnr->lr_text)
+	    return true;
+    return false;
+}
+
+/*
+ * Store in "dict" the text that occupies the changed region right after the
+ * change: the lines from "lnum" up to but not including "lnume" + "xtra".
+ * Returns the number of bytes stored.
+ */
+    static size_t
+add_change_text(
+    buf_T	*buf,
+    dict_T	*dict,
+    linenr_T	lnum,
+    linenr_T	lnume,
+    long	xtra)
+{
+    list_T	*l = list_alloc();
+    linenr_T	below = lnume + xtra;	// line below the changed region
+    size_t	size = 0;
+
+    if (l == NULL)
+	return 0;
+
+    if (below > buf->b_ml.ml_line_count + 1)
+	below = buf->b_ml.ml_line_count + 1;
+    for (linenr_T lp = lnum < 1 ? 1 : lnum; lp < below; ++lp)
+    {
+	char_u	*line = ml_get_buf(buf, lp, FALSE);
+	colnr_T	len = ml_get_buf_len(buf, lp);
+
+	// Rather than storing a part of the text, store none of it.
+	if (list_append_string(l, line, len) == FAIL)
+	{
+	    list_free(l);
+	    return 0;
+	}
+	size += (size_t)len + 1;
+    }
+
+    if (dict_add_list(dict, "text", l) == FAIL)
+    {
+	list_free(l);
+	return 0;
+    }
+    return size;
+}
+
 /*
  * Record a change for listeners added with listener_add().
  * Always for the current buffer.
@@ -306,8 +369,15 @@ may_record_change(
     dict_add_number(dict, "end", (varnumber_T)lnume);
     dict_add_number(dict, "added", (varnumber_T)xtra);
     dict_add_number(dict, "col", (varnumber_T)col + 1);
+    if (listeners_want_text(curbuf->b_listener))
+	curbuf->b_recorded_text_size +=
+			  add_change_text(curbuf, dict, lnum, lnume, xtra);
 
     list_append_dict(curbuf->b_recorded_changes, dict);
+
+    // Invoking the listeners resets the size, do not try while they are busy.
+    if (!recursive && curbuf->b_recorded_text_size > LISTENER_TEXT_MAX)
+	invoke_listeners(curbuf);
 }
 
 /*
@@ -319,7 +389,11 @@ f_listener_add(typval_T *argvars, typval_T *rettv)
     callback_T	callback;
     listener_T	*lnr;
     buf_T	*buf = curbuf;
-    int		unbuffered = 0;
+    bool	unbuffered = false;
+    bool	want_text = false;
+
+    if (check_secure())
+	return;
 
     if (recursive)
     {
@@ -329,7 +403,8 @@ f_listener_add(typval_T *argvars, typval_T *rettv)
 
     if (in_vim9script() && (
 	    check_for_opt_buffer_arg(argvars, 1) == FAIL
-	    || check_for_opt_bool_arg(argvars, 2) == FAIL))
+	    || (argvars[1].v_type != VAR_UNKNOWN
+		&& check_for_opt_bool_or_dict_arg(argvars, 2) == FAIL)))
 	return;
 
     callback = get_callback(&argvars[0]);
@@ -344,8 +419,15 @@ f_listener_add(typval_T *argvars, typval_T *rettv)
 	    free_callback(&callback);
 	    return;
 	}
-	if (argvars[2].v_type != VAR_UNKNOWN)
-	    unbuffered = (int)tv_get_bool(&argvars[2]);
+	if (argvars[2].v_type == VAR_DICT)
+	{
+	    dict_T *d = argvars[2].vval.v_dict;
+
+	    unbuffered = dict_get_bool(d, "unbuffered", false);
+	    want_text = dict_get_bool(d, "text", false);
+	}
+	else if (argvars[2].v_type != VAR_UNKNOWN)
+	    unbuffered = tv_get_bool(&argvars[2]);
     }
 
     lnr = ALLOC_CLEAR_ONE(listener_T);
@@ -373,9 +455,8 @@ f_listener_add(typval_T *argvars, typval_T *rettv)
     }
 
     set_callback(&lnr->lr_callback, &callback);
-    if (callback.cb_free_name)
-	vim_free(callback.cb_name);
 
+    lnr->lr_text = want_text;
     lnr->lr_id = ++next_listener_id;
     rettv->vval.v_number = lnr->lr_id;
 }
@@ -387,6 +468,9 @@ f_listener_add(typval_T *argvars, typval_T *rettv)
 f_listener_flush(typval_T *argvars, typval_T *rettv UNUSED)
 {
     buf_T	*buf = curbuf;
+
+    if (check_secure())
+	return;
 
     if (recursive)
 	return;
@@ -440,6 +524,9 @@ f_listener_remove(typval_T *argvars, typval_T *rettv)
     listener_T	*prev;
     int		id;
     buf_T	*buf;
+
+    if (check_secure())
+	return;
 
     if (in_vim9script() && check_for_number_arg(argvars, 0) == FAIL)
 	return;
@@ -557,12 +644,17 @@ invoke_sync_listeners(
 
     dict = dict_alloc();
     if (dict == NULL)
+    {
+	list_unref(recorded_changes);
 	return;
+    }
 
     dict_add_number(dict, "lnum", (varnumber_T)start);
     dict_add_number(dict, "end", (varnumber_T)end);
     dict_add_number(dict, "added", (varnumber_T)added);
     dict_add_number(dict, "col", (varnumber_T)col + 1);
+    if (listeners_want_text(buf->b_sync_listener))
+	(void)add_change_text(buf, dict, start, end, added);
     list_append_dict(recorded_changes, dict);
 
     invoke_listener_set(
@@ -606,6 +698,7 @@ invoke_listeners(buf_T *buf)
 
     list_unref(buf->b_recorded_changes);
     buf->b_recorded_changes = NULL;
+    buf->b_recorded_text_size = 0;
 }
 
 /*
@@ -692,7 +785,7 @@ changed_common(
 		// This is the first of a new sequence of undo-able changes
 		// and it's at some distance of the last change.  Use a new
 		// position in the changelist.
-		curbuf->b_new_change = FALSE;
+		curbuf->b_new_change = false;
 
 		if (curbuf->b_changelistlen == JUMPLISTSIZE)
 		{
@@ -887,7 +980,7 @@ changedOneline(buf_T *buf, linenr_T lnum)
     else
     {
 	// set the area that must be redisplayed to one line
-	buf->b_mod_set = TRUE;
+	buf->b_mod_set = true;
 	buf->b_mod_top = lnum;
 	buf->b_mod_bot = lnum + 1;
 	buf->b_mod_xlines = 0;
@@ -1025,7 +1118,7 @@ changed_lines_buf(
     else
     {
 	// set the area that must be redisplayed
-	buf->b_mod_set = TRUE;
+	buf->b_mod_set = true;
 	buf->b_mod_top = lnum;
 	buf->b_mod_bot = lnume + xtra;
 	buf->b_mod_xlines = xtra;
@@ -1262,7 +1355,7 @@ ins_char_bytes(char_u *buf, int charlen)
 	    // characters (zero if it's a TAB).  Count the number of bytes to
 	    // be deleted to make room for the new character, counting screen
 	    // cells.  May result in adding spaces to fill a gap.
-	    getvcol(curwin, &curwin->w_cursor, NULL, &vcol, NULL);
+	    getvcol(curwin, &curwin->w_cursor, NULL, &vcol, NULL, 0);
 	    new_vcol = vcol + chartabsize(buf, vcol);
 	    while (oldp[col + oldlen] != NUL && vcol < new_vcol)
 	    {
@@ -1891,6 +1984,7 @@ open_line(
 	char_u	*lead_repl = NULL;	    // replaces comment leader
 	int	lead_repl_len = 0;	    // length of *lead_repl
 	char_u	lead_middle[COM_MAX_LEN];   // middle-comment string
+	int	lead_middle_len;	    // length of the lead_middle
 	char_u	lead_end[COM_MAX_LEN];	    // end-comment string
 	char_u	*comment_end = NULL;	    // where lead_end has been found
 	int	extra_space = FALSE;	    // append extra space
@@ -1931,7 +2025,7 @@ open_line(
 			require_blank = TRUE;
 		    ++p;
 		}
-		(void)copy_option_part(&p, lead_middle, COM_MAX_LEN, ",");
+		lead_middle_len = copy_option_part(&p, lead_middle, COM_MAX_LEN, ",");
 
 		while (*p && p[-1] != ':')	// find end of end flags
 		{
@@ -1964,7 +2058,7 @@ open_line(
 		    if (current_flag == COM_START)
 		    {
 			lead_repl = lead_middle;
-			lead_repl_len = (int)STRLEN(lead_middle);
+			lead_repl_len = lead_middle_len;
 		    }
 
 		    // If we have hit RETURN immediately after the start
@@ -2559,7 +2653,7 @@ truncate_line(int fixpos)
  * Saves the lines for undo first if "undo" is TRUE.
  */
     void
-del_lines(long nlines,	int undo)
+del_lines(long nlines, int undo)
 {
     long	n;
     linenr_T	first = curwin->w_cursor.lnum;

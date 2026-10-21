@@ -49,6 +49,7 @@ static __thread int diff_need_update = FALSE; // ex_diffupdate needs to be calle
 static __thread int	diff_flags = DIFF_INTERNAL | DIFF_FILLER | DIFF_CLOSE_OFF | DIFF_INLINE_CHAR;
 
 static __thread long diff_algorithm = XDF_INDENT_HEURISTIC;
+static int diff_word_gap = 5;  // gap threshold for inline:word
 
 # define LBUFLEN 50		// length of line in diff file
 
@@ -125,11 +126,52 @@ static int parse_diffanchors(int check_only, buf_T *buf, linenr_T *anchors, int 
 # define FOR_ALL_DIFFBLOCKS_IN_TAB(tp, dp) \
     for ((dp) = (tp)->tp_first_diff; (dp) != NULL; (dp) = (dp)->df_next)
 
+// Cursor into the diff block list for diff_infold() and
+// diff_check_with_linestatus(): both scan blocks in ascending df_lnum order,
+// usually with an increasing "lnum" during redraw.  Remembering the last block
+// at or before "lnum" lets the next call resume there instead of from the head.
+// Cleared when a block is freed, allocated or line-shifted (see below).
+static __thread diff_T	    *diff_finger_dp = NULL;
+static __thread tabpage_T    *diff_finger_tp = NULL;
+static __thread int	    diff_finger_idx = -1;
+static __thread linenr_T	    diff_finger_lnum = 0;
+
     static void
 clear_diffblock(diff_T *dp)
 {
+    if (dp == diff_finger_dp)
+	diff_finger_dp = NULL;		// don't leave a dangling finger
     ga_clear(&dp->df_changes);
     vim_free(dp);
+}
+
+/*
+ * Return the diff block to start a forward scan for line "lnum" in tab "tp",
+ * buffer index "idx".  Resumes from the finger when it is still valid and
+ * "lnum" did not move backwards, else starts at the first block.
+ */
+    static diff_T *
+diff_scan_start(tabpage_T *tp, int idx, linenr_T lnum)
+{
+    if (diff_finger_dp != NULL
+	    && diff_finger_tp == tp
+	    && diff_finger_idx == idx
+	    && lnum >= diff_finger_lnum)
+	return diff_finger_dp;
+    return tp->tp_first_diff;
+}
+
+/*
+ * Remember "dp" as the finger for the next scan: the last block with
+ * df_lnum[idx] <= "lnum" seen by the scan, or NULL when there is none.
+ */
+    static void
+diff_scan_remember(tabpage_T *tp, int idx, linenr_T lnum, diff_T *dp)
+{
+    diff_finger_tp = tp;
+    diff_finger_idx = idx;
+    diff_finger_lnum = lnum;
+    diff_finger_dp = dp != NULL ? dp : tp->tp_first_diff;
 }
 
 /*
@@ -335,6 +377,8 @@ diff_mark_adjust_tp(
     linenr_T	last;
     linenr_T	lnum_deleted = line1;	// lnum of remaining deletion
     int		check_unchanged;
+
+    diff_finger_dp = NULL;		// may shift df_lnum, invalidate the finger
 
     if (diff_internal())
     {
@@ -605,6 +649,7 @@ diff_alloc_new(tabpage_T *tp, diff_T *dprev, diff_T *dp)
     dnew = ALLOC_CLEAR_ONE(diff_T);
     if (dnew == NULL)
 	return NULL;
+    diff_finger_dp = NULL;		// list changed, invalidate the finger
 
     dnew->is_linematched = FALSE;
     dnew->df_next = dp;
@@ -819,7 +864,7 @@ diff_write_buffer(buf_T *buf, diffin_T *din, linenr_T start, linenr_T end)
 	// Allocating memory failed.  This can happen, because we try to read
 	// the whole buffer text into memory.  Set the failed flag, the diff
 	// will be retried with external diff.  The flag is never reset.
-	buf->b_diff_failed = TRUE;
+	buf->b_diff_failed = true;
 	if (p_verbose > 0)
 	{
 	    verbose_enter();
@@ -1074,6 +1119,8 @@ diff_try_update(
 
 	if (anchor_i != 0)
 	{
+	    diff_finger_dp = NULL;	// df_lnum shifted, invalidate the finger
+
 	    // Combine the new diff blocks with the existing ones
 	    for (diff_T *dp = curtab->tp_first_diff; dp != NULL; dp = dp->df_next)
 	    {
@@ -1190,7 +1237,9 @@ theend:
     if (had_diffs || curtab->tp_first_diff != NULL)
     {
 	diff_redraw(TRUE);
+	window_layout_lock();
 	apply_autocmds(EVENT_DIFFUPDATED, NULL, NULL, FALSE, curbuf);
+	window_layout_unlock();
     }
 }
 
@@ -1370,6 +1419,9 @@ diff_file(diffio_T *dio)
     // Use xdiff for generating the diff.
     if (dio->dio_internal)
 	return diff_file_internal(dio);
+
+    if (check_restricted())
+	return FAIL;
 
     len = STRLEN(tmp_orig) + STRLEN(tmp_new)
 				+ STRLEN(tmp_diff) + STRLEN(p_srr) + 27;
@@ -2469,10 +2521,17 @@ diff_check_with_linestatus(win_T *wp, linenr_T lnum, int *linestatus)
 	return 0;
 # endif
 
-    // search for a change that includes "lnum" in the list of diffblocks.
-    FOR_ALL_DIFFBLOCKS_IN_TAB(curtab, dp)
+    // Search for a change that includes "lnum" in the list of diffblocks.
+    // Resume from the scan finger to avoid restarting at the first block.
+    diff_T	*le = NULL;		// last block with df_lnum[idx] <= lnum
+    for (dp = diff_scan_start(curtab, idx, lnum); dp != NULL; dp = dp->df_next)
+    {
+	if (dp->df_lnum[idx] <= lnum)
+	    le = dp;
 	if (lnum <= dp->df_lnum[idx] + dp->df_count[idx])
 	    break;
+    }
+    diff_scan_remember(curtab, idx, lnum, le);
     if (dp == NULL || lnum < dp->df_lnum[idx])
 	return 0;
 
@@ -2743,11 +2802,11 @@ diff_set_topline(win_T *fromwin, win_T *towin)
     }
 
     // safety check (if diff info gets outdated strange things may happen)
-    towin->w_botfill = FALSE;
+    towin->w_botfill = false;
     if (towin->w_topline > towin->w_buffer->b_ml.ml_line_count)
     {
 	towin->w_topline = towin->w_buffer->b_ml.ml_line_count;
-	towin->w_botfill = TRUE;
+	towin->w_botfill = true;
     }
     if (towin->w_topline < 1)
     {
@@ -3392,6 +3451,137 @@ diff_refine_inline_char_highlight(diff_T *dp_orig, garray_T *linemap, int idx1)
 }
 
 /*
+ * Refine inline word diff blocks by merging blocks that are only separated
+ * by whitespace or punctuation. This creates more coherent highlighting.
+ */
+    static void
+diff_refine_inline_word_highlight(diff_T *dp_orig, garray_T *linemap, int idx1,
+				  linenr_T start_lnum)
+{
+    int pass = 1;
+    do
+    {
+	diff_T *dp = dp_orig;
+
+	while (dp != NULL && dp->df_next != NULL)
+	{
+	    // Index of the last line of this block and of the first line of the
+	    // next one.  When this block is empty, which happens for inserted
+	    // lines, it has no last line and "idx_entry1" is negative.
+	    linenr_T	idx_entry1 = dp->df_lnum[idx1] + dp->df_count[idx1] - 2;
+	    linenr_T	idx_entry2 = dp->df_next->df_lnum[idx1] - 1;
+
+	    // Only merge blocks on the same line
+	    if (idx_entry1 < 0 || idx_entry1 >= linemap[idx1].ga_len
+		    || idx_entry2 < 0 || idx_entry2 >= linemap[idx1].ga_len)
+	    {
+		dp = dp->df_next;
+		continue;
+	    }
+
+	    linemap_entry_T *entry1 =
+		&((linemap_entry_T *)linemap[idx1].ga_data)[idx_entry1];
+	    linemap_entry_T *entry2 =
+		&((linemap_entry_T *)linemap[idx1].ga_data)[idx_entry2];
+
+	    // Skip if blocks are on different lines
+	    if (entry1->lineoff != entry2->lineoff)
+	    {
+		dp = dp->df_next;
+		continue;
+	    }
+
+	    // Calculate the gap between blocks
+	    int gap_start = entry1->byte_start + entry1->num_bytes;
+	    int gap_end = entry2->byte_start;
+	    int gap_size = gap_end - gap_start;
+
+	    // Merge adjacent diff blocks separated by small gaps to reduce visual
+	    // fragmentation. Gap threshold is set to 5 bytes which handles most
+	    // common separators (spaces, punctuation, short variable names) while
+	    // still preserving visually distinct changes.
+	    if (gap_size <= 0 || gap_size > diff_word_gap)
+	    {
+		dp = dp->df_next;
+		continue;
+	    }
+
+	    // Get the text between the two blocks
+	    char_u *line = ml_get_buf(curtab->tp_diffbuf[idx1],
+		    start_lnum + entry1->lineoff, FALSE);
+	    char_u *gap_text = line + gap_start;
+
+	    // Check if gap contains only whitespace and/or punctuation
+	    bool only_non_word = true;
+	    bool has_content = false;
+
+	    for (int i = 0; i < gap_size && gap_text[i] != NUL; i++)
+	    {
+		has_content = true;
+		int char_class = mb_get_class_buf(gap_text + i,
+				curtab->tp_diffbuf[idx1]);
+		// class 2 is word characters, if we find any, don't merge
+		if (char_class == 2)
+		{
+		    only_non_word = false;
+		    break;
+		}
+	    }
+
+	    // Merge if the gap is small and contains only non-word characters
+	    if (has_content && only_non_word)
+	    {
+		long total_change_bytes = 0;
+		for (int i = 0; i < DB_COUNT; i++)
+		{
+		    if (curtab->tp_diffbuf[i] != NULL)
+		    {
+			// count bytes in the first block
+			for (int k = 0; k < dp->df_count[i]; k++)
+			{
+			    int idx = dp->df_lnum[i] + k - 1;
+			    if (idx < linemap[i].ga_len)
+				total_change_bytes +=
+				    ((linemap_entry_T *)linemap[i].ga_data)[idx].num_bytes;
+			}
+			// count bytes in the next block
+			for (int k = 0; k < dp->df_next->df_count[i]; k++)
+			{
+			    int idx = dp->df_next->df_lnum[i] + k - 1;
+			    if (idx < linemap[i].ga_len)
+				total_change_bytes +=
+				    ((linemap_entry_T *)linemap[i].ga_data)[idx].num_bytes;
+			}
+		    }
+		}
+
+		if (total_change_bytes >= gap_size * 2)
+		{
+		    // Merge the blocks by extending the first block to include the next
+		    for (int i = 0; i < DB_COUNT; i++)
+		    {
+			if (curtab->tp_diffbuf[i] != NULL)
+			{
+			    dp->df_count[i] = dp->df_next->df_lnum[i]
+				+ dp->df_next->df_count[i] - dp->df_lnum[i];
+			}
+		    }
+
+		    diff_T *dp_next = dp->df_next;
+		    dp->df_next = dp_next->df_next;
+		    clear_diffblock(dp_next);
+
+		    // Don't advance dp, check if can merge with the next block too
+		    continue;
+		}
+	    }
+
+	    dp = dp->df_next;
+	}
+    } while (pass++ < 4);  // use limited number of passes to avoid excessive looping
+}
+
+/*
  * Find the inline difference within a diff block among different buffers.  Do
  * this by splitting each block's content into characters or words, and then
  * use internal xdiff to calculate the per-character/word diff.  The result is
@@ -3656,7 +3846,9 @@ diff_find_change_inline_diff(
     }
     diff_T *new_diff = curtab->tp_first_diff;
 
-    if (diff_flags & DIFF_INLINE_CHAR && file1_idx != -1)
+    if (diff_flags & DIFF_INLINE_WORD && file1_idx != -1)
+	diff_refine_inline_word_highlight(new_diff, linemap, file1_idx, dp->df_lnum[file1_idx]);
+    else if (diff_flags & DIFF_INLINE_CHAR && file1_idx != -1)
 	diff_refine_inline_char_highlight(new_diff, linemap, file1_idx);
 
     // After the diff, use the linemap to obtain the original line/col of the
@@ -3876,16 +4068,25 @@ diff_infold(win_T *wp, linenr_T lnum)
     if (curtab->tp_first_diff == NULL)
 	return TRUE;
 
-    FOR_ALL_DIFFBLOCKS_IN_TAB(curtab, dp)
+    // Resume from the scan finger to avoid restarting at the first block.
+    diff_T	*le = NULL;		// last block with df_lnum[idx] <= lnum
+    int		result = TRUE;
+    for (dp = diff_scan_start(curtab, idx, lnum); dp != NULL; dp = dp->df_next)
     {
+	if (dp->df_lnum[idx] <= lnum)
+	    le = dp;
 	// If this change is below the line there can't be any further match.
 	if (dp->df_lnum[idx] - diff_context > lnum)
 	    break;
 	// If this change ends before the line we have a match.
 	if (dp->df_lnum[idx] + dp->df_count[idx] + diff_context > lnum)
-	    return FALSE;
+	{
+	    result = FALSE;
+	    break;
+	}
     }
-    return TRUE;
+    diff_scan_remember(curtab, idx, lnum, le);
+    return result;
 }
 # endif
 
@@ -4109,8 +4310,12 @@ ex_diffgetput(exarg_T *eap)
 	dfree = NULL;
 	lnum = dp->df_lnum[idx_to];
 	count = dp->df_count[idx_to];
+	// The empty line of an empty buffer is deleted below, include it in
+	// the undo information, otherwise undo leaves a line behind.
+	linenr_T undo_bot = lnum + count + (count == 0 && BUFEMPTY() ? 1 : 0);
+
 	if (dp->df_lnum[idx_cur] + dp->df_count[idx_cur] > eap->line1 + off
-		&& u_save(lnum - 1, lnum + count) != FAIL)
+		&& u_save(lnum - 1, undo_bot) != FAIL)
 	{
 	    // Inside the specified range and saving for undo worked.
 	    start_skip = 0;
@@ -4309,7 +4514,9 @@ theend:
     {
 	// Also need to redraw the other buffers.
 	diff_redraw(FALSE);
+	window_layout_lock();
 	apply_autocmds(EVENT_DIFFUPDATED, NULL, NULL, FALSE, curbuf);
+	window_layout_unlock();
     }
 }
 
@@ -5009,7 +5216,8 @@ f_diff(typval_T *argvars UNUSED, typval_T *rettv UNUSED)
 	    if (hunk_dict == NULL)
 		goto done;
 
-	    list_append_dict(l, hunk_dict);
+	    if (list_append_dict(l, hunk_dict) == FAIL)
+		dict_unref(hunk_dict);
 	}
     }
     else

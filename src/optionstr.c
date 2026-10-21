@@ -30,7 +30,7 @@ static __thread char *(p_briopt_values[]) = {"shift:", "min:", "sbr", "list:", "
 #endif
 #if defined(FEAT_TABPANEL)
 // Note: Keep this in sync with tabpanelopt_changed()
-static __thread char *(p_tplo_values[]) = {"align:", "columns:", "vert", NULL};
+static __thread char *(p_tplo_values[]) = {"align:", "columns:", "scrollbar", "vert", NULL};
 static __thread char *(p_tplo_align_values[]) = {"left", "right", NULL};
 #endif
 #if defined(FEAT_DIFF)
@@ -70,15 +70,22 @@ static __thread char *(p_fdo_values[]) = {"all", "block", "hor", "mark", "percen
 #endif
 // Note: Keep this in sync with match_keyprotocol()
 static __thread char *(p_kpc_protocol_values[]) = {"none", "mok2", "kitty", NULL};
+#ifdef FEAT_IMAGE
+// Note: Keep this in sync with match_imageprotocol()
+static char *(p_ipc_protocol_values[]) = {"none", "kitty", "sixel", NULL};
+#endif
 #ifdef FEAT_PROP_POPUP
 // Note: Keep this in sync with parse_popup_option()
 static __thread char *(p_popup_cpp_option_values[]) = {"align:", "border:",
-    "borderhighlight:", "close:", "height:", "highlight:", "resize:",
-    "shadow:", "width:", NULL};
-static __thread char *(p_popup_pvp_option_values[]) = {"height:", "highlight:",
-    "width:", NULL};
+    "borderhighlight:", "close:", "height:", "highlight:", "opacity:",
+    "resize:", "shadow:", "width:", NULL};
+static __thread char *(p_popup_pvp_option_values[]) = {"border:",
+    "borderhighlight:", "close:", "height:", "highlight:", "opacity:",
+    "resize:", "shadow:", "width:", NULL};
 static __thread char *(p_popup_option_on_off_values[]) = {"on", "off", NULL};
 static __thread char *(p_popup_cpp_border_values[]) = {"single", "double", "round",
+    "ascii", "on", "off", "custom:", NULL};
+static __thread char *(p_popup_pvp_border_values[]) = {"single", "double", "round",
     "ascii", "on", "off", "custom:", NULL};
 static __thread char *(p_popup_option_align_values[]) = {"item", "menu", NULL};
 #endif
@@ -92,6 +99,9 @@ static __thread char *(p_ssop_values[]) = {"buffers", "winpos", "resize", "winsi
     "localoptions", "options", "help", "blank", "globals", "slash", "unix",
     "sesdir", "curdir", "folds", "cursor", "tabpages", "terminal", "skiprtp",
     NULL};
+#endif
+#if defined(FEAT_STL_OPT)
+static __thread char *(p_stlo_values[]) = {"fixedheight", "maxheight:", NULL};
 #endif
 // Keep in sync with SWB_ flags in option.h
 static __thread char *(p_swb_values[]) = {"useopen", "usetab", "split", "newtab", "vsplit", "uselast", NULL};
@@ -110,7 +120,7 @@ static __thread char *(p_ttym_values[]) = {"xterm", "xterm2", "dec", "netterm", 
 #endif
 static __thread char *(p_ve_values[]) = {"block", "insert", "all", "onemore", "none", "NONE", NULL};
 // Note: Keep this in sync with check_opt_wim()
-static __thread char *(p_wim_values[]) = {"full", "longest", "list", "lastused", "noselect", NULL};
+static __thread char *(p_wim_values[]) = {"full", "longest", "list", "lastused", "noselect", "noinsert", NULL};
 static __thread char *(p_wop_values[]) = {"fuzzy", "tagfile", "pum", "exacttext", NULL};
 #ifdef FEAT_WAK
 static __thread char *(p_wak_values[]) = {"yes", "menu", "no", NULL};
@@ -143,6 +153,9 @@ static __thread char *(p_csl_values[]) = {"slash", "backslash", NULL};
 #endif
 #ifdef FEAT_SIGNS
 static __thread char *(p_scl_values[]) = {"yes", "no", "auto", "number", NULL};
+#endif
+#ifdef UNIX
+static __thread char *(p_trz_values[]) = {"inband", "sigwinch", "", NULL};
 #endif
 #if defined(MSWIN) && defined(FEAT_TERMINAL)
 static __thread char *(p_twt_values[]) = {"winpty", "conpty", "", NULL};
@@ -215,32 +228,35 @@ trigger_optionset_string(
 	return;
 
     char_u buf_type[7];
+    size_t buf_typelen;
+    size_t oldvallen;
 
-    sprintf((char *)buf_type, "%s",
-	    (opt_flags & OPT_LOCAL) ? "local" : "global");
-    set_vim_var_string(VV_OPTION_OLD, oldval, -1);
+    oldvallen = STRLEN(oldval);
+    set_vim_var_string(VV_OPTION_OLD, oldval, (int)oldvallen);
     set_vim_var_string(VV_OPTION_NEW, newval, -1);
-    set_vim_var_string(VV_OPTION_TYPE, buf_type, -1);
+    buf_typelen = vim_snprintf_safelen((char *)buf_type, sizeof(buf_type),
+	"%s", (opt_flags & OPT_LOCAL) ? "local" : "global");
+    set_vim_var_string(VV_OPTION_TYPE, buf_type, (int)buf_typelen);
     if (opt_flags & OPT_LOCAL)
     {
-	set_vim_var_string(VV_OPTION_COMMAND, (char_u *)"setlocal", -1);
-	set_vim_var_string(VV_OPTION_OLDLOCAL, oldval, -1);
+	set_vim_var_string(VV_OPTION_COMMAND, (char_u *)"setlocal", STRLEN_LITERAL("setlocal"));
+	set_vim_var_string(VV_OPTION_OLDLOCAL, oldval, (int)oldvallen);
     }
     if (opt_flags & OPT_GLOBAL)
     {
-	set_vim_var_string(VV_OPTION_COMMAND, (char_u *)"setglobal", -1);
-	set_vim_var_string(VV_OPTION_OLDGLOBAL, oldval, -1);
+	set_vim_var_string(VV_OPTION_COMMAND, (char_u *)"setglobal", STRLEN_LITERAL("setglobal"));
+	set_vim_var_string(VV_OPTION_OLDGLOBAL, oldval, (int)oldvallen);
     }
     if ((opt_flags & (OPT_LOCAL | OPT_GLOBAL)) == 0)
     {
-	set_vim_var_string(VV_OPTION_COMMAND, (char_u *)"set", -1);
+	set_vim_var_string(VV_OPTION_COMMAND, (char_u *)"set", STRLEN_LITERAL("set"));
 	set_vim_var_string(VV_OPTION_OLDLOCAL, oldval_l, -1);
 	set_vim_var_string(VV_OPTION_OLDGLOBAL, oldval_g, -1);
     }
     if (opt_flags & OPT_MODELINE)
     {
-	set_vim_var_string(VV_OPTION_COMMAND, (char_u *)"modeline", -1);
-	set_vim_var_string(VV_OPTION_OLDLOCAL, oldval, -1);
+	set_vim_var_string(VV_OPTION_COMMAND, (char_u *)"modeline", STRLEN_LITERAL("modeline"));
+	set_vim_var_string(VV_OPTION_OLDLOCAL, oldval, (int)oldvallen);
     }
     apply_autocmds(EVENT_OPTIONSET,
 	    get_option_fullname(opt_idx), NULL, FALSE,
@@ -497,7 +513,6 @@ set_string_option_direct(
 #endif
 }
 
-#if defined(FEAT_PROP_POPUP) || (defined(FEAT_DIFF) && defined(FEAT_FOLDING))
 /*
  * Like set_string_option_direct(), but for a window-local option in "wp".
  * Blocks autocommands to avoid the old curwin becoming invalid.
@@ -521,7 +536,6 @@ set_string_option_direct_in_win(
     curbuf = curwin->w_buffer;
     unblock_autocmds();
 }
-#endif
 
 #if defined(FEAT_PROP_POPUP)
 /*
@@ -661,6 +675,33 @@ check_stl_option(char_u *s)
 	if (!*s)
 	    break;
 	s++;
+	if (*s == STL_CLICKFUNC)
+	{
+	    if (s[1] == ']')
+	    {
+		// %[] - end click region
+		s += 2;
+		continue;
+	    }
+	    if (ASCII_ISALPHA(s[1]) || s[1] == '_')
+	    {
+		// %[FuncName] - start click region
+		char_u *rb = vim_strchr(s + 2, ']');
+		if (rb != NULL)
+		{
+		    s = rb + 1;
+		    continue;
+		}
+	    }
+	    // Bare %[ is invalid
+	    return illegal_char(errbuf, errbuflen, *s);
+	}
+	if (*s == STL_LINEBREAK)
+	{
+	    // Plain %@ - line break
+	    s++;
+	    continue;
+	}
 	if (*s == '%' || *s == STL_TRUNCMARK || *s == STL_SEPARATE)
 	{
 	    s++;
@@ -679,6 +720,32 @@ check_stl_option(char_u *s)
 	    s++;
 	if (*s == STL_USER_HL)
 	    continue;
+	if (*s == STL_CLICKFUNC)
+	{
+	    // %N[FuncName] or %N[]
+	    if (s[1] == ']')
+	    {
+		s += 2;
+		continue;
+	    }
+	    if (ASCII_ISALPHA(s[1]) || s[1] == '_')
+	    {
+		char_u *rb = vim_strchr(s + 2, ']');
+		if (rb != NULL)
+		{
+		    s = rb + 1;
+		    continue;
+		}
+	    }
+	    // Bare %N[ is invalid
+	    return illegal_char(errbuf, errbuflen, *s);
+	}
+	if (*s == STL_LINEBREAK)
+	{
+	    // %N@ - line break
+	    s++;
+	    continue;
+	}
 	if (*s == '.')
 	{
 	    s++;
@@ -1068,6 +1135,29 @@ did_set_ambiwidth(optset_T *args UNUSED)
     return check_chars_options();
 }
 
+// "name" must be a string literal, the length is computed at compile time.
+#define completing_value_for_subopt(args, name) \
+	  completing_value_for_subopt_len(args, name, (int)STRLEN_LITERAL(name))
+
+/*
+ * Return true when completing the value of the sub-option "name" with length
+ * "len", e.g. the value after "close:" in 'completepopup'.
+ */
+    static bool
+completing_value_for_subopt_len(optexpand_T *args, char *name, int len)
+{
+    char_u  *colon = args->oe_xp->xp_pattern - 1;
+    int	    off = (int)(colon - args->oe_set_arg);
+
+    if (off < len)
+	return false;
+    // The name must follow a comma when it does not start the option value.
+    if (off > len && *(colon - len - 1) != ',')
+	return false;
+
+    return STRNCMP(colon - len, name, len) == 0;
+}
+
     int
 expand_set_ambiwidth(optexpand_T *args, int *numMatches, char_u ***matches)
 {
@@ -1353,7 +1443,7 @@ did_set_buftype(optset_T *args UNUSED)
 
     if (curwin->w_status_height)
     {
-	curwin->w_redr_status = TRUE;
+	curwin->w_redr_status = true;
 	redraw_later(UPD_VALID);
     }
     curbuf->b_help = (curbuf->b_p_bt[0] == 'h');
@@ -2141,10 +2231,7 @@ expand_set_diffopt(optexpand_T *args, int *numMatches, char_u ***matches)
 
     if (xp->xp_pattern > args->oe_set_arg && *(xp->xp_pattern-1) == ':')
     {
-	// Within "algorithm:", we have a subgroup of possible options.
-	int algo_len = (int)STRLEN("algorithm:");
-	if (xp->xp_pattern - args->oe_set_arg >= algo_len &&
-		STRNCMP(xp->xp_pattern - algo_len, "algorithm:", algo_len) == 0)
+	if (completing_value_for_subopt(args, "algorithm"))
 	{
 	    return expand_set_opt_string(
 		    args,
@@ -2153,10 +2240,7 @@ expand_set_diffopt(optexpand_T *args, int *numMatches, char_u ***matches)
 		    numMatches,
 		    matches);
 	}
-	// Within "inline:", we have a subgroup of possible options.
-	int inline_len = (int)STRLEN("inline:");
-	if (xp->xp_pattern - args->oe_set_arg >= inline_len &&
-		STRNCMP(xp->xp_pattern - inline_len, "inline:", inline_len) == 0)
+	if (completing_value_for_subopt(args, "inline"))
 	{
 	    return expand_set_opt_string(
 		    args,
@@ -2331,9 +2415,37 @@ expand_set_encoding(optexpand_T *args, int *numMatches, char_u ***matches)
 did_set_eventignore(optset_T *args)
 {
     char_u	**varp = (char_u **)args->os_varp;
+    char_u	*oldval = args->os_oldval.string;
 
     if (check_ei(*varp) == FAIL)
 	return e_invalid_argument;
+
+    if (oldval == NULL || STRCMP(oldval, *varp) == 0)
+	return NULL;
+
+    // Deal with the events that are triggered by comparing against a stored
+    // state, with the old value in effect: what happened while an event was
+    // ignored must not be reported once it is not ignored anymore, and what
+    // happened before must still be reported.
+    // Use a copy, the caller owns "oldval" and autocommands may free it.
+    char_u	*save_ei = vim_strsave(oldval);
+    if (save_ei != NULL)
+    {
+	char_u	*newval = *varp;
+	win_T	*wp = is_window_local_option(args->os_idx) ? curwin : NULL;
+
+	*varp = save_ei;
+	// "varp" points into "wp" for 'eventignorewin'.
+	if (wp != NULL)
+	    ++wp->w_locked;
+	may_trigger_deferred_events();
+	if (wp != NULL)
+	    --wp->w_locked;
+
+	free_string_option(*varp);
+	*varp = newval;
+    }
+
     return NULL;
 }
 
@@ -2804,6 +2916,63 @@ did_set_highlight(optset_T *args UNUSED)
     return NULL;
 }
 
+    static int
+expand_hl_occasions(
+	optexpand_T *args,
+	int *numMatches,
+	char_u ***matches,
+	char_u prefix)
+{
+    char_u	    *p;
+    static __thread char_u   hl_flags[HLF_COUNT] = HL_FLAGS;
+    size_t	    i;
+    int		    count = 0;
+
+    *matches = ALLOC_MULT(char_u *, HLF_COUNT + 1);
+    if (*matches == NULL)
+	return FAIL;
+
+    // We still want to return the full option if it's requested.
+    if (args->oe_include_orig_val)
+    {
+	p = vim_strsave(args->oe_opt_value);
+	if (p == NULL)
+	{
+	    VIM_CLEAR(*matches);
+	    return FAIL;
+	}
+	(*matches)[count++] = p;
+    }
+
+    for (i = 0; i < HLF_COUNT; i++)
+    {
+	p = alloc((prefix == NUL ? 1 : 2) + 1);
+	if (p == NULL)
+	{
+	    if (count == 0)
+	    {
+		VIM_CLEAR(*matches);
+		return FAIL;
+	    }
+	    else
+		break;
+	}
+	if (prefix == NUL)
+	    sprintf((char *)p, "%c", hl_flags[i]);
+	else
+	    sprintf((char *)p, "%c%c", prefix, hl_flags[i]);
+	(*matches)[count++] = p;
+    }
+
+    if (count == 0)
+    {
+	VIM_CLEAR(*matches);
+	return FAIL;
+    }
+    *numMatches = count;
+    return OK;
+}
+
 /*
  * Expand 'highlight' option.
  */
@@ -2812,7 +2981,6 @@ expand_set_highlight(optexpand_T *args, int *numMatches, char_u ***matches)
 {
     char_u	    *p;
     expand_T	    *xp = args->oe_xp;
-    static __thread char_u   hl_flags[HLF_COUNT] = HL_FLAGS;
     size_t	    i;
     int		    count = 0;
 
@@ -2827,49 +2995,9 @@ expand_set_highlight(optexpand_T *args, int *numMatches, char_u ***matches)
     }
 
     if (*xp->xp_pattern == NUL)
-    {
 	// At beginning of a comma-separated list. Return the specific list of
 	// supported occasions.
-	*matches = ALLOC_MULT(char_u *, HLF_COUNT + 1);
-	if (*matches == NULL)
-	    return FAIL;
-
-	// We still want to return the full option if it's requested.
-	if (args->oe_include_orig_val)
-	{
-	    p = vim_strsave(args->oe_opt_value);
-	    if (p == NULL)
-	    {
-		VIM_CLEAR(*matches);
-		return FAIL;
-	    }
-	    (*matches)[count++] = p;
-	}
-
-	for (i = 0; i < HLF_COUNT; i++)
-	{
-	    p = vim_strnsave(&hl_flags[i], 1);
-	    if (p == NULL)
-	    {
-		if (count == 0)
-		{
-		    VIM_CLEAR(*matches);
-		    return FAIL;
-		}
-		else
-		    break;
-	    }
-	    (*matches)[count++] = p;
-	}
-
-	if (count == 0)
-	{
-	    VIM_CLEAR(*matches);
-	    return FAIL;
-	}
-	*numMatches = count;
-	return OK;
-    }
+	return expand_hl_occasions(args, numMatches, matches, NUL);
 
     // We are after the initial character (which indicates the occasion). We
     // already made sure we are not matching after a ':' above, so now we want
@@ -2969,6 +3097,41 @@ did_set_imactivatekey(optset_T *args UNUSED)
     if (!im_xim_isvalid_imactivate())
 	return e_invalid_argument;
     return NULL;
+}
+#endif
+
+#ifdef FEAT_IMAGE
+/*
+ * The 'imageprotocol' option is changed.
+ */
+    char *
+did_set_imageprotocol(optset_T *args UNUSED)
+{
+    if (update_image_backend() == FAIL)
+	return e_invalid_argument;
+    return NULL;
+}
+
+    int
+expand_set_imageprotocol(optexpand_T *args, int *numMatches, char_u ***matches)
+{
+    expand_T *xp = args->oe_xp;
+
+    if (xp->xp_pattern > args->oe_set_arg && *(xp->xp_pattern-1) == ':')
+    {
+	// 'imageprotocol' only has well-defined terms for completion for the
+	// protocol part after the colon.
+	return expand_set_opt_string(
+		args,
+		p_ipc_protocol_values,
+		ARRAY_LENGTH(p_ipc_protocol_values) - 1,
+		numMatches,
+		matches);
+    }
+    // Use expand_set_opt_string instead of returning FAIL so that we can
+    // include the original value if args->oe_include_orig_val is set.
+    static __thread char *(empty[]) = {NULL};
+    return expand_set_opt_string(args, empty, 0, numMatches, matches);
 }
 #endif
 
@@ -3415,6 +3578,9 @@ did_set_previewpopup(optset_T *args UNUSED)
     if (parse_previewpopup(NULL) == FAIL)
 	return e_invalid_argument;
 
+# if defined(FEAT_QUICKFIX)
+    popup_close_info();
+# endif
     return NULL;
 }
 
@@ -3426,20 +3592,9 @@ expand_set_popupoption(optexpand_T *args, int *numMatches, char_u ***matches,
 
     if (xp->xp_pattern > args->oe_set_arg && *(xp->xp_pattern-1) == ':')
     {
-	// Within "highlight:"/"border:"/"align:", we have a subgroup of possible options.
-	int border_len = (int)STRLEN("border:");
-	int close_len = (int)STRLEN("close:");
-	int resize_len = (int)STRLEN("resize:");
-	int shadow_len = (int)STRLEN("shadow:");
-	int is_border = xp->xp_pattern - args->oe_set_arg >= border_len &&
-		STRNCMP(xp->xp_pattern - border_len, "border:", border_len) == 0;
-	int is_close = xp->xp_pattern - args->oe_set_arg >= close_len &&
-		STRNCMP(xp->xp_pattern - close_len, "close:", close) == 0;
-	int is_resize = xp->xp_pattern - args->oe_set_arg >= resize_len &&
-		STRNCMP(xp->xp_pattern - resize_len, "resize:", resize_len) == 0;
-	int is_shadow = xp->xp_pattern - args->oe_set_arg >= shadow_len &&
-		STRNCMP(xp->xp_pattern - shadow_len, "shadow:", shadow_len) == 0;
-	if (is_close || is_resize || is_shadow)
+	if (completing_value_for_subopt(args, "close")
+		|| completing_value_for_subopt(args, "resize")
+		|| completing_value_for_subopt(args, "shadow"))
 	{
 	    return expand_set_opt_string(
 		    args,
@@ -3448,20 +3603,18 @@ expand_set_popupoption(optexpand_T *args, int *numMatches, char_u ***matches,
 		    numMatches,
 		    matches);
 	}
-	if (is_border)
+	if (completing_value_for_subopt(args, "border"))
 	{
 	    return expand_set_opt_string(
 		    args,
-		    previewpopup ? p_popup_option_on_off_values
+		    previewpopup ? p_popup_pvp_border_values
 			: p_popup_cpp_border_values,
-		    (previewpopup ? ARRAY_LENGTH(p_popup_option_on_off_values)
+		    (previewpopup ? ARRAY_LENGTH(p_popup_pvp_border_values) - 1
 			: ARRAY_LENGTH(p_popup_cpp_border_values)) - 1,
 		    numMatches,
 		    matches);
 	}
-	int align_len = (int)STRLEN("align:");
-	if (xp->xp_pattern - args->oe_set_arg >= align_len &&
-		STRNCMP(xp->xp_pattern - align_len, "align:", align_len) == 0)
+	if (completing_value_for_subopt(args, "align"))
 	{
 	    return expand_set_opt_string(
 		    args,
@@ -3470,16 +3623,8 @@ expand_set_popupoption(optexpand_T *args, int *numMatches, char_u ***matches,
 		    numMatches,
 		    matches);
 	}
-	int highlight_len = (int)STRLEN("highlight:");
-	int borderhighlight_len = (int)STRLEN("borderhighlight:");
-	int is_highlight = xp->xp_pattern - args->oe_set_arg >= highlight_len
-	    && STRNCMP(xp->xp_pattern - highlight_len, "highlight:",
-		    highlight_len) == 0;
-	int is_borderhighlight
-	    = xp->xp_pattern - args->oe_set_arg >= borderhighlight_len
-	    && STRNCMP(xp->xp_pattern - borderhighlight_len, "highlight:",
-		    borderhighlight_len) == 0;
-	if (is_highlight || is_borderhighlight)
+	if (completing_value_for_subopt(args, "highlight")
+		|| completing_value_for_subopt(args, "borderhighlight"))
 	{
 	    // Return the list of all highlight names
 	    return expand_set_opt_generic(
@@ -3663,6 +3808,217 @@ expand_set_rightleftcmd(optexpand_T *args, int *numMatches, char_u ***matches)
     } while (0)
 
 /*
+ * Parse a border value from a pumopt "border:" token.
+ * Returns OK on success, FAIL on error.
+ */
+    static int
+parse_pumopt_border(char_u *val, int len)
+{
+    // Use box-drawing characters only when 'encoding' is "utf-8" and
+    // 'ambiwidth' is "single".
+    int	    can_use_box_chars = (enc_utf8 && *p_ambw == 's');
+    char_u  *token;
+
+    token = vim_strnsave(val, len);
+    if (token == NULL)
+	return FAIL;
+
+    if (can_use_box_chars && STRCMP(token, "single") == 0)
+	pum_set_border_chars(0x2500, 0x2502, 0x2500, 0x2502, // ─ │ ─ │
+		0x250c, 0x2510, 0x2518, 0x2514); // ┌ ┐ ┘ └
+    else if (can_use_box_chars && STRCMP(token, "double") == 0)
+	pum_set_border_chars(0x2550, 0x2551, 0x2550, 0x2551, // ═ ║ ═ ║
+		0x2554, 0x2557, 0x255D, 0x255A); // ╔ ╗ ╝  ╚
+    else if (can_use_box_chars && STRCMP(token, "round") == 0)
+	pum_set_border_chars(0x2500, 0x2502, 0x2500, 0x2502, // ─ │ ─ │
+		0x256d, 0x256e, 0x256f, 0x2570); // ╭ ╮ ╯ ╰
+    else if (STRCMP(token, "ascii") == 0)
+	pum_set_border_chars('-', '|', '-', '|', '+', '+', '+', '+');
+    else if (STRNCMP(token, "custom:", 7) == 0)
+    {
+	char_u	*q = token + 7;
+	int	out[8];
+
+	for (int i = 0; i < 8; i++)
+	{
+	    if (*q == NUL || *q == ',')
+	    {
+		vim_free(token);
+		return FAIL;
+	    }
+	    out[i] = mb_ptr2char(q);
+	    mb_ptr2char_adv(&q);
+	    if (i < 7)
+	    {
+		if (*q != ';')
+		{
+		    vim_free(token);
+		    return FAIL;
+		}
+		q++;
+	    }
+	}
+	if (*q != NUL && *q != ',')
+	{
+	    vim_free(token);
+	    return FAIL;
+	}
+	pum_set_border_chars(out[0], out[1], out[2], out[3], out[4], out[5],
+		out[6], out[7]);
+    }
+    else
+    {
+	vim_free(token);
+	return FAIL;
+    }
+
+    vim_free(token);
+    pum_set_border(TRUE);
+    return OK;
+}
+
+/*
+ * The 'pumopt' option is changed.
+ * Format: comma-separated key:value pairs.
+ *   border:{single|double|round|ascii|custom:X;X;X;X;X;X;X;X}
+ *   height:{n}
+ *   width:{n}
+ *   maxwidth:{n}
+ *   opacity:{n}
+ *   shadow
+ *   margin (requires border)
+ */
+    char *
+did_set_pumopt(optset_T *args)
+{
+    char_u  **varp = (char_u **)args->os_varp;
+    char_u  *p;
+    int	    have_border = FALSE;
+    int	    have_margin = FALSE;
+
+    // Reset to defaults.
+    PUM_BORDER_CLEAR();
+    p_ph = 0;
+    p_pw = 15;
+    p_pmw = 0;
+    p_po = 100;
+
+    if (*varp == NULL || **varp == NUL)
+	return NULL;
+
+    for (p = *varp; p != NULL && *p != NUL; )
+    {
+	char_u *comma = vim_strchr(p, ',');
+	int len;
+
+	if (comma != NULL)
+	    len = (int)(comma - p);
+	else
+	    len = (int)STRLEN(p);
+
+	if (STRNCMP(p, "border:", 7) == 0)
+	{
+	    if (have_border)
+		goto error;
+	    have_border = TRUE;
+	    if (parse_pumopt_border(p + 7, len - 7) == FAIL)
+		goto error;
+	}
+	else if (STRNCMP(p, "height:", 7) == 0)
+	{
+	    long n = atol((char *)p + 7);
+	    if (n < 0)
+		goto error;
+	    p_ph = n;
+	}
+	else if (STRNCMP(p, "width:", 6) == 0)
+	{
+	    long n = atol((char *)p + 6);
+	    if (n < 0)
+		goto error;
+	    p_pw = n;
+	}
+	else if (STRNCMP(p, "maxwidth:", 9) == 0)
+	{
+	    long n = atol((char *)p + 9);
+	    if (n < 0)
+		goto error;
+	    p_pmw = n;
+	}
+	else if (STRNCMP(p, "opacity:", 8) == 0)
+	{
+	    long n = atol((char *)p + 8);
+	    if (n < 0 || n > 100)
+		goto error;
+	    p_po = n;
+	}
+	else if (len == 6 && STRNCMP(p, "shadow", 6) == 0)
+	    pum_set_shadow(TRUE);
+	else if (len == 6 && STRNCMP(p, "margin", 6) == 0)
+	{
+	    have_margin = TRUE;
+	    pum_set_margin(TRUE);
+	}
+	else
+	    goto error;
+
+	if (comma != NULL)
+	    p = comma + 1;
+	else
+	    break;
+    }
+
+    if (have_margin && !have_border)
+	goto error;
+
+    // Invalidate cached background for opacity changes.
+    pum_opacity_changed();
+
+    return NULL;
+
+error:
+    PUM_BORDER_CLEAR();
+    p_ph = 0;
+    p_pw = 15;
+    p_pmw = 0;
+    p_po = 100;
+    return e_invalid_argument;
+}
+
+    static char_u *
+get_pum_border_style(expand_T *xp UNUSED, int idx)
+{
+    static char *styles[] = {"ascii", "custom:", "single", "double", "round"};
+    return idx < ((enc_utf8 && *p_ambw == 's') ? (int)ARRAY_LENGTH(styles) : 2)
+	    ? (char_u *)styles[idx] : NULL;
+}
+
+    int
+expand_set_pumopt(optexpand_T *args, int *numMatches, char_u ***matches)
+{
+    expand_T *xp = args->oe_xp;
+
+    if (xp->xp_pattern > args->oe_set_arg && *(xp->xp_pattern-1) == ':')
+    {
+	if (completing_value_for_subopt(args, "border"))
+	{
+	    return expand_set_opt_generic(
+		    args, get_pum_border_style, numMatches, matches);
+	}
+	return FAIL;
+    }
+
+    static __thread char *(p_pumopt_values[]) = {"border:", "height:", "width:",
+	"maxwidth:", "opacity:", "shadow", "margin", NULL};
+    return expand_set_opt_string(
+	    args,
+	    p_pumopt_values,
+	    ARRAY_LENGTH(p_pumopt_values) - 1,
+	    numMatches,
+	    matches);
+}
+
+/*
  * The 'pumborder' option is changed.
  * Rules:
  *   - One of { single, double, round, ascii, custom:XXXXXXXX } may appear.
@@ -3673,10 +4029,7 @@ expand_set_rightleftcmd(optexpand_T *args, int *numMatches, char_u ***matches)
 did_set_pumborder(optset_T *args)
 {
     char_u  **varp = (char_u **)args->os_varp;
-    // Use box-drawing characters only when 'encoding' is "utf-8" and
-    // 'ambiwidth' is "single".
-    int	    can_use_box_chars = (enc_utf8 && *p_ambw == 's');
-    char_u  *p, *token;
+    char_u  *p;
     int	    len;
     int	    have_border = FALSE;
     int	    have_margin = FALSE;
@@ -3688,89 +4041,36 @@ did_set_pumborder(optset_T *args)
 
     for (p = *varp; p != NULL && *p != NUL; )
     {
-	// end of token is either ',' or NUL
 	char_u *comma = vim_strchr(p, ',');
 	if (comma != NULL)
 	    len = (int)(comma - p);
 	else
 	    len = (int)STRLEN(p);
 
-	token = vim_strnsave(p, len);
-	if (token == NULL)
-	    goto error;
-
-	if ((can_use_box_chars && (STRCMP(token, "single") == 0
-			|| STRCMP(token, "double") == 0
-			|| STRCMP(token, "round") == 0))
-		|| STRCMP(token, "ascii") == 0
-		|| (STRNCMP(token, "custom:", 7) == 0))
-	{
-	    if (have_border)
-	    {
-		// multiple border styles not allowed
-		vim_free(token);
-		goto error;
-	    }
-	    have_border = TRUE;
-
-	    if (STRCMP(token, "single") == 0)
-		pum_set_border_chars(0x2500, 0x2502, 0x2500, 0x2502, // ─ │ ─ │
-			0x250c, 0x2510, 0x2518, 0x2514); // ┌ ┐ ┘ └
-	    else if (STRCMP(token, "double") == 0)
-		pum_set_border_chars(0x2550, 0x2551, 0x2550, 0x2551, // ═ ║ ═ ║
-			0x2554, 0x2557, 0x255D, 0x255A); // ╔ ╗ ╝  ╚
-	    else if (STRCMP(token, "round") == 0)
-		pum_set_border_chars(0x2500, 0x2502, 0x2500, 0x2502, // ─ │ ─ │
-			0x256d, 0x256e, 0x256f, 0x2570); // ╭ ╮ ╯ ╰
-	    else if (STRCMP(token, "ascii") == 0)
-		pum_set_border_chars('-', '|', '-', '|', '+', '+', '+', '+');
-	    else if (STRNCMP(token, "custom:", 7) == 0)
-	    {
-		char_u	*q = token + 7;
-		int	out[8];
-
-		for (int i = 0; i < 8; i++)
-		{
-		    if (*q == NUL || *q == ',')
-			goto error;
-		    out[i] = mb_ptr2char(q);
-		    mb_ptr2char_adv(&q);
-		    if (i < 7)
-		    {
-			if (*q != ';')
-			    goto error;  // must be semicolon
-			q++;
-		    }
-		}
-		if (*q != NUL && *q != ',') // must end exactly after the 8th char
-		    goto error;
-		pum_set_border_chars(out[0], out[1], out[2], out[3], out[4], out[5],
-			out[6], out[7]);
-	    }
-	}
-	else if (STRCMP(token, "shadow") == 0)
+	if (STRNCMP(p, "shadow", len) == 0 && len == 6)
 	    pum_set_shadow(TRUE);
-	else if (STRCMP(token, "margin") == 0)
+	else if (STRNCMP(p, "margin", len) == 0 && len == 6)
 	{
 	    have_margin = TRUE;
 	    pum_set_margin(TRUE);
 	}
 	else
 	{
-	    vim_free(token);
-	    goto error;
+	    if (have_border)
+		goto error;
+	    have_border = TRUE;
+	    if (parse_pumopt_border(p, len) == FAIL)
+		goto error;
 	}
 
-	vim_free(token);
-
 	if (comma != NULL)
-	    p = comma + 1; // move to next token (skip comma)
+	    p = comma + 1;
 	else
 	    break;
     }
 
     if (have_margin && !have_border)
-	goto error; // margin must be combined with border
+	goto error;
 
     return NULL;
 
@@ -3780,17 +4080,19 @@ error:
     return e_invalid_argument;
 }
 
+    static char_u *
+get_pumborder_token(expand_T *xp, int idx)
+{
+    return idx == 0 ? (char_u *)"margin"
+	 : idx == 1 ? (char_u *)"shadow"
+	 : get_pum_border_style(xp, idx - 2);
+}
+
     int
 expand_set_pumborder(optexpand_T *args, int *numMatches, char_u ***matches)
 {
-    static __thread char *(p_rlc_values[]) = {"single", "double", "round", "ascii",
-	"custom", "shadow", "margin", NULL};
-    return expand_set_opt_string(
-	    args,
-	    p_rlc_values,
-	    ARRAY_LENGTH(p_rlc_values) - 1,
-	    numMatches,
-	    matches);
+    return expand_set_opt_generic(
+	    args, get_pumborder_token, numMatches, matches);
 }
 
 #if defined(FEAT_STL_OPT)
@@ -3825,10 +4127,7 @@ expand_set_tabpanelopt(optexpand_T *args, int *numMatches, char_u ***matches)
 
     if (xp->xp_pattern > args->oe_set_arg && *(xp->xp_pattern-1) == ':')
     {
-	// Within "align:", we have a subgroup of possible options.
-	int align_len = (int)STRLEN("align:");
-	if (xp->xp_pattern - args->oe_set_arg >= align_len &&
-		STRNCMP(xp->xp_pattern - align_len, "align:", align_len) == 0)
+	if (completing_value_for_subopt(args, "align"))
 	{
 	    return expand_set_opt_string(
 		    args,
@@ -3963,6 +4262,43 @@ expand_set_sessionoptions(
 #endif
 
 /*
+ * Validate 'shellpipe'/'shellredir' option.
+ */
+    char *
+did_set_shellpipe_redir(optset_T *args)
+{
+    char_u	*p;
+    bool	seen = false;
+
+    for (p = args->os_newval.string; *p != NUL; ++p)
+    {
+	if (*p != '%')
+	    continue;
+
+	if (p[1] == NUL)
+	    return e_invalid_format_string_single_percent_s;
+
+	if (p[1] == '%')
+	{
+	    ++p;    // skip second %
+	    continue;
+	}
+
+	if (p[1] == 's')
+	{
+	    if (seen)
+		return e_invalid_format_string_single_percent_s;
+
+	    seen = true;
+	    ++p;    // consume 's'
+	    continue;
+	}
+	return e_invalid_format_string_single_percent_s;
+    }
+    return NULL;
+}
+
+/*
  * The 'shortmess' option is changed.
  */
     char *
@@ -4044,6 +4380,13 @@ did_set_signcolumn(optset_T *args)
 		|| (*curwin->w_p_scl == 'n' && *(curwin->w_p_scl + 1) =='u'))
 	    && (curwin->w_p_nu || curwin->w_p_rnu))
 	curwin->w_nrwidth_line_count = 0;
+# endif
+
+# if defined(FEAT_GUI)
+    // In the GUI, when sign icons are used, a full screen clear is needed
+    // to properly redraw the sign icons.
+    if (gui.in_use && curbuf->b_signlist != NULL)
+	redraw_all_later(UPD_CLEAR);
 # endif
 
     return NULL;
@@ -4160,6 +4503,13 @@ expand_set_spellsuggest(optexpand_T *args, int *numMatches, char_u ***matches)
     char *
 did_set_splitkeep(optset_T *args UNUSED)
 {
+    win_T	*wp;
+    tabpage_T	*tp;
+    FOR_ALL_TAB_WINDOWS(tp, wp)
+    {
+	wp->w_prev_height = wp->w_height;
+	wp->w_prev_winrow = wp->w_winrow;
+    }
     return did_set_opt_strings(p_spk, p_spk_values, FALSE);
 }
 
@@ -4181,7 +4531,153 @@ expand_set_splitkeep(optexpand_T *args, int *numMatches, char_u ***matches)
     char *
 did_set_statusline(optset_T *args)
 {
-    return parse_statustabline_rulerformat(args, FALSE);
+    char_u  **varp = (char_u **)args->os_varp;
+    char    *ret = parse_statustabline_rulerformat(args, FALSE);
+
+    if (ret != NULL)
+	return ret;
+    update_stl_rendered_height(varp == &curwin->w_p_stl ? curwin : NULL);
+    frame_change_statusline_height();
+
+    return NULL;
+}
+
+/*
+ * Rewrite the 'statuslineopt' string: replace the last "maxheight:N" with
+ * actual_stlh and remove earlier duplicates.  Keyword order is preserved.
+ */
+    static void
+update_stlo_maxheight(char_u **varp, int actual_stlh)
+{
+    const char_u    *src = *varp;
+    const char_u    *last_mh = NULL;
+    const char_u    *p;
+
+    // Find the last "maxheight:" token.
+    p = src;
+    while (*p != NUL)
+    {
+	if (STRNCMP(p, "maxheight:", 10) == 0)
+	    last_mh = p;
+	while (*p != ',' && *p != NUL)
+	    ++p;
+	if (*p == ',')
+	    ++p;
+    }
+
+    if (last_mh == NULL)
+	return;
+
+    size_t	bufsize = STRLEN(src) + NUMBUFLEN + 1;
+    char_u	*buf = alloc(bufsize);
+    if (buf == NULL)
+	return;
+
+    int		len = 0;
+    bool	need_comma = false;
+
+    p = src;
+    while (*p != NUL)
+    {
+	const	char_u	*tok = p;
+	int	tok_len;
+
+	while (*p != ',' && *p != NUL)
+	    ++p;
+	tok_len = (int)(p - tok);
+	if (*p == ',')
+	    ++p;
+
+	if (STRNCMP(tok, "maxheight:", 10) == 0)
+	{
+	    if (tok == last_mh)
+	    {
+		// Replace the last occurrence with the actual value.
+		if (need_comma)
+		    buf[len++] = ',';
+		len += vim_snprintf((char *)buf + len,
+			bufsize - len, "maxheight:%d", actual_stlh);
+		need_comma = true;
+	    }
+	}
+	else
+	{
+	    if (need_comma)
+		buf[len++] = ',';
+	    mch_memmove(buf + len, tok, tok_len);
+	    len += tok_len;
+	    need_comma = true;
+	}
+    }
+    buf[len] = NUL;
+    free_string_option(*varp);
+    *varp = buf;
+}
+
+/*
+ * The 'statuslineopt' option is changed.
+ */
+    char *
+did_set_statuslineopt(optset_T *args)
+{
+    char_u	**varp = (char_u **)args->os_varp;
+    win_T       *wp = varp == &curwin->w_p_stlo ? curwin : NULL;
+
+    if (statuslineopt_changed(*varp, wp) == FAIL)
+	return e_invalid_argument;
+
+    // Sync stl_rendered_height with the current statusline.
+    update_stl_rendered_height(wp);
+
+    // Update the maxheight value to the actual value set.
+    // Note: Must be changed if p_stlo_values are changed.
+    if (*varp != empty_option)
+    {
+	int actual_stlh;
+
+	if (wp != NULL)
+	{
+	    frame_change_statusline_height();
+	    actual_stlh = MIN(wp->w_p_stlo_mh,
+		    wp->w_height + wp->w_status_height - p_wmh);
+	}
+	else
+	    actual_stlh = frame_change_statusline_height();
+
+	// Only re-serialize when the window actually has a status line shown.
+	if (actual_stlh > 0)
+	{
+	    update_stlo_maxheight(varp, actual_stlh);
+	    // Update the parsed maxheight member directly.
+	    if (wp != NULL)
+		wp->w_p_stlo_mh = actual_stlh;
+	    else
+		set_stlo_mh(actual_stlh);
+	}
+    }
+    else
+	frame_change_statusline_height();
+
+    if ((args->os_flags & (OPT_LOCAL | OPT_GLOBAL)) == 0)
+    {
+	// :set clears the local values.
+	clear_string_option(&curwin->w_p_stlo);
+	curwin->w_p_stlo_fh = -1;
+	curwin->w_p_stlo_mh = -1;
+    }
+
+    return NULL;
+}
+
+    int
+expand_set_statuslineopt(optexpand_T *args, int *numMatches, char_u ***matches)
+{
+    return expand_set_opt_string(
+	    args,
+	    p_stlo_values,
+	    ARRAY_LENGTH(p_stlo_values) - 1,
+	    numMatches,
+	    matches);
 }
 #endif
 
@@ -4385,8 +4881,42 @@ did_set_term_option(optset_T *args)
 	    out_str(T_BE);
     }
 
+    if (varp == &T_BSU || varp == &T_ESU)
+	term_set_sync_output(TERM_SYNC_OUTPUT_OFF);
+
     return NULL;
 }
+
+
+#ifdef UNIX
+/*
+ * The 'termresize' option is changed.
+ */
+    char *
+did_set_termresize(optset_T *args UNUSED)
+{
+    // If empty or "inband", then attempt to enable in-band resize events.
+    if (*p_trz == NUL || STRCMP(p_trz, "inband") == 0)
+	term_set_win_resize(true);
+    else if (STRCMP(p_trz, "sigwinch") == 0)
+	term_set_win_resize(false);
+    else
+	return e_invalid_argument;
+
+    return NULL;
+}
+
+    int
+expand_set_termresize(optexpand_T *args, int *numMatches, char_u ***matches)
+{
+    return expand_set_opt_string(
+	    args,
+	    p_trz_values,
+	    ARRAY_LENGTH(p_trz_values) - 1,
+	    numMatches,
+	    matches);
+}
+#endif
 
 #if defined(FEAT_TERMINAL)
 /*
@@ -4871,10 +5401,46 @@ expand_set_winaltkeys(optexpand_T *args, int *numMatches, char_u ***matches)
     char *
 did_set_wincolor(optset_T *args UNUSED)
 {
-#ifdef FEAT_TERMINAL
-    term_update_wincolor(curwin);
-#endif
+    update_wincolor(curwin, args->os_newval.string);
     return NULL;
+}
+
+/*
+ * The 'winhighlight' option is changed
+ */
+    char *
+did_set_winhighlight(optset_T *args)
+{
+    return update_winhighlight(curwin, args->os_newval.string);
+}
+
+/*
+ * Expand 'winhighlight' option.
+ */
+    int
+expand_set_winhighlight(optexpand_T *args, int *numMatches, char_u ***matches)
+{
+    expand_T	    *xp = args->oe_xp;
+
+    if ((xp->xp_pattern > args->oe_set_arg && *(xp->xp_pattern-1) == ':')
+	    || xp->xp_pattern == args->oe_set_arg || *(xp->xp_pattern-1) == ',')
+    {
+	// After a ':' or after a ',', or at the start, so expand highlight
+	// group name.
+
+	// If starts with !, then expand 'highlight' occasions.
+	if (*xp->xp_pattern == '!')
+	    return expand_hl_occasions(args, numMatches, matches, '!');
+	else
+	    return expand_set_opt_generic(
+		    args,
+		    get_highlight_name,
+		    numMatches,
+		    matches);
+    }
+
+    VIM_CLEAR(*matches);
+    return FAIL;
 }
 
     int
@@ -4925,7 +5491,7 @@ do_filetype_autocmd(char_u **varp, int opt_flags, int value_changed)
     secure = 0;
 
     ++ft_recursive;
-    curbuf->b_did_filetype = TRUE;
+    curbuf->b_did_filetype = true;
     // Only pass TRUE for "force" when the value changed or not
     // used recursively, to avoid endless recurrence.
     apply_autocmds(EVENT_FILETYPE, curbuf->b_p_ft, curbuf->b_fname,
@@ -5113,7 +5679,7 @@ did_set_string_option(
     if (curwin->w_curswant != MAXCOL
 		   && (get_option_flags(opt_idx) & (P_CURSWANT | P_RALL)) != 0
 				&& (get_option_flags(opt_idx) & P_HLONLY) == 0)
-	curwin->w_set_curswant = TRUE;
+	curwin->w_set_curswant = true;
 
     if ((opt_flags & OPT_NO_REDRAW) == 0)
     {
@@ -5264,27 +5830,29 @@ export_myvimdir(void)
     int		dofree = FALSE;
     char_u	*p;
     char_u	*q = p_rtp;
-    char_u	*buf = alloc(MAXPATHL);
+    string_T	buf;
 
-    if (buf == NULL)
+    buf.string = alloc(MAXPATHL);
+    if (buf.string == NULL)
 	return;
 
-    (void)copy_option_part(&q, buf, MAXPATHL, ",");
+    buf.length = (size_t)copy_option_part(&q, buf.string, MAXPATHL, ",");
 
     p = vim_getenv((char_u *)"MYVIMDIR", &dofree);
 
-    if (p == NULL || STRCMP(p, buf) != 0)
+    if (p == NULL || STRCMP(p, buf.string) != 0)
     {
-	add_pathsep(buf);
+	if (*buf.string != NUL && !after_pathsep(buf.string, buf.string + buf.length))
+	    STRCPY(buf.string + buf.length, PATHSEPSTR);
 #ifdef MSWIN
 	// normalize path separators
-	for (q = buf; *q != NUL; q++)
+	for (q = buf.string; *q != NUL; q++)
 	    if (*q == '/')
 		*q = '\\';
 #endif
-	vim_setenv((char_u *)"MYVIMDIR", buf);
+	vim_setenv((char_u *)"MYVIMDIR", buf.string);
     }
     if (dofree)
 	vim_free(p);
-    vim_free(buf);
+    vim_free(buf.string);
 }

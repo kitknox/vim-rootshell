@@ -22,12 +22,6 @@
 #define NSUBEXP  10
 
 /*
- * In the NFA engine: how many braces are allowed.
- * TODO(RE): Use dynamic memory allocation instead of static, like here
- */
-#define NFA_MAX_BRACES 20
-
-/*
  * In the NFA engine: how many states are allowed
  */
 #define NFA_MAX_STATES 100000
@@ -73,6 +67,9 @@ typedef struct
     char_u		reganch;
     char_u		*regmust;
     int			regmlen;
+#ifdef DEBUG
+    int			regsz;
+#endif
 #ifdef FEAT_SYN_HL
     char_u		reghasz;
 #endif
@@ -120,6 +117,8 @@ typedef struct
     char_u		*pattern;
     int			nsubexp;	// number of ()
     int			nstate;
+    void		*listbuf[2];	// cached list buffers for
+					// nfa_regmatch()
     nfa_state_T		state[1];	// actually longer..
 } nfa_regprog_T;
 

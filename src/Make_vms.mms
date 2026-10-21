@@ -2,7 +2,7 @@
 # Makefile for Vim on OpenVMS
 #
 # Maintainer:   Zoltan Arpadffy <zoltan.arpadffy@gmail.com>
-# Last change:  2025-07-04  Steven M. Schweda <sms@antinode.info>
+# Last change:  2026-05-04
 #
 # This script has been tested on VMS 6.2 to 9.2 on VAX, ALPHA, IA64 and X86_64
 # with MMS and MMK
@@ -48,6 +48,10 @@ MODEL = HUGE
 # GUI/Motif with XPM
 # If you have XPM installed you might want to build Motif version with toolbar
 # XPM = YES
+
+# Large-file support. Unavailable on VAX and very old Alpha.
+# To disable, define NOLARGE.
+# NOLARGE = YES
 
 # Comment out if you want the compiler version with :ver command.
 # NOTE: This part can make some complications if you're using some
@@ -108,23 +112,23 @@ ALPHA_X_ALPHA = 1
 IA64_X_IA64 = 1
 VAX_X_VAX = 1
 X86_64_X_X86_64 = 1
-.IFDEF ARCH                         # ARCH
+.IFDEF ARCH                     # ARCH
 ARCH_NAME = $(ARCH)
-.ELSE                               # ARCH
+.ELSE                           # ARCH
 ARCH_NAME = $(MMS$ARCH_NAME)
-.ENDIF                              # ARCH
-.IFDEF $(ARCH_NAME)_X_ALPHA         # $(ARCH_NAME)_X_ALPHA
+.ENDIF                          # ARCH
+.IFDEF $(ARCH_NAME)_X_ALPHA     # $(ARCH_NAME)_X_ALPHA
 __ALPHA__ = 1
-.ENDIF                              # $(ARCH_NAME)_X_ALPHA
-.IFDEF $(ARCH_NAME)_X_IA64          # $(ARCH_NAME)_X_IA64
+.ENDIF                          # $(ARCH_NAME)_X_ALPHA
+.IFDEF $(ARCH_NAME)_X_IA64      # $(ARCH_NAME)_X_IA64
 __IA64__ = 1
-.ENDIF                              # $(ARCH_NAME)_X_IA64
-.IFDEF $(ARCH_NAME)_X_VAX           # $(ARCH_NAME)_X_VAX
+.ENDIF                          # $(ARCH_NAME)_X_IA64
+.IFDEF $(ARCH_NAME)_X_VAX       # $(ARCH_NAME)_X_VAX
 __VAX__ = 1
-.ENDIF                              # $(ARCH_NAME)_X_VAX
-.IFDEF $(ARCH_NAME)_X_X86_64        # $(ARCH_NAME)_X_X86_64
+.ENDIF                          # $(ARCH_NAME)_X_VAX
+.IFDEF $(ARCH_NAME)_X_X86_64    # $(ARCH_NAME)_X_X86_64
 __X86_64__ = 1
-.ENDIF                              # $(ARCH_NAME)_X_X86_64
+.ENDIF                          # $(ARCH_NAME)_X_X86_64
 .ELSE                           # MMS$ARCH_NAME
 .IFDEF __MMK__                      # __MMK__
 .IFDEF ARCH                             # ARCH
@@ -234,8 +238,7 @@ PREFIX  = /prefix=all/name=(upper,short) /repository=[.$(DEST)]
 # This makes Alpha consistent.
 FLOAT   = /float = ieee_float /ieee_mode = denorm_results
 
-# Large-file support.  Unavailable on VAX and very old Alpha.  To
-# disable, define NOLARGE.
+# Large-file support.  Unavailable on VAX and very old Alpha.
 .IFDEF NOLARGE
 .ELSE
 LARGE_DEF = , "_LARGEFILE"
@@ -533,6 +536,7 @@ SRC = \
  gc.c \
  gui_xim.c \
  hardcopy.c \
+ hardcopy_postscript.c \
  hashtab.c \
  help.c \
  highlight.c \
@@ -670,6 +674,7 @@ OBJ = \
  [.$(DEST)]gc.obj \
  [.$(DEST)]gui_xim.obj \
  [.$(DEST)]hardcopy.obj \
+ [.$(DEST)]hardcopy_postscript.obj \
  [.$(DEST)]hashtab.obj \
  [.$(DEST)]help.obj \
  [.$(DEST)]highlight.obj \
@@ -811,15 +816,14 @@ $(TARGET) : $(OBJ)
 .c.obj :
 # Override /optimize for selected modules on VAX.
 .IFDEF __VAX__                  # __VAX__
-	@ mod = f$parse( "$@", , , "NAME", "SYNTAX_ONLY")
-	@ mod = "+"+ f$edit( mod, "LOWERCASE")+ "+"
-	@ optim_qual = ""
-	@ if (f$locate( mod, "+$(VAX_NOOPTIM_LIST)+") .lt. -
+	-@ mod = f$parse( "$@", , , "NAME", "SYNTAX_ONLY")
+	-@ mod = "+"+ f$edit( mod, "LOWERCASE")+ "+"
+	-@ optim_qual = ""
+	-@ if (f$locate( mod, "+$(VAX_NOOPTIM_LIST)+") .lt. -
          f$length( "+$(VAX_NOOPTIM_LIST)+")) then optim_qual = "/nooptim"
-	@ if (f$locate( mod, "+$(VAX_NOOPTIM_LIST)+") .lt. -
+	-@ if (f$locate( mod, "+$(VAX_NOOPTIM_LIST)+") .lt. -
          f$length( "+$(VAX_NOOPTIM_LIST)+")) then -
-	@ write sys$output -
-          "                *** NOTE: USING SPECIAL /NOOPTIMIZE RULE. ***"
+	 write sys$output "*** NOTE: USING SPECIAL /NOOPTIMIZE RULE. ***"
 	$(CC_DEF) $(ALL_CFLAGS) 'optim_qual' $< /object = $@
 .ELSE                           # __VAX__
 	$(CC_DEF) $(ALL_CFLAGS) $< /object = $@
@@ -1159,6 +1163,10 @@ lua_env :
  gui.h beval.h option.h ex_cmds.h proto.h \
  errors.h globals.h
 [.$(DEST)]hardcopy.obj : hardcopy.c vim.h [.$(DEST)]config.h feature.h os_unix.h \
+ ascii.h keymap.h termdefs.h macros.h structs.h regexp.h \
+ gui.h beval.h option.h ex_cmds.h proto.h \
+ errors.h globals.h version.h
+[.$(DEST)]hardcopy_postscript.obj : hardcopy_postscript.c vim.h [.$(DEST)]config.h feature.h os_unix.h \
  ascii.h keymap.h termdefs.h macros.h structs.h regexp.h \
  gui.h beval.h option.h ex_cmds.h proto.h \
  errors.h globals.h version.h

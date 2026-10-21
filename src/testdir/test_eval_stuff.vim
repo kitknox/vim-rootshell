@@ -621,8 +621,8 @@ func Test_setreg_basic()
   call Assert_regput('c', ['==', 'abcC4l-0', "\n", "abcC4l-2\n", "\nabcC4l-3", "abcC4l-4\nabcC4l-4-2", '=='])
 
   call setreg('d', ['abcD4b-0', "\n", "abcD4b-2\n", "\nabcD4b-3", "abcD4b-4\nabcD4b-4-2"], 'b')
-  call Assert_reg('d', "19", "abcD4b-0\n\n\nabcD4b-2\n\n\nabcD4b-3\nabcD4b-4\nabcD4b-4-2", "['abcD4b-0', '\n', 'abcD4b-2\n', '\nabcD4b-3', 'abcD4b-4\nabcD4b-4-2']", "abcD4b-0\n\n\nabcD4b-2\n\n\nabcD4b-3\nabcD4b-4\nabcD4b-4-2", "['abcD4b-0', '\n', 'abcD4b-2\n', '\nabcD4b-3', 'abcD4b-4\nabcD4b-4-2']")
-  call Assert_regput('d', ['==', '=abcD4b-0           =', " \n", " abcD4b-2\n", " \nabcD4b-3", " abcD4b-4\nabcD4b-4-2"])
+  call Assert_reg('d', "20", "abcD4b-0\n\n\nabcD4b-2\n\n\nabcD4b-3\nabcD4b-4\nabcD4b-4-2", "['abcD4b-0', '\n', 'abcD4b-2\n', '\nabcD4b-3', 'abcD4b-4\nabcD4b-4-2']", "abcD4b-0\n\n\nabcD4b-2\n\n\nabcD4b-3\nabcD4b-4\nabcD4b-4-2", "['abcD4b-0', '\n', 'abcD4b-2\n', '\nabcD4b-3', 'abcD4b-4\nabcD4b-4-2']")
+  call Assert_regput('d', ['==', '=abcD4b-0            =', " \n", " abcD4b-2\n", " \nabcD4b-3", " abcD4b-4\nabcD4b-4-2"])
 
   call setreg('e', ['abcE4b10-0', "\n", "abcE4b10-2\n", "\nabcE4b10-3", "abcE4b10-4\nabcE4b10-4-2"], 'b10')
   call Assert_reg('e', "10", "abcE4b10-0\n\n\nabcE4b10-2\n\n\nabcE4b10-3\nabcE4b10-4\nabcE4b10-4-2", "['abcE4b10-0', '\n', 'abcE4b10-2\n', '\nabcE4b10-3', 'abcE4b10-4\nabcE4b10-4-2']", "abcE4b10-0\n\n\nabcE4b10-2\n\n\nabcE4b10-3\nabcE4b10-4\nabcE4b10-4-2", "['abcE4b10-0', '\n', 'abcE4b10-2\n', '\nabcE4b10-3', 'abcE4b10-4\nabcE4b10-4-2']")
@@ -765,13 +765,19 @@ func s:Paste(reg)
     else
       return ("c", [])
     endif
+  endif
 
+  if exists("g:vim_paste_recursive")
+    call getreg(a:reg)
   endif
 endfunc
 
 func s:Copy(reg, type, lines)
   if exists("g:vim_copy_count")
     let g:vim_copy_count[a:reg] += 1
+  endif
+  if exists("g:vim_copy_recursive")
+    call setreg(a:reg, a:lines)
   endif
 
   let g:vim_copy = {
@@ -866,10 +872,14 @@ endfunc
 func Test_clipboard_provider_copy()
   CheckFeature clipboard_provider
 
+  function s:copy_cb_to_test_partial(_, reg, type, str)
+    call s:Copy(a:reg, a:type, a:str)
+  endfunction
+
   let v:clipproviders["test"] = {
         \ "copy": {
         \       '+': function("s:Copy"),
-        \       '*': function("s:Copy")
+        \       '*': function("s:copy_cb_to_test_partial", [""])
         \   }
         \ }
   set clipmethod=test
@@ -960,7 +970,7 @@ func Test_clipboard_provider_no_unamedplus()
   set clipmethod&
 endfunc
 
-" Same as Test_clipboard_provider_registers() but do it when +clipboard isnt
+" Same as Test_clipboard_provider_registers() but do it when +clipboard isn't
 " enabled.
 func Test_clipboard_provider_no_clipboard()
   CheckFeature clipboard_provider
@@ -1123,6 +1133,52 @@ func Test_clipboard_provider_accessed_once()
 
   bw!
 
+  new
+  " Emitting TextPutPre/TextPutPost/TextYankPost may cause a clipboard access
+  "
+  " Note that TextPutPost will always cause a second clipboard access, since a
+  " TextPutPre may have changed the clipboard, meaning another "paste" call is
+  " needed to make sure everything is up to date.
+  augroup TextAutocmd
+    autocmd!
+    autocmd TextPutPost * let g:putpost = 1
+    autocmd TextPutPre * let g:putpre = 1
+    autocmd TextYankPost * let g:yankpost = 1
+  augroup END
+
+  let g:putpost = 0
+  let g:putpre = 0
+  let g:yankpost = 0
+
+  let g:vim_paste_count = {'*': 0, '+': 0}
+  let g:vim_copy_count = {'*': 0, '+': 0}
+
+  call setline(1, "hello world!")
+
+  yank +
+
+  yank *
+
+  put +
+
+  put *
+
+  call assert_equal(2, g:vim_paste_count['+'])
+  call assert_equal(1, g:vim_copy_count['+'])
+
+  call assert_equal(2, g:vim_paste_count['*'])
+  call assert_equal(1, g:vim_copy_count['*'])
+
+  call assert_equal(1, g:putpost)
+  call assert_equal(1, g:putpre)
+  call assert_equal(1, g:yankpost)
+
+  bw!
+  unlet g:putpost
+  unlet g:putpre
+  unlet g:yankpost
+  autocmd! TextAutocmd
+
   set clipmethod&
   set clipboard&
 endfunc
@@ -1219,7 +1275,7 @@ func Test_clipboard_provider_redir_execute()
 endfunc
 
 " Test if clipboard provider feature respects the "unnamed" and "unnamedplus"
-" values in the 'clipboard' option
+" values in the 'clipboard' option, and ignores the "autoselect" value.
 func Test_clipboard_provider_clipboard_option()
   CheckFeature clipboard_provider
 
@@ -1269,6 +1325,19 @@ func Test_clipboard_provider_clipboard_option()
   call assert_equal(["testing"], g:vim_copy.lines)
   call assert_equal(["testing"], g:vim_copy.lines)
 
+  if has('clipboard')
+    " Test that autoselect option is ignored, this can happen when visual
+    " selection ends and there is TextYankPost autocmd
+    set clipboard=autoselect
+    let g:autoselect_test = 1
+    au TextYankPost * let g:autoselect_test = 0
+
+    call setline(1, "Hello world!")
+    call cursor(1, 0)
+    call feedkeys("vww\<Esc>", "x!")
+    call assert_equal(1, g:autoselect_test)
+  endif
+
   " Change and delete operations are tested in
   " Test_clipboard_provider_accessed_once()
   bw!
@@ -1286,5 +1355,95 @@ func Test_clipboard_provider_clipboard_option()
   set clipboard&
 endfunc
 
+" Test that callback aren't called recursively
+func Test_clipboard_provider_recursive()
+  let v:clipproviders["test"] = {
+        \ "paste": {
+        \       '+': function("s:Paste"),
+        \       '*': function("s:Paste")
+        \   },
+        \ "copy": {
+        \       '+': function("s:Copy"),
+        \       '*': function("s:Copy")
+        \   }
+        \ }
+  set clipmethod=test
+
+  let g:vim_paste = "count"
+  let g:vim_paste_count = {'*': 0, '+': 0}
+  let g:vim_copy_count = {'*': 0, '+': 0}
+  let g:vim_paste_recursive = 1
+  let g:vim_copy_recursive = 1
+
+  call getreg('+')
+  call assert_equal(1, g:vim_paste_count['+'])
+  call setreg('+', 'test')
+  call assert_equal(1, g:vim_copy_count['+'])
+
+  set clipmethod&
+  unlet g:vim_paste_recursive
+  unlet g:vim_copy_recursive
+endfunc
+
+" Test that caching the compiled pattern of "=~" and the match functions
+" does not change the semantics.
+func Test_eval_pattern_cache()
+  let save_ic = &ignorecase
+  defer execute('let &ignorecase = ' .. save_ic)
+
+  " "~" in a pattern stands for the previous substitute string, a compiled
+  " program must not be reused across a :substitute
+  new
+  call setline(1, 'one')
+  s/one/AAA/
+  call assert_true('xAAAy' =~ 'x~y')
+  call assert_false('xBBBy' =~ 'x~y')
+  call setline(1, 'AAA')
+  s/AAA/BBB/
+  call assert_true('xBBBy' =~ 'x~y')
+  call assert_false('xAAAy' =~ 'x~y')
+  bwipe!
+
+  " 'ignorecase' is applied at execution time, also with a cached program
+  set noignorecase
+  call assert_false('ABC' =~ 'abc')
+  set ignorecase
+  call assert_true('ABC' =~ 'abc')
+  call assert_true('ABC' =~ 'abc')
+  set noignorecase
+  call assert_false('ABC' =~ 'abc')
+
+  " changing 'regexpengine' compiles the pattern again
+  for re in [0, 1, 2]
+    exe 'set re=' .. re
+    call assert_true('abc123' =~ 'a\+bc\d\+')
+    call assert_false('xyz' =~ 'a\+bc\d\+')
+  endfor
+  set re&
+
+  " \%.l, \%.c and \%.v compile the current cursor position into the
+  " program, such a pattern must not be reused after the cursor moved
+  new
+  call setline(1, 'abcdef')
+  call cursor(1, 4)
+  call assert_true('abcdef' =~# '\%.cd')
+  call cursor(1, 2)
+  call assert_false('abcdef' =~# '\%.cd')
+  call assert_true('abcdef' =~# '\%.cb')
+  bwipe!
+
+  " when the automatic engine replaces the program by falling back to the
+  " backtracking engine, the replaced program is the one that is kept
+  call test_override('nfa_fail', 1)
+  defer test_override('nfa_fail', 0)
+  for i in range(3)
+    call assert_true('fallback' =~ 'fall\%(back\)\?')
+    call assert_false('nomatch' =~ 'fall\%(back\)\?')
+  endfor
+  call test_override('nfa_fail', 0)
+  for i in range(3)
+    call assert_true('fallback' =~ 'fall\%(back\)\?')
+  endfor
+endfunc
 
 " vim: shiftwidth=2 sts=2 expandtab

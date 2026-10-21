@@ -317,7 +317,8 @@ set_tuple_union_type_on_stack(type_T *type1, type_T *type2, cctx_T *cctx)
     type_T *new_tuple_type = get_tuple_type(&tuple_types_ga,
 							cctx->ctx_type_list);
     // result inherits the variadic flag from the operands
-    new_tuple_type->tt_flags |= (type1->tt_flags & TTFLAG_VARARGS)
+    if ((new_tuple_type->tt_flags & TTFLAG_STATIC) == 0)
+	new_tuple_type->tt_flags |= (type1->tt_flags & TTFLAG_VARARGS)
 					| (type2->tt_flags & TTFLAG_VARARGS);
 
     // set the type on the stack for the resulting tuple
@@ -1006,7 +1007,8 @@ generate_PUSHBLOB(cctx_T *cctx, blob_T *blob)
     isn_T	*isn;
 
     RETURN_OK_IF_SKIP(cctx);
-    if ((isn = generate_instr_type(cctx, ISN_PUSHBLOB, &t_blob)) == NULL)
+    if ((isn = generate_instr_type2(cctx, ISN_PUSHBLOB,
+					&t_blob, &t_blob)) == NULL)
 	return FAIL;
     isn->isn_arg.blob = blob;
 
@@ -1090,17 +1092,62 @@ generate_GETITEM(cctx_T *cctx, int index, int with_op)
 }
 
 /*
+ * Set the type of the tuple that is left after dropping the first "count"
+ * items of the tuple with type "type".
+ */
+    static void
+set_tuple_slice_type_on_stack(type_T *type, int count, cctx_T *cctx)
+{
+    garray_T	tuple_types_ga;
+
+    // The item types are only known for a tuple with a fixed number of items.
+    if ((type->tt_flags & TTFLAG_VARARGS) || type->tt_argcount <= count)
+    {
+	set_type_on_stack(cctx, &t_tuple_any, 0);
+	return;
+    }
+
+    ga_init2(&tuple_types_ga, sizeof(type_T *), 10);
+
+    for (int i = count; i < type->tt_argcount; i++)
+    {
+	if (ga_grow(&tuple_types_ga, 1) == FAIL)
+	{
+	    ga_clear(&tuple_types_ga);
+	    set_type_on_stack(cctx, &t_tuple_any, 0);
+	    return;
+	}
+	((type_T **)tuple_types_ga.ga_data)[tuple_types_ga.ga_len] =
+							     type->tt_args[i];
+	tuple_types_ga.ga_len++;
+    }
+
+    set_type_on_stack(cctx,
+		get_tuple_type(&tuple_types_ga, cctx->ctx_type_list), 0);
+
+    ga_clear(&tuple_types_ga);
+}
+
+/*
  * Generate an ISN_SLICE instruction with "count".
  */
     int
 generate_SLICE(cctx_T *cctx, int count)
 {
     isn_T	*isn;
+    type_T	*type;
 
     RETURN_OK_IF_SKIP(cctx);
     if ((isn = generate_instr(cctx, ISN_SLICE)) == NULL)
 	return FAIL;
     isn->isn_arg.number = count;
+
+    // Slicing a tuple leaves a tuple with the remaining item types, not the
+    // type of the whole tuple.
+    type = get_type_on_stack(cctx, 0);
+    if (type->tt_type == VAR_TUPLE)
+	set_tuple_slice_type_on_stack(type, count, cctx);
+
     return OK;
 }
 
@@ -1177,7 +1224,12 @@ generate_CLASSMEMBER(
  * Generate an ISN_STOREOUTER instruction.
  */
     static int
-generate_STOREOUTER(cctx_T *cctx, int idx, int level, int loop_idx)
+generate_STOREOUTER(
+	cctx_T	    *cctx,
+	int	    idx,
+	int	    level,
+	int	    loop_depth,
+	int	    loop_idx)
 {
     isn_T	*isn;
 
@@ -1187,9 +1239,9 @@ generate_STOREOUTER(cctx_T *cctx, int idx, int level, int loop_idx)
     if (level == 1 && loop_idx >= 0 && idx >= loop_idx)
     {
 	// Store a variable defined in a loop.  A copy will be made at the end
-	// of the loop.  TODO: how about deeper nesting?
+	// of the loop.
 	isn->isn_arg.outer.outer_idx = idx - loop_idx;
-	isn->isn_arg.outer.outer_depth = OUTER_LOOP_DEPTH;
+	isn->isn_arg.outer.outer_depth = -loop_depth - 1;
     }
     else
     {
@@ -1910,6 +1962,38 @@ generate_BLOBAPPEND(cctx_T *cctx)
 }
 
 /*
+ * Get the instruction type for a function call:
+ *   ISN_METHODCALL - object method call via interface
+ *   ISN_DCALL      - compiled def function call
+ *   ISN_UCALL      - uncompiled function, or
+ *                    compiled script-local function called from a lambda
+ */
+    static isntype_T
+isn_get_calltype(
+	cctx_T	    *cctx,
+	ufunc_T	    *ufunc,
+	class_T	    *cl)
+{
+    if (cl != NULL)
+	return ISN_METHODCALL;
+
+    if (ufunc->uf_def_status == UF_NOT_COMPILED)
+	return ISN_UCALL;
+
+    // function invoked from a lambda
+    if (cctx->ctx_ufunc->uf_flags & FC_LAMBDA)
+    {
+	// Script-local funcs in a lambda may be redefined by re-sourcing;
+	// resolve by name at runtime.  Patched to ISN_DCALL on next call once
+	// recompiled.
+	if (ufunc->uf_name[0] == K_SPECIAL)
+	    return ISN_UCALL;
+    }
+
+    return ISN_DCALL;
+}
+
+/*
  * Generate an ISN_DCALL, ISN_UCALL or ISN_METHODCALL instruction.
  * When calling a method on an object, of which we know the interface only,
  * then "cl" is the interface and "mi" the method index on the interface.
@@ -1996,9 +2080,7 @@ generate_CALL(
 	return FAIL;
     }
 
-    if ((isn = generate_instr(cctx, cl != NULL ? ISN_METHODCALL
-			  : ufunc->uf_def_status != UF_NOT_COMPILED
-					     ? ISN_DCALL : ISN_UCALL)) == NULL)
+    if ((isn = generate_instr(cctx, isn_get_calltype(cctx, ufunc, cl))) == NULL)
 	return FAIL;
     if (cl != NULL /* isn->isn_type == ISN_METHODCALL */)
     {
@@ -2010,6 +2092,15 @@ generate_CALL(
 	isn->isn_arg.mfunc->cmf_idx = mi;
 	isn->isn_arg.mfunc->cmf_argcount = argcount;
 	isn->isn_arg.mfunc->cmf_is_super = is_super;
+	// For a generic method "ufunc" has the type arguments, the method of
+	// the object class is created with the same type arguments when
+	// called.
+	isn->isn_arg.mfunc->cmf_ufunc = NULL;
+	if (ufunc != cl->class_obj_methods[mi])
+	    isn->isn_arg.mfunc->cmf_ufunc = ufunc;
+	isn->isn_arg.mfunc->cmf_cache_cl = NULL;
+	isn->isn_arg.mfunc->cmf_cache_generic = NULL;
+	isn->isn_arg.mfunc->cmf_cache_ufunc = NULL;
     }
     else if (isn->isn_type == ISN_DCALL)
     {
@@ -2614,7 +2705,8 @@ generate_store_lhs(cctx_T *cctx, lhs_T *lhs, int instr_count, int is_decl)
     }
     else if (lhs->lhs_lvar->lv_from_outer > 0)
 	generate_STOREOUTER(cctx, lhs->lhs_lvar->lv_idx,
-		lhs->lhs_lvar->lv_from_outer, lhs->lhs_lvar->lv_loop_idx);
+		lhs->lhs_lvar->lv_from_outer, lhs->lhs_lvar->lv_loop_depth,
+		lhs->lhs_lvar->lv_loop_idx);
     else
 	generate_STORE(cctx, ISN_STORE, lhs->lhs_lvar->lv_idx, NULL);
     return OK;
@@ -2784,6 +2876,7 @@ delete_instr(isn_T *isn)
 	    {
 		cmfunc_T  *mfunc = isn->isn_arg.mfunc;
 		class_unref(mfunc->cmf_itf);
+		class_unref(mfunc->cmf_cache_cl);
 		vim_free(mfunc);
 	    }
 	    break;

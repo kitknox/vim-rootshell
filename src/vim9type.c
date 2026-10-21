@@ -147,6 +147,8 @@ alloc_type(type_T *type)
 	return type;
 
     ret = ALLOC_ONE(type_T);
+    if (ret == NULL)
+	return NULL;
     *ret = *type;
 
     if (ret->tt_member != NULL)
@@ -319,7 +321,8 @@ tuple_type_add_types(
     // pointer to type_gap.
     if (ga_grow(type_gap, 1) == FAIL)
 	return FAIL;
-    tupletype->tt_args = ALLOC_CLEAR_MULT(type_T *, typecount);
+    tupletype->tt_args = alloc_clear_id(sizeof(type_T *) * typecount,
+							  aid_tuple_type_args);
     if (tupletype->tt_args == NULL)
 	return FAIL;
     ((type_T **)type_gap->ga_data)[type_gap->ga_len] =
@@ -387,7 +390,7 @@ get_tuple_type(garray_T *tuple_types_gap, garray_T *type_gap)
     if (typecount > 0)
     {
 	if (tuple_type_add_types(type, typecount, type_gap) == FAIL)
-	    return NULL;
+	    return &t_any;
 	mch_memmove(type->tt_args, tuple_types, sizeof(type_T *) * typecount);
     }
     type->tt_argcount = typecount;
@@ -405,7 +408,10 @@ get_dict_type(type_T *member_type, garray_T *type_gap)
     type_T *type;
 
     // recognize commonly used types
-    if (member_type == NULL || member_type->tt_type == VAR_ANY)
+    // A generic type is t_any initially before being set to a concrete type
+    // later.  So don't use the static t_dict_any for a generic type.
+    if (member_type == NULL || (member_type->tt_type == VAR_ANY
+					&& !IS_GENERIC_TYPE(member_type)))
 	return &t_dict_any;
     if (member_type->tt_type == VAR_VOID
 	    || member_type->tt_type == VAR_UNKNOWN)
@@ -612,6 +618,10 @@ list_typval2type(typval_T *tv, int copyID, garray_T *type_gap, int flags)
 	common_type(typval2type(&li->li_tv, copyID, type_gap, TVTT_DO_MEMBER),
 					member_type, &member_type, type_gap);
 
+    // Reset copyID so that a shared reference to this list (not a circular
+    // reference) can be processed again to get the correct type.
+    l->lv_copyID = 0;
+
     return get_list_type(member_type, type_gap);
 }
 
@@ -661,6 +671,9 @@ tuple_typval2type(typval_T *tv, int copyID, garray_T *type_gap, int flags)
 	if (ga_grow(&tuple_types_ga, 1) == FAIL)
 	{
 	    ga_clear(&tuple_types_ga);
+	    // Reset copyID so that a shared reference to this tuple can be
+	    // processed again.
+	    tuple->tv_copyID = 0;
 	    return NULL;
 	}
 	((type_T **)tuple_types_ga.ga_data)[tuple_types_ga.ga_len] = type;
@@ -669,6 +682,10 @@ tuple_typval2type(typval_T *tv, int copyID, garray_T *type_gap, int flags)
 
     type_T *tuple_type = get_tuple_type(&tuple_types_ga, type_gap);
     ga_clear(&tuple_types_ga);
+
+    // Reset copyID so that a shared reference to this tuple (not a circular
+    // reference) can be processed again to get the correct type.
+    tuple->tv_copyID = 0;
 
     return tuple_type;
 }
@@ -715,6 +732,10 @@ dict_typval2type(typval_T *tv, int copyID, garray_T *type_gap, int flags)
     while (dict_iterate_next(&iter, &value) != NULL)
 	common_type(typval2type(value, copyID, type_gap, TVTT_DO_MEMBER),
 					member_type, &member_type, type_gap);
+
+    // Reset copyID so that a shared reference to this dict (not a circular
+    // reference) can be processed again to get the correct type.
+    d->dv_copyID = 0;
 
     return get_dict_type(member_type, type_gap);
 }
@@ -1032,6 +1053,20 @@ check_typval_arg_type(
 }
 
 /*
+ * Return true if "expected" is list<any> or dict<any> and "actual_tv" is a
+ * list or dict of that kind, which matches whatever its values are.
+ */
+    static bool
+matches_listdict_any(type_T *expected, typval_T *actual_tv)
+{
+    return (expected->tt_type == VAR_LIST || expected->tt_type == VAR_DICT)
+	    && actual_tv->v_type == expected->tt_type
+	    && expected->tt_member != NULL
+	    && (expected->tt_member->tt_type == VAR_ANY
+		|| expected->tt_member->tt_type == VAR_UNKNOWN);
+}
+
+/*
  * Return FAIL if "expected" and "actual" don't match.
  * When "argidx" > 0 it is included in the error message.
  */
@@ -1044,6 +1079,10 @@ check_typval_type(type_T *expected, typval_T *actual_tv, where_T where)
 
     if (expected == NULL)
 	return OK;  // didn't expect anything.
+
+    // No need to go through the values of a possibly big list or dict.
+    if (matches_listdict_any(expected, actual_tv))
+	return OK;
 
     ga_init2(&type_list, sizeof(type_T *), 10);
 
@@ -1474,6 +1513,16 @@ check_argument_types(
     return OK;
 }
 
+// Maximum nesting of types, to avoid running out of stack space.  E.g.
+// "list<list<number>>" is nested twice.
+#define MAX_TYPE_DEPTH	1000
+
+// Current number of levels of parse_type() and the deepest level reached while
+// parsing the current type.  The nesting is one less than the number of
+// levels.
+static __thread int	parse_depth = 0;
+static __thread int	parse_max_depth = 0;
+
 /*
  * Skip over type in list<type>, dict<type> or tuple<type>.
  * Returns a pointer to the character after the type.  "syn_error" is set to
@@ -1560,11 +1609,10 @@ skip_func_type(char_u *p, int *syn_error)
 }
 
 /*
- * Skip over a type definition and return a pointer to just after it.
- * When "optional" is TRUE then a leading "?" is accepted.
+ * Inner part of skip_type().
  */
-    char_u *
-skip_type(char_u *start, int optional)
+    static char_u *
+skip_type_inner(char_u *start, int optional)
 {
     char_u	*p = start;
     int		syn_error = FALSE;
@@ -1592,6 +1640,46 @@ skip_type(char_u *start, int optional)
 	    return p;
     }
 
+    return p;
+}
+
+/*
+ * Skip over a type definition and return a pointer to just after it.
+ * When "optional" is TRUE then a leading "?" is accepted.
+ */
+    char_u *
+skip_type(char_u *start, int optional)
+{
+    static __thread int	skip_depth = 0;
+    char_u	*p = start;
+
+    // Too deeply nested: skip to the matching ">" without recursing, an
+    // error is given when parsing the type.
+    if (skip_depth > MAX_TYPE_DEPTH)
+    {
+	int	depth = 0;
+
+	for ( ; *p != NUL; ++p)
+	{
+	    if (*p == '<')
+		++depth;
+	    else if (*p == '>')
+	    {
+		if (depth == 0)
+		    break;
+		if (--depth == 0)
+		    return p + 1;
+	    }
+	    else if (depth == 0 && !ASCII_ISALNUM(*p) && *p != '_'
+								&& *p != '.')
+		break;
+	}
+	return p;
+    }
+
+    ++skip_depth;
+    p = skip_type_inner(start, optional);
+    --skip_depth;
     return p;
 }
 
@@ -1884,13 +1972,14 @@ parse_type_tuple(
     *arg = p + 1;
 
     ret_type = alloc_tuple_type(typecount, type_gap);
-    ret_type->tt_flags = flags;
-    ret_type->tt_argcount = typecount;
-    if (tuple_type_add_types(ret_type, typecount, type_gap) == FAIL)
+    if (ret_type == &t_any
+	    || tuple_type_add_types(ret_type, typecount, type_gap) == FAIL)
     {
 	ret_type = NULL;
 	goto on_err;
     }
+    ret_type->tt_flags = flags;
+    ret_type->tt_argcount = typecount;
     mch_memmove(ret_type->tt_args, tuple_types_ga.ga_data,
 						sizeof(type_T *) * typecount);
 
@@ -2003,6 +2092,20 @@ parse_type_user_defined(
 	else if (tv.v_type == VAR_TYPEALIAS)
 	{
 	    // user defined type
+	    // The type alias may itself be a nested type, check the resulting
+	    // nesting depth.
+	    int	depth = parse_depth - 1
+				+ MAX(tv.vval.v_typealias->ta_depth, 1);
+	    if (depth - 1 > MAX_TYPE_DEPTH)
+	    {
+		clear_tv(&tv);
+		if (give_error)
+		    emsg(_(e_type_nested_too_deep));
+		return NULL;
+	    }
+	    if (depth > parse_max_depth)
+		parse_max_depth = depth;
+
 	    type_T *type = copy_type(tv.vval.v_typealias->ta_type, type_gap);
 	    *arg += len;
 	    clear_tv(&tv);
@@ -2037,12 +2140,10 @@ parse_type_user_defined(
 }
 
 /*
- * Parse a type at "arg" and advance over it.
- * When "give_error" is TRUE give error messages, otherwise be quiet.
- * Return NULL for failure.
+ * Inner part of parse_type().
  */
-    type_T *
-parse_type(
+    static type_T *
+parse_type_inner(
     char_u	**arg,
     garray_T	*type_gap,
     ufunc_T	*ufunc,
@@ -2161,6 +2262,46 @@ parse_type(
     // User defined type
     return parse_type_user_defined(arg, len, type_gap, give_error, ufunc,
 									cctx);
+}
+
+/*
+ * Parse a type at "arg" and advance over it.
+ * When "give_error" is TRUE give error messages, otherwise be quiet.
+ * Return NULL for failure.
+ */
+    type_T *
+parse_type(
+    char_u	**arg,
+    garray_T	*type_gap,
+    ufunc_T	*ufunc,
+    cctx_T	*cctx,
+    int		give_error)
+{
+    type_T	*type;
+
+    if (parse_depth > MAX_TYPE_DEPTH)
+    {
+	if (give_error)
+	    emsg(_(e_type_nested_too_deep));
+	return NULL;
+    }
+    if (parse_depth == 0)
+	parse_max_depth = 0;
+    ++parse_depth;
+    if (parse_depth > parse_max_depth)
+	parse_max_depth = parse_depth;
+    type = parse_type_inner(arg, type_gap, ufunc, cctx, give_error);
+    --parse_depth;
+    return type;
+}
+
+/*
+ * Return the number of levels of the type last parsed by parse_type().
+ */
+    int
+parse_type_depth(void)
+{
+    return parse_max_depth;
 }
 
 /*
@@ -2356,7 +2497,8 @@ get_item_type(type_T *type)
 	    return type->tt_args[0];
     }
 
-    return type->tt_member;
+    // For "any" the item type is not known.
+    return type->tt_member == NULL ? &t_any : type->tt_member;
 }
 
 /*
@@ -2558,7 +2700,10 @@ type_name_list_or_dict(char *name, type_T *type, char **tofree)
     size_t len = STRLEN(name) + STRLEN(member_name) + 3;
     *tofree = alloc(len);
     if (*tofree == NULL)
+    {
+	vim_free(member_free);
 	return name;
+    }
 
     vim_snprintf(*tofree, len, "%s<%s>", name, member_name);
     vim_free(member_free);
@@ -2585,11 +2730,11 @@ type_name_tuple(type_T *type, char **tofree)
 
     if (type->tt_argcount <= 0)
 	// empty tuple
-	ga_concat_len(&ga, (char_u *)"any", 3);
+	GA_CONCAT_LITERAL(&ga, "any");
     else
     {
 	if (type->tt_args == NULL)
-	    ga_concat_len(&ga, (char_u *)"[unknown]", 9);
+	    GA_CONCAT_LITERAL(&ga, "[unknown]");
 	else
 	{
 	    for (i = 0; i < type->tt_argcount; ++i)
@@ -2606,7 +2751,7 @@ type_name_tuple(type_T *type, char **tofree)
 		if (ga_grow(&ga, (int)arg_type.length + 8) == FAIL)
 		    goto failed;
 		if (varargs && i == type->tt_argcount - 1)
-		    ga_concat_len(&ga, (char_u *)"...", 3);
+		    GA_CONCAT_LITERAL(&ga, "...");
 		ga_concat_len(&ga, arg_type.string, arg_type.length);
 		VIM_CLEAR(arg_free);
 	    }
@@ -2640,10 +2785,7 @@ type_name_class_or_obj(char *name, type_T *type, char **tofree)
 	    name = "enum";
     }
     else
-    {
-	class_name.string = (char_u *)"any";
-	class_name.length = 3;
-    }
+	STR_LITERAL_SET(class_name, "any");
 
     size_t len = STRLEN(name) + class_name.length + 3;
     *tofree = alloc(len);
@@ -2677,10 +2819,7 @@ type_name_func(type_T *type, char **tofree)
 	string_T    arg_type;
 
 	if (type->tt_args == NULL)
-	{
-	    arg_type.string = (char_u *)"[unknown]";
-	    arg_type.length = 9;
-	}
+	    STR_LITERAL_SET(arg_type, "[unknown]");
 	else
 	{
 	    arg_type.string = (char_u *)type_name(type->tt_args[i], &arg_free);
@@ -2694,7 +2833,7 @@ type_name_func(type_T *type, char **tofree)
 	if (ga_grow(&ga, (int)arg_type.length + 8) == FAIL)
 	    goto failed;
 	if (varargs && i == type->tt_argcount - 1)
-	    ga_concat_len(&ga, (char_u *)"...", 3);
+	    GA_CONCAT_LITERAL(&ga, "...");
 	else if (i >= type->tt_min_argcount)
 	    *((char *)ga.ga_data + ga.ga_len++) = '?';
 	ga_concat_len(&ga, arg_type.string, arg_type.length);
@@ -2702,19 +2841,22 @@ type_name_func(type_T *type, char **tofree)
     }
     if (type->tt_argcount < 0)
 	// any number of arguments
-	ga_concat_len(&ga, (char_u *)"...", 3);
+	GA_CONCAT_LITERAL(&ga, "...");
 
     if (type->tt_member == &t_void)
 	STRCPY((char *)ga.ga_data + ga.ga_len, ")");
     else
     {
-	char *ret_free;
+	char *ret_free = NULL;
 	char *ret_name = type_name(type->tt_member, &ret_free);
 	int  len;
 
 	len = (int)STRLEN(ret_name) + 4;
 	if (ga_grow(&ga, len) == FAIL)
+	{
+	    vim_free(ret_free);
 	    goto failed;
+	}
 	STRCPY((char *)ga.ga_data + ga.ga_len, "): ");
 	STRCPY((char *)ga.ga_data + ga.ga_len + 3, ret_name);
 	vim_free(ret_free);

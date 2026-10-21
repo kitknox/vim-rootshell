@@ -1,4 +1,4 @@
-/* popupwin.c */
+// popupwin.c
 int popup_on_border(win_T *wp, int row, int col);
 int popup_close_if_on_X(win_T *wp, int row, int col);
 void popup_start_drag(win_T *wp, int row, int col);
@@ -16,6 +16,7 @@ int parse_completepopup(win_T *wp);
 void popup_set_wantpos_cursor(win_T *wp, int width, dict_T *d);
 void popup_set_wantpos_rowcol(win_T *wp, int row, int col);
 void popup_redraw_all(void);
+int popup_need_redraw(void);
 void f_popup_clear(typval_T *argvars, typval_T *rettv);
 void f_popup_create(typval_T *argvars, typval_T *rettv);
 void f_popup_atcursor(typval_T *argvars, typval_T *rettv);
@@ -51,13 +52,19 @@ win_T *find_next_popup(int lowest, int handled_flag);
 int popup_do_filter(int c);
 int popup_no_mapping(void);
 void popup_check_cursor_pos(void);
+int popup_is_under_opacity(int row, int col);
+int popup_is_over_opacity(int row, int col);
+int popup_is_under_opacity_range(int row, int start_col, int end_col);
 void may_update_popup_mask(int type);
 void may_update_popup_position(void);
+int popup_get_base_screen_cell(int row, int col, schar_T *linep, int *attrp, u8char_T *ucp);
+void popup_set_base_screen_cell(int row, int col, schar_T line, int attr, u8char_T uc);
 void update_popups(void (*win_update)(win_T *wp));
 int set_ref_in_popups(int copyID);
 int popup_is_popup(win_T *wp);
 win_T *popup_find_preview_window(void);
 win_T *popup_find_info_window(void);
+bool popup_scroll_info(int dir, bool by_page);
 void f_popup_findecho(typval_T *argvars, typval_T *rettv);
 void f_popup_findinfo(typval_T *argvars, typval_T *rettv);
 void f_popup_findpreview(typval_T *argvars, typval_T *rettv);
@@ -75,4 +82,4 @@ void end_echowindow(void);
 int popup_win_closed(win_T *win);
 void popup_set_title(win_T *wp);
 void popup_update_preview_title(void);
-/* vim: set ft=c : */
+// vim: ft=c

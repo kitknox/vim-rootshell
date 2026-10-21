@@ -36,6 +36,20 @@ func Test_source_cmd()
   au! SourcePost
 endfunc
 
+" A SourceCmd pattern with a directory is matched against the full path.
+func Test_source_cmd_full_path()
+  call mkdir('XsourceCmdDir', 'R')
+  call writefile(['let g:sourced_file = 1'], 'XsourceCmdDir/script.vim')
+  au SourceCmd */XsourceCmdDir/*.vim let g:source_cmd_file = expand('<afile>:t')
+
+  source XsourceCmdDir/script.vim
+  call assert_equal('script.vim', g:source_cmd_file)
+  call assert_false(exists('g:sourced_file'))
+
+  au! SourceCmd
+  unlet g:source_cmd_file
+endfunc
+
 func Test_source_sandbox()
   new
   call writefile(["Ohello\<Esc>"], 'Xsourcehello', 'D')
@@ -635,6 +649,22 @@ func Test_source_buffer_vim9()
   %bw!
 endfunc
 
+" Test that the modifier does not override the script type when sourcing files
+" with :vim9cmd and :legacy
+func Test_source_file_ignores_modifiers()
+  let lines = ["let g:legacy_sourced = 42"]
+  call writefile(lines, 'Xsourcelegacy', 'D')
+  vim9cmd source Xsourcelegacy
+  call assert_equal(42, g:legacy_sourced)
+  unlet g:legacy_sourced
+
+  let lines = ["vim9script", "g:vim9_sourced = 42"]
+  call writefile(lines, 'Xsourcevim9', 'D')
+  legacy source Xsourcevim9
+  call assert_equal(42, g:vim9_sourced)
+  unlet g:vim9_sourced
+endfunc
+
 func Test_source_buffer_long_line()
   " This was reading past the end of the line.
   new
@@ -650,6 +680,21 @@ func Test_source_buffer_long_line()
   END
   call writefile(lines, 'Xtest.vim', 'D')
   source Xtest.vim
+  bwipe!
+endfunc
+
+" A line of a certain length made the line after it be dropped.  The length
+" follows from the 250 bytes get_one_sourceline() starts with, try up to
+" about twice as much.
+func Test_source_buffer_line_after_long_line()
+  new
+  for len in range(2, 512)
+    call setline(1, ['" ' .. repeat('x', len - 2), 'let g:Xsourced = ' .. len])
+    unlet! g:Xsourced
+    source
+    call assert_equal(len, get(g:, 'Xsourced', 0), 'line length ' .. len)
+  endfor
+  unlet! g:Xsourced
   bwipe!
 endfunc
 

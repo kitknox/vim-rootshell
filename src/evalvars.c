@@ -37,7 +37,7 @@ static __thread hashtab_T	compat_hashtab;
 #define VV_RO		2	// read-only
 #define VV_RO_SBX	4	// read-only in the sandbox
 
-#define VV_NAME(s, t)	s, {{t, 0, {0}}, 0, {0}}
+#define VV_NAME(s, t)	s, {{t, 0, {0}}, 0, {s}}
 
 typedef struct vimvar vimvar_T;
 
@@ -169,6 +169,7 @@ static __thread struct vimvar
     {VV_NAME("termosc",	 VAR_STRING), NULL, VV_RO},
     {VV_NAME("vim_did_init",	 VAR_NUMBER), NULL, VV_RO},
     {VV_NAME("clipproviders",	 VAR_DICT), NULL, VV_RO},
+    {VV_NAME("imagebackend",	 VAR_STRING), NULL, VV_RO}
 };
 
 // shorthand
@@ -216,12 +217,6 @@ evalvars_init(void)
     for (i = 0; i < VV_LEN; ++i)
     {
 	p = &vimvars[i];
-	if (STRLEN(p->vv_name) > DICTITEM16_KEY_LEN)
-	{
-	    iemsg("Name too long, increase size of dictitem16_T");
-	    getout(1);
-	}
-	STRCPY(p->vv_di.di_key, p->vv_name);
 	if (p->vv_flags & VV_RO)
 	    p->vv_di.di_flags = DI_FLAGS_RO | DI_FLAGS_FIX;
 	else if (p->vv_flags & VV_RO_SBX)
@@ -279,6 +274,7 @@ evalvars_init(void)
     set_vim_var_nr(VV_ECHOSPACE,    sc_col - 1);
 
     set_vim_var_dict(VV_COLORNAMES, dict_alloc());
+    set_vim_var_dict(VV_CLIPPROVIDERS, dict_alloc());
 
 #ifdef FEAT_PYTHON3
     set_vim_var_nr(VV_PYTHON3_VERSION, python3_version());
@@ -418,7 +414,7 @@ eval_charconvert(
     return OK;
 }
 
-#if defined(FEAT_POSTSCRIPT)
+#if defined(FEAT_POSTSCRIPT) || defined(FEAT_PRINT_PANGO)
     int
 eval_printexpr(char_u *fname, char_u *args)
 {
@@ -949,6 +945,7 @@ heredoc_get(exarg_T *eap, char_u *cmd, int script_get, int vim9compile)
 	    {
 		vim_free(theline);
 		vim_free(text_indent);
+		list_free(l);
 		return FAIL;
 	    }
 	    count++;
@@ -1368,7 +1365,11 @@ ex_let_vars(
 
 		    copy_tv(TUPLE_ITEM(tuple, idx), &new_tv);
 		    if (tuple_append_tv(new_tuple, &new_tv) == FAIL)
+		    {
+			clear_tv(&new_tv);
+			tuple_unref(new_tuple);
 			return FAIL;
+		    }
 		    idx++;
 		}
 
@@ -1711,7 +1712,7 @@ ex_let_env(
 	else if (endchars != NULL
 			      && vim_strchr(endchars, *skipwhite(arg)) == NULL)
 	    emsg(_(e_unexpected_characters_in_let));
-	else if (!check_secure())
+	else if (!check_secure() && !check_restricted())
 	{
 	    char_u	*tofree = NULL;
 	    int		c1 = name[len];
@@ -1962,6 +1963,18 @@ ex_let_one(
     if (check_typval_is_value(tv) == FAIL)
 	return NULL;
 
+    // In Vim9 script an environment variable and a register only take a
+    // String.  "@#" also takes a buffer number.
+    if (in_vim9script() && (*arg == '$' || *arg == '@')
+	    && !(*arg == '@' && arg[1] == '#' && tv->v_type == VAR_NUMBER
+					       && (op == NULL || *op == '=')))
+    {
+	where_T	where = WHERE_INIT;
+
+	if (check_typval_type(&t_string, tv, where) == FAIL)
+	    return NULL;
+    }
+
     if (*arg == '$')
     {
 	// ":let $VAR = expr": Set environment variable.
@@ -2149,9 +2162,14 @@ do_unlet_var(
     else if (lp->ll_list != NULL)
 	// unlet a List item.
 	listitem_remove(lp->ll_list, lp->ll_li);
-    else
+    else if (lp->ll_dict != NULL)
 	// unlet a Dictionary item.
 	dictitem_remove(lp->ll_dict, lp->ll_di, "unlet");
+    else
+    {
+	semsg(_(e_cannot_unlet_imported_item_str), lp->ll_name);
+	return FAIL;
+    }
 
     return ret;
 }
@@ -2770,6 +2788,33 @@ get_vim_var_type(int idx, garray_T *type_list)
 }
 
 /*
+ * Add what getinfo() reports for the v: variable "name", without the "v:", to
+ * "d".  Returns FAIL when there is no such variable.
+ */
+    int
+vim_var_info(char_u *name, dict_T *d)
+{
+    int		di_flags;
+    int		idx = find_vim_var(name, &di_flags);
+    garray_T	type_list;
+    char	*tofree;
+
+    if (idx < 0)
+	return FAIL;
+    vim_snprintf((char *)IObuff, IOSIZE, "v:%s", vimvars[idx].vv_name);
+    dict_add_string(d, "name", IObuff);
+    dict_add_bool(d, "available", TRUE);
+    ga_init2(&type_list, sizeof(type_T *), 10);
+    char *type = type_name(get_vim_var_type(idx, &type_list), &tofree);
+    dict_add_string(d, "type", (char_u *)type);
+    vim_free(tofree);
+    clear_type_list(&type_list);
+    dict_add_bool(d, "readonly", (vimvars[idx].vv_flags & VV_RO) != 0);
+    dict_add_bool(d, "compat", (vimvars[idx].vv_flags & VV_COMPAT) != 0);
+    return OK;
+}
+
+/*
  * Set v: variable to "tv".  Only accepts the same type.
  * Takes over the value of "tv".
  */
@@ -2844,16 +2889,19 @@ get_vim_var_dict(int idx)
     void
 set_vim_var_char(int c)
 {
-    char_u	buf[MB_MAXBYTES + 1];
+    char_u  buf[MB_MAXBYTES + 1];
+    size_t  buflen;
 
     if (has_mbyte)
-	buf[(*mb_char2bytes)(c, buf)] = NUL;
+	buflen = (*mb_char2bytes)(c, buf);
     else
     {
 	buf[0] = c;
-	buf[1] = NUL;
+	buflen = 1;
     }
-    set_vim_var_string(VV_CHAR, buf, -1);
+    buf[buflen] = NUL;
+
+    set_vim_var_string(VV_CHAR, buf, (int)buflen);
 }
 
 /*
@@ -2998,15 +3046,16 @@ reset_reg_var(void)
     void
 set_reg_var(int c)
 {
-    char_u	regname;
+    char_u  regname[2];
 
     if (c == 0 || c == ' ')
-	regname = '"';
+	regname[0] = '"';
     else
-	regname = c;
+	regname[0] = c;
+    regname[1] = NUL;
     // Avoid free/alloc when the value is already right.
     if (vimvars[VV_REG].vv_str == NULL || vimvars[VV_REG].vv_str[0] != c)
-	set_vim_var_string(VV_REG, &regname, 1);
+	set_vim_var_string(VV_REG, regname, 1);
 }
 
 /*
@@ -3903,6 +3952,35 @@ delete_var(hashtab_T *ht, hashitem_T *hi)
 }
 
 /*
+ * Delete the exported variables of a reloaded Vim9 autoload script.  They live
+ * in the global namespace with the autoload prefix (e.g. "foo#bar") and are
+ * recreated when the script body runs again.
+ */
+    void
+delete_autoload_export_vars(char_u *prefix)
+{
+    if (prefix == NULL)
+	return;
+    size_t  prefixlen = STRLEN(prefix);
+
+    hash_lock(&globvarht);
+    int	todo = (int)globvarht.ht_used;
+
+    for (hashitem_T *hi = globvarht.ht_array; todo > 0; ++hi)
+	if (!HASHITEM_EMPTY(hi))
+	{
+	    dictitem_T	*di = HI2DI(hi);
+
+	    --todo;
+	    // Keep a class or enum: existing objects still refer to it.
+	    if (di->di_tv.v_type != VAR_CLASS
+		    && STRNCMP(di->di_key, prefix, prefixlen) == 0)
+		delete_var(&globvarht, hi);
+	}
+    hash_unlock(&globvarht);
+}
+
+/*
  * List the value of one internal variable.
  */
     static void
@@ -4255,6 +4333,16 @@ set_var_const(
 	}
 
 	// existing variable, need to clear the value
+
+	// In Vim9 script a String v: variable only takes a String.
+	if (ht == &vimvarht && di->di_tv.v_type == VAR_STRING
+							    && in_vim9script())
+	{
+	    where_T	where = WHERE_INIT;
+
+	    if (check_typval_type(&t_string, tv, where) == FAIL)
+		goto failed;
+	}
 
 	// Handle setting internal v: variables separately where needed to
 	// prevent changing the type.
@@ -4753,8 +4841,8 @@ setwinvar(typval_T *argvars, int off)
     void
 reset_v_option_vars(void)
 {
-    set_vim_var_string(VV_OPTION_NEW,  NULL, -1);
-    set_vim_var_string(VV_OPTION_OLD,  NULL, -1);
+    set_vim_var_string(VV_OPTION_NEW, NULL, -1);
+    set_vim_var_string(VV_OPTION_OLD, NULL, -1);
     set_vim_var_string(VV_OPTION_OLDLOCAL, NULL, -1);
     set_vim_var_string(VV_OPTION_OLDGLOBAL, NULL, -1);
     set_vim_var_string(VV_OPTION_TYPE, NULL, -1);
@@ -5279,6 +5367,13 @@ put_callback(callback_T *cb, typval_T *tv)
     }
 }
 
+    static bool
+does_callback_own_cb_name(callback_T *cb)
+{
+    // If cb_partial != NULL then *cb->cb_name is owned by the partial.
+    return cb->cb_partial || cb->cb_free_name;
+}
+
 /*
  * Make a copy of "src" into "dest", allocating the function name if needed,
  * without incrementing the refcount.
@@ -5286,19 +5381,13 @@ put_callback(callback_T *cb, typval_T *tv)
     void
 set_callback(callback_T *dest, callback_T *src)
 {
-    if (src->cb_partial == NULL)
+    *dest = *src;
+    if (!does_callback_own_cb_name(src))
     {
-	// just a function name, make a copy
 	dest->cb_name = vim_strsave(src->cb_name);
 	dest->cb_free_name = TRUE;
     }
-    else
-    {
-	// cb_name is a pointer into cb_partial
-	dest->cb_name = src->cb_name;
-	dest->cb_free_name = FALSE;
-    }
-    dest->cb_partial = src->cb_partial;
+    *src = (callback_T){0};
 }
 
 /*

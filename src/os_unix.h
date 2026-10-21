@@ -6,18 +6,6 @@
  * Do ":help credits" in Vim to see a list of people who contributed.
  */
 
-/*
- * NextStep has a problem with configure, undefine a few things:
- */
-#ifdef NeXT
-# ifdef HAVE_UTIME
-#  undef HAVE_UTIME
-# endif
-# ifdef HAVE_SYS_UTSNAME_H
-#  undef HAVE_SYS_UTSNAME_H
-# endif
-#endif
-
 #include <stdio.h>
 #include <ctype.h>
 
@@ -50,10 +38,6 @@
 
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
-#endif
-
-#ifdef HAVE_LIBC_H
-# include <libc.h>		    // for NeXT
 #endif
 
 #ifdef HAVE_SYS_PARAM_H
@@ -136,6 +120,11 @@ typedef void (*sighandler_T) SIGPROTOARG;
 
 #if defined(NAME_MAX) && !defined(MAXNAMLEN)
 # define MAXNAMLEN NAME_MAX	    // for Linux before .99p3
+#endif
+
+#if defined(__sun)
+# undef MAXNAMLEN
+# define MAXNAMLEN 255
 #endif
 
 /*

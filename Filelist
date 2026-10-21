@@ -3,34 +3,42 @@
 
 # Source files for all source archives.
 SRC_ALL =	\
-		.cirrus.yml \
-		.gitattributes \
 		.git-blame-ignore-revs \
-		.github/MAINTAINERS \
+		.gitattributes \
 		.github/ISSUE_TEMPLATE/bug_report.yml \
 		.github/ISSUE_TEMPLATE/feature_request.md \
+		.github/MAINTAINERS \
+		.github/pull_request_template.md \
+		.github/workflows/ci-cygwin.yml \
+		.github/workflows/ci-linux.yml \
+		.github/workflows/ci-linux_asan.yml \
+		.github/workflows/ci-macos.yml \
+		.github/workflows/ci-windows.yml \
 		.github/workflows/ci.yml \
 		.github/workflows/codeql-analysis.yml \
 		.github/workflows/coverity.yml \
 		.github/workflows/link-check.yml \
+		.github/actions/build_vim_on_linux/action.yml \
 		.github/actions/test_artifacts/action.yml \
 		.github/dependabot.yml \
 		.gitignore \
 		.hgignore \
-		.appveyor.yml \
 		.clang-format \
 		.codecov.yml \
 		.editorconfig \
-		ci/appveyor.bat \
+		CODE_OF_CONDUCT.md \
 		ci/config.mk*.sed \
-		ci/if_ver*.vim \
-		ci/if_feat_check.vim \
-		ci/lychee.toml \
-		ci/setup-xvfb.sh \
-		ci/remove_snap.sh \
 		ci/ddebs.list \
+		ci/gen_testset.py \
+		ci/if_feat_check.vim \
+		ci/if_ver*.vim \
+		ci/lychee.toml \
 		ci/pinned-pkgs \
+		ci/remove_snap.sh \
+		ci/setup-weston.sh \
+		ci/setup-xvfb.sh \
 		src/Make_all.mak \
+		src/Make_tags.mak \
 		src/README.md \
 		src/alloc.c \
 		src/alloc.h \
@@ -89,9 +97,17 @@ SRC_ALL =	\
 		src/gui.h \
 		src/gui_beval.c \
 		src/hardcopy.c \
+		src/hardcopy.h \
+		src/hardcopy_pango.c \
+		src/hardcopy_postscript.c \
+		src/hardcopy_postscript.h \
 		src/hashtab.c \
 		src/help.c \
 		src/highlight.c \
+		src/image.c \
+		src/image.h \
+		src/image_kitty.c \
+		src/image_sixel.c \
 		src/indent.c \
 		src/insexpand.c \
 		src/job.c \
@@ -146,12 +162,14 @@ SRC_ALL =	\
 		src/session.c \
 		src/sha256.c \
 		src/sign.c \
+		src/socketserver.c \
 		src/sound.c \
 		src/spell.c \
 		src/spell.h \
 		src/spellfile.c \
 		src/spellsuggest.c \
 		src/strings.c \
+		src/strptime.c \
 		src/structs.h \
 		src/syntax.c \
 		src/tabpanel.c \
@@ -214,6 +232,7 @@ SRC_ALL =	\
 		src/testdir/ru_RU/LC_MESSAGES/__PACKAGE__.po \
 		src/testdir/runtest.vim \
 		src/testdir/samples/*.html \
+		src/testdir/samples/*.swp \
 		src/testdir/samples/*.txt \
 		src/testdir/samples/*.vim \
 		src/testdir/samples/evil.zip \
@@ -224,6 +243,8 @@ SRC_ALL =	\
 		src/testdir/samples/test000 \
 		src/testdir/samples/test_undo.txt.undo \
 		src/testdir/samples/testa.zip \
+		src/testdir/samples/crypt_utf8_test.txt \
+		src/testdir/samples/uncrypt_utf8_test.txt \
 		src/testdir/sautest/autoload/*.vim \
 		src/testdir/silent.wav \
 		src/testdir/test77a.com \
@@ -300,9 +321,14 @@ SRC_ALL =	\
 		src/proto/gui.pro \
 		src/proto/gui_beval.pro \
 		src/proto/hardcopy.pro \
+		src/proto/hardcopy_pango.pro \
+		src/proto/hardcopy_postscript.pro \
 		src/proto/hashtab.pro \
 		src/proto/help.pro \
 		src/proto/highlight.pro \
+		src/proto/image.pro \
+		src/proto/image_kitty.pro \
+		src/proto/image_sixel.pro \
 		src/proto/indent.pro \
 		src/proto/insexpand.pro \
 		src/proto/job.pro \
@@ -342,6 +368,7 @@ SRC_ALL =	\
 		src/proto/session.pro \
 		src/proto/sha256.pro \
 		src/proto/sign.pro \
+		src/proto/socketserver.pro \
 		src/proto/sound.pro \
 		src/proto/spell.pro \
 		src/proto/spellfile.pro \
@@ -439,6 +466,7 @@ SRC_ALL =	\
 		src/libvterm/t/66screen_extent.test \
 		src/libvterm/t/67screen_dbl_wh.test \
 		src/libvterm/t/68screen_termprops.test \
+		src/libvterm/t/69screen_pushline.test \
 		src/libvterm/t/69screen_reflow.test \
 		src/libvterm/t/90vttest_01-movement-1.test \
 		src/libvterm/t/90vttest_01-movement-2.test \
@@ -495,6 +523,17 @@ SRC_UNIX =	\
 		src/gui_gtk_f.c \
 		src/gui_gtk_f.h \
 		src/gui_gtk_x11.c \
+		src/gui_gtk4.c \
+		src/gui_gtk4_f.c \
+		src/gui_gtk4_f.h \
+		src/gui_gtk4_cb.c \
+		src/gui_gtk4_cb.h \
+		src/gui_gtk4_da.c \
+		src/gui_gtk4_da.h \
+		src/gui_gtk4_tb.c \
+		src/gui_gtk4_tb.h \
+		src/gui_gtk4_menu.c \
+		src/gui_gtk4_menu.h \
 		src/gui_gtk_res.xml \
 		src/gui_motif.c \
 		src/gui_xmdlg.c \
@@ -524,6 +563,7 @@ SRC_UNIX =	\
 		src/proto/gui_gtk.pro \
 		src/proto/gui_gtk_x11.pro \
 		src/proto/gui_gtk_gresources.pro \
+		src/proto/gui_gtk4.pro \
 		src/proto/gui_motif.pro \
 		src/proto/gui_xmdlg.pro \
 		src/proto/gui_x11.pro \
@@ -639,13 +679,7 @@ SRC_DOS =	\
 		src/tee/tee.c \
 		src/xxd/Make_ming.mak \
 		src/xxd/Make_mvc.mak \
-		nsis/auxiliary.nsh \
-		nsis/gvim.nsi \
-		nsis/Makefile \
-		nsis/Make_mvc.mak \
 		nsis/README.txt \
-		nsis/lang/*.nsi \
-		nsis/lang/README.txt \
 		uninstall.txt \
 
 # Source files for MS Windows without CR/LF translation (also in the extra archive).
@@ -663,7 +697,6 @@ SRC_DOS_BIN =	\
 		src/xpm/x86/lib-vc14/libXpm.lib \
 		src/xpm/x86/lib/libXpm.a \
 		runtime/bitmaps/vim.ico \
-		nsis/icons.zip \
 
 # Source files for Amiga, DOS, etc. (also in the extra archive).
 SRC_AMI_DOS =	\
@@ -677,6 +710,7 @@ SRC_AMI =	\
 		src/Make_ami.mak \
 		src/os_amiga.c \
 		src/os_amiga.h \
+		src/os_amiga_stubs.c \
 		src/proto/os_amiga.pro \
 		src/testdir/Make_amiga.mak \
 		src/testdir/util/amiga.vim \
@@ -940,12 +974,15 @@ RT_UNIX_DOS_BIN =	\
 		runtime/vim16x16.gif \
 		runtime/vim16x16.png \
 		runtime/vim16x16.xpm \
+		runtime/vim16x16_png.h \
 		runtime/vim32x32.gif \
 		runtime/vim32x32.png \
 		runtime/vim32x32.xpm \
+		runtime/vim32x32_png.h \
 		runtime/vim48x48.gif \
 		runtime/vim48x48.png \
 		runtime/vim48x48.xpm \
+		runtime/vim48x48_png.h \
 
 # Runtime not for Unix-like or extra.
 RT_NO_UNIX =	\
@@ -1110,6 +1147,7 @@ LANG_GEN = \
 		runtime/doc/*-sv.UTF-8.1 \
 		runtime/doc/*-tr.1 \
 		runtime/doc/*-tr.UTF-8.1 \
+		runtime/doc/*-zh_CN.UTF-8.1 \
 		runtime/lang/README.txt \
 		runtime/lang/Makefile \
 		runtime/lang/Make_all.mak \
@@ -1186,10 +1224,10 @@ LANG_DOS = \
 # be excluded from distribution tarballs and the like.
 # This excludes them from the CI check for unlisted files.
 IGNORE = \
-		.appveyor.yml \
 		.github/FUNDING.yml \
 		.github/labeler.yml \
 		.github/workflows/label.yml \
+		AGENTS.md \
 		SECURITY.md \
 		ci/unlisted.make \
 		ci/hlgroups.make \

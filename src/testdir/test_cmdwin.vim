@@ -171,6 +171,10 @@ func Test_cmdwin_jump_to_win()
   set modified
   call assert_fails('call feedkeys("q/:qall\<CR>", "xt")', ['E37:', 'E162:'])
   close!
+  new
+  set modified
+  call assert_fails('call feedkeys("q/:quitall\<CR>", "xt")', ['E37:', 'E162:'])
+  close!
   call feedkeys("q/:close\<CR>", "xt")
   call assert_equal(1, winnr('$'))
   call feedkeys("q/:exit\<CR>", "xt")
@@ -608,6 +612,40 @@ func Test_cmdwin_showcmd()
   endfor
 
   " clean up
+  call StopVimInTerminal(buf)
+endfunc
+
+func Test_cmdwin_cursor_position()
+  " When the cmdline fills the screen width exactly, pressing CTRL-F to open
+  " the cmdwin should place the cursor on the last character, not past it.
+  let cmd = 'echo "' .. repeat('a', &columns - 8) .. '"'
+  call assert_equal(&columns - 1, len(cmd))
+  let g:cmdwin_col = 0
+  let g:cmdwin_line = ''
+  call feedkeys(':' .. cmd .. "\<C-F>" ..
+        \ ":let g:cmdwin_col = col('.')\<CR>" ..
+        \ ":let g:cmdwin_line = getline('.')\<CR>" ..
+        \ ":q\<CR>", 'x!')
+  call assert_equal(len(cmd), g:cmdwin_col)
+  call assert_equal(cmd, g:cmdwin_line)
+  unlet g:cmdwin_col g:cmdwin_line
+endfunc
+
+func Test_cmdwin_no_prefix_on_wrapped_line()
+  CheckScreendump
+
+  let lines =<< trim END
+    augroup vimHints | au! | augroup END
+  END
+  call writefile(lines, 'Xcmdwin_wrap', 'D')
+
+  let buf = RunVimInTerminal('-S Xcmdwin_wrap', #{rows: 12, cols: 40})
+  let cmd = 'echo "' .. repeat('a', 40 - 8) .. '"XYZ'
+  call term_sendkeys(buf, ':' .. cmd .. "\<C-F>")
+  call TermWait(buf, 100)
+  call VerifyScreenDump(buf, 'Test_cmdwin_wrap_prefix', {})
+
+  call term_sendkeys(buf, ":q\<CR>")
   call StopVimInTerminal(buf)
 endfunc
 

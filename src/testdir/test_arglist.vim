@@ -457,14 +457,39 @@ func Test_argdelete()
   args aa a aaa b bb
   argdelete a*
   call assert_equal(['b', 'bb'], argv())
+  call assert_equal(0, argidx())
   call assert_equal('aa', expand('%:t'))
   last
+  call assert_equal(1, argidx())
+  call assert_equal('bb', expand('%:t'))
   argdelete %
   call assert_equal(['b'], argv())
-  call assert_fails('argdelete', 'E610:')
+  call assert_equal(0, argidx())
+  call assert_equal('bb', expand('%:t'))
+
   call assert_fails('1,100argdelete', 'E16:')
   call assert_fails('argdel /\)/', 'E55:')
   call assert_fails('1argdel 1', 'E474:')
+
+  call Reset_arglist()
+  args aa a aaa b bb
+  4argument
+  call assert_equal(3, argidx())
+  call assert_equal('b', expand('%:t'))
+  argdelete aa*
+  call assert_equal(['a', 'b', 'bb'], argv())
+  call assert_equal(1, argidx())
+  call assert_equal('b', expand('%:t'))
+  2argdelete
+  call assert_equal(['a', 'bb'], argv())
+  call assert_equal(1, argidx())
+  call assert_equal('b', expand('%:t'))
+  %argdelete
+  call assert_equal([], argv())
+  call assert_equal(0, argidx())
+  call assert_equal('b', expand('%:t'))
+  " :%argdelete when the arglist is already empty should not error
+  %argdelete
 
   call Reset_arglist()
   args a b c d
@@ -795,6 +820,26 @@ func Test_crash_arglist_uaf2()
   redraw!
   put ='abc'
   2#
+  au! BufAdd
+endfunc
+
+func Test_arglist_w_locked_unlock()
+  au BufAdd * split
+
+  args a
+  call assert_equal(2, winnr('$'))
+  wincmd p
+  quit
+  call assert_equal(1, winnr('$'))
+
+  argedit b
+  call assert_equal(2, winnr('$'))
+  wincmd p
+  quit
+  call assert_equal(1, winnr('$'))
+
+  %argd
+  %bw!
   au! BufAdd
 endfunc
 

@@ -2,6 +2,11 @@
 # Makefile to run all tests for Vim
 #
 
+# The old-style tests (*.in) use shared filenames in the working directory
+# (test.ok, test.out, X*, viminfo), so running them in parallel causes races
+# and spurious failures.
+.NOTPARALLEL:
+
 # Use console or GUI.
 VIMPROG = ../vim
 XXDPROG = ../xxd/xxd
@@ -69,6 +74,14 @@ $(SCRIPTS_TINY_OUT) $(NEW_TESTS_RES): $(VIMPROG)
 $(NEW_TESTS):
 	rm -f $@.res $(CLEANUP_FILES)
 	@MAKEFLAGS=--no-print-directory $(MAKE) -f Makefile $@.res VIMPROG=$(VIMPROG) XXDPROG=$(XXDPROG) SCRIPTSOURCE=$(SCRIPTSOURCE)
+	@cat messages
+	@if test -f test.log; then \
+		exit 1; \
+	fi
+
+codestyle:
+	rm -f test_codestyle.res $(CLEANUP_FILES)
+	@MAKEFLAGS=--no-print-directory $(MAKE) -f Makefile test_codestyle.res VIMPROG=$(VIMPROG) XXDPROG=$(XXDPROG) SCRIPTSOURCE=$(SCRIPTSOURCE)
 	@cat messages
 	@if test -f test.log; then \
 		exit 1; \

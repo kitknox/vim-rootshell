@@ -3,16 +3,16 @@
 # Do ":help uganda"  in Vim to read copying and usage conditions.
 # Do ":help credits" in Vim to see a list of people who contributed.
 #
-# Gagik Hakobyan <hakgagik@yahoo,com> 2015
+# Gagik Hakobyan <hakgagik@yahoo.com> 2015
 # option - ընտրանք
 # unload - բեռնաթափել
 # load - բեռնել
 # loop - շրջակցում
-# range - միջակայք
-# Color - երկկետ
+# range - տիրույթ
+# Colon - երկկետ
 # prefix - նախածանց
 # nested - ներդրված
-# flag - դրոշմանիշ
+# flag - դրոշ
 # compound - պարփակ
 # region - ռեգիոն
 # include - կցաֆայլ
@@ -29,10 +29,10 @@
 # ignore - անտեսել
 # replace - փոխարինում
 # pattern - նմուշ
-# delimiter - բաժանիչ
+# delimiter - բացատանիշ
 # equal - համարժեք
-# settings - կարգաբերում
-# duplicate - կրկնակի
+# settings - կարգավորումներ
+# duplicate - կրկնվող
 # found - հայտնաբերված
 # support - աջակցում
 # class - դաս
@@ -40,7 +40,7 @@
 # soundfold - ձայնափաթաթ
 # swap - փոխատեղում
 # menu - մենյու/ընտրացանկ
-# undo - չեղարկում
+# undo - հետարկել
 # overwrite - վերագրել
 # skip -
 # owner - օգտատեր
@@ -51,7 +51,7 @@
 # mark - նշակ
 # key - բանալի
 # keyword - հիմնաբառ
-# character - նշան/տառ
+# character - նիշ
 # demage - վնասված
 # abort - ընդհատում
 # event - իրադարձություն
@@ -61,17 +61,20 @@
 # spell - ուղղագրում
 # directory - թղթապանակ
 # swapfile - սվեփ ֆայլ
-# Insert mode -> Ներդիր ռեժիմ
+# Insert mode -> զետեղման ռեժիմ
 # Popup - Սահապատ
 # Custom - Անհատականացված
-# Completion - Ավտոլրացում
+# completion - լրացում
+# autocompletion - ավտոլրացում
 # Clipboard - Սեղմատախտակ
+# Typeset - շարվածք
+# optional - կամընտիր
 msgid ""
 msgstr ""
 "Project-Id-Version: vim_9.1_am\n"
 "Report-Msgid-Bugs-To: vim-dev@vim.org\n"
-"POT-Creation-Date: 2025-12-20 20:54+0400\n"
-"PO-Revision-Date: 2025-12-21 15:32+0400\n"
+"POT-Creation-Date: 2026-06-27 08:41+0000\n"
+"PO-Revision-Date: 2026-07-15 22:13+0400\n"
 "Last-Translator: Gagik Hakobyan <hakgagik@yahoo.com>\n"
 "Language-Team: Armenian\n"
 "Language: hy\n"
@@ -79,10 +82,10 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
-"X-Loco-Source-Locale: en_AM\n"
-"X-Generator: Poedit 3.8\n"
-"X-Poedit-KeywordsList: փաթաթ;միջակայք\n"
+"X-Generator: Poedit 3.9\n"
 "X-Loco-Parser: loco_parse_po\n"
+"X-Loco-Source-Locale: en_AM\n"
+"X-Poedit-KeywordsList: փաթաթ;միջակայք\n"
 
 msgid "ERROR: "
 msgstr "ՍԽԱԼ: "
@@ -125,7 +128,7 @@ msgstr ""
 
 #, c-format
 msgid "No matching autocommands: %s"
-msgstr "Չկան համապատասխան ինքնահրամաններ: %s"
+msgstr "Համընկնող ինքնահրամաններ չկան: %s"
 
 #, c-format
 msgid "%s Autocommands for \"%s\""
@@ -306,10 +309,10 @@ msgstr ""
 "Զգուշացում: նախնական ֆայլը հնարավոր է վնասված է\n"
 
 msgid "don't quit the editor until the file is successfully written!"
-msgstr "մի փակեք խմբագիրը քանի դեռ ֆայլը հաջողությամբ կգրվի!"
+msgstr "մի փակեք խմբագիրը քանի դեռ ֆայլը հաջողությամբ չի գրվել!"
 
 msgid "W10: Warning: Changing a readonly file"
-msgstr "W10: Զգուշացում: Փոփոխվում է կարդալու թուլտվությամբ ֆայլ"
+msgstr "W10: Զգուշացում: Փոփոխվում է միայն կարդալու թուլտվությամբ ֆայլ"
 
 msgid "No display"
 msgstr "Էկրան չկա"
@@ -323,9 +326,6 @@ msgstr ": Հնարավոր չեղավ ուղարկել. Լոկալ կատարմ�
 #, c-format
 msgid "%d of %d edited"
 msgstr "%d֊ը %d֊ից խմբագրվել է"
-
-msgid "Socket server not online:Send expression failed"
-msgstr "Էկրան չկա: Հնարավոր չեղավ ուղարկել արտահայտությունը"
 
 msgid "No display: Send expression failed.\n"
 msgstr "Էկրան չկա: Հնարավոր չեղավ ուղարկել արտահայտությունը.\n"
@@ -360,13 +360,13 @@ msgstr ""
 "Նշում․ սվեփ ֆայլի կոդավորումը չի աջակցվում, ապաակտիվացվում է սվեփ ֆայլը"
 
 msgid "Enter encryption key: "
-msgstr "Կոդավորման համար մուտթագրեք գաղտնաբառը: "
+msgstr "Մուտqագրեք կոդավորման բանալին: "
 
 msgid "Enter same key again: "
-msgstr "Կրկնեք գաղտնաբառը: "
+msgstr "Կրկնեք նույն բանալին: "
 
 msgid "Keys don't match!"
-msgstr "Բանալիները տարբեր են!"
+msgstr "Բանալիները չեն համընկնում!"
 
 msgid "[crypted]"
 msgstr "[կոդավորված]"
@@ -425,7 +425,7 @@ msgid "cmd: %s"
 msgstr "հրաման: %s"
 
 msgid "frame is zero"
-msgstr "շրջանակը զրո է"
+msgstr "կադրը զրո է"
 
 #, c-format
 msgid "frame at highest level: %d"
@@ -433,10 +433,10 @@ msgstr "շրջանակ ամենաբարձր մակարդակում՝ %d"
 
 #, c-format
 msgid "Breakpoint in \"%s%s\" line %ld"
-msgstr "Վերադարձի կետը՝ \"%s%s\" տող %ld"
+msgstr "Ընդհատման կետը՝ \"%s%s\" տող %ld"
 
 msgid "No breakpoints defined"
-msgstr "Վերադարձի կետեր չեն սահամանվել"
+msgstr "Վերադարձի կետեր չեն սահմանվել"
 
 #, c-format
 msgid "%3d  %s %s  line %ld"
@@ -498,7 +498,7 @@ msgid "Roman numbers"
 msgstr "Հռոմեական թվեր"
 
 msgid "Arrows"
-msgstr "Ռադիո"
+msgstr "Սլաքներ"
 
 msgid "Mathematical operators"
 msgstr "Մաթեմատիկական օպերատորներ"
@@ -507,7 +507,7 @@ msgid "Technical"
 msgstr "Տեխնիկական"
 
 msgid "Box drawing"
-msgstr "Տուփի նկարչություն"
+msgstr "Շրջանակների նկարչություն"
 
 msgid "Block elements"
 msgstr "Արգելափակման տարրեր"
@@ -645,7 +645,7 @@ msgstr[1] "%ld համընկնումներ %ld տողում"
 #, c-format
 msgid "%ld substitution on %ld line"
 msgid_plural "%ld substitutions on %ld line"
-msgstr[0] "%ld հատ փոխարինումներ %ld տողում"
+msgstr[0] "%ld հատ փոխարինում %ld տողում"
 msgstr[1] "%ld հատ փոխարինումներ %ld տողում"
 
 #, c-format
@@ -662,7 +662,7 @@ msgstr[1] "%ld հատ փոխարինումներ %ld տեղերում"
 
 #, c-format
 msgid "Pattern found in every line: %s"
-msgstr "Ամեն տողում համապատասխանեցում է հայտնաբերվել: %s"
+msgstr "Նմուշը հայտնաբերվել է բոլոր տողերում: %s"
 
 #, c-format
 msgid "Pattern not found: %s"
@@ -678,7 +678,7 @@ msgstr "Պահպանե՞լ փոփոխությունները \"%s\"?"
 msgid "Warning: Entered other buffer unexpectedly (check autocommands)"
 msgstr ""
 "Զգուշացում: Անսպասելի անցում է կատարվել դեպի այլ բուֆեր (ստուգեք "
-"ինքնահրամանննրը)"
+"ինքնահրամանները)"
 
 #, c-format
 msgid "W20: Required python version 2.x not supported, ignoring file: %s"
@@ -704,7 +704,7 @@ msgid "End of function"
 msgstr "Ֆունկցիայի վերջը"
 
 msgid "Backwards range given, OK to swap"
-msgstr "Տրված է հակադարձ միջակայք, անցնել սվեփ"
+msgstr "Տրված է հակադարձ տիրույթ, անցնել սվեփ"
 
 #, c-format
 msgid "%d more file to edit.  Quit anyway?"
@@ -804,7 +804,7 @@ msgid "is a device (disabled with 'opendevice' option)"
 msgstr "սարք է ('opendevice' ընտրանքը անջատված է)"
 
 msgid "[New DIRECTORY]"
-msgstr "[Նոր ցանկ]"
+msgstr "[Նոր թղթապանակ]"
 
 msgid "[File too big]"
 msgstr "[ֆայլը շատ մեծ է]"
@@ -825,7 +825,7 @@ msgid "[socket]"
 msgstr "[վարդակ]"
 
 msgid "[character special]"
-msgstr "[նշանին հատուկ]"
+msgstr "[նիշային հատուկ]"
 
 msgid "[CR missing]"
 msgstr "[Բացակայող CR]"
@@ -857,19 +857,19 @@ msgid "[dos]"
 msgstr "[դոս]"
 
 msgid "[dos format]"
-msgstr "[format dos]"
+msgstr "[dos ձևաչափ]"
 
 msgid "[mac]"
 msgstr "[mac]"
 
 msgid "[mac format]"
-msgstr "[format mac]"
+msgstr "[mac ձևաչափ]"
 
 msgid "[unix]"
 msgstr "[յունիքս]"
 
 msgid "[unix format]"
-msgstr "[format unix]"
+msgstr "[unix ձևաչափ]"
 
 #, c-format
 msgid "%s%ldL, %lldB"
@@ -878,8 +878,8 @@ msgstr "%s%ldL, %lldB"
 #, c-format
 msgid "%s%ld line, "
 msgid_plural "%s%ld lines, "
-msgstr[0] "տող: %s%ld, "
-msgstr[1] "տողեր: %s%ld "
+msgstr[0] "տող %s%ld, "
+msgstr[1] "տողեր %s%ld "
 
 #, c-format
 msgid "%lld byte"
@@ -938,7 +938,7 @@ msgid "<empty>"
 msgstr "<դատարկ>"
 
 msgid "writefile() first argument must be a List or a Blob"
-msgstr "writefile()-ի առաջին պարամետրը պետք է լինի Cանկ"
+msgstr "writefile()-ի առաջին արգումենտը պետք է լինի List կամ Blob"
 
 msgid "Select Directory dialog"
 msgstr "Նշել թղթապանակը"
@@ -1021,7 +1021,7 @@ msgid "Replace with:"
 msgstr "Փոխարինել:"
 
 msgid "Match whole word only"
-msgstr "Համապատասխանեցնել միայն ամբողջ բառը"
+msgstr "Համընկնեցնել միայն ամբողջական բառերը"
 
 msgid "Match case"
 msgstr "Համընկնման դեպք"
@@ -1047,6 +1047,21 @@ msgstr "Փոխարինել բոլորը"
 msgid "_Close"
 msgstr "_Փակել"
 
+msgid "Close Tab"
+msgstr "Փակել Թաբը"
+
+msgid "New Tab"
+msgstr "Նոր Թաբ"
+
+msgid "Open Tab..."
+msgstr "Բացել թաբ..."
+
+msgid "Direction:"
+msgstr "Ուղղություն:"
+
+msgid "Close"
+msgstr "Փակել"
+
 msgid "Vim: Received \"die\" request from session manager\n"
 msgstr "Vim: Սեսսիայի զեկավարությունից ստացվել է մահվան պահանջ\n"
 
@@ -1055,9 +1070,6 @@ msgstr "Փակել թաբը"
 
 msgid "New tab"
 msgstr "Նոր թաբ"
-
-msgid "Open Tab..."
-msgstr "Բացել թաբ..."
 
 msgid "Vim: Main window unexpectedly destroyed\n"
 msgstr "Vim: Գլխավոր պատուհանն անսպասելի ավերվել է\n"
@@ -1099,7 +1111,7 @@ msgid "Replace &All"
 msgstr "Փոխարինել &բոլորը"
 
 msgid "&Undo"
-msgstr "Չեղարկել"
+msgstr "Հետարկել"
 
 msgid "Open tab..."
 msgstr "Բացել թաբը..."
@@ -1199,7 +1211,7 @@ msgid "Sorry, help file \"%s\" not found"
 msgstr "Ներողություն, '%s' օգնության էջը չի հայտնաբերվել"
 
 msgid "W18: Invalid character in group name"
-msgstr "W18: Անվավեր նշան՝ խմբի անվանման մեջ"
+msgstr "W18: Անվավեր նիշ՝ խմբի անվանման մեջ"
 
 msgid "Add a new database"
 msgstr "Ավելացնել նոր տվյալների բազա"
@@ -1298,7 +1310,7 @@ msgid "Lua library cannot be loaded."
 msgstr "Հնարավոր չէ բեռնել Lua գրադարանը."
 
 msgid "cannot save undo information"
-msgstr "հնարավոր չէ պահպանել չեղարկման տեղեկատվությոանը"
+msgstr "հնարավոր չէ պահպանել հետարկման տեղեկատվությունը"
 
 msgid "invalid expression"
 msgstr "անվավեր արտահայտություն"
@@ -1313,7 +1325,7 @@ msgid "unknown option"
 msgstr "անծանոթ ընտրանք"
 
 msgid "window index is out of range"
-msgstr "պատուհանի համարն միջակայքից դուրս է եկել"
+msgstr "պատուհանի համարն տիրույթից դուրս է եկել"
 
 msgid "couldn't open buffer"
 msgstr "հնարավոր չէ բացել բուֆերը"
@@ -1346,7 +1358,7 @@ msgid "window is invalid"
 msgstr "պատուհանն անվավեր է"
 
 msgid "linenr out of range"
-msgstr "տողի համարը միջակայքից դուրս է եկել"
+msgstr "տողի համարը տիրույթից դուրս է եկել"
 
 msgid "not allowed in the Vim sandbox"
 msgstr "չի թույլատրվում Vim sandbox"
@@ -1361,7 +1373,7 @@ msgid "cannot set line(s)"
 msgstr "հնարավոր չէ նշանակել տողը(երը)"
 
 msgid "invalid mark name"
-msgstr "անվավեր  նշակման անուն"
+msgstr "անվավեր նշակի անուն"
 
 msgid "mark not set"
 msgstr "նշակումը սահմանած չէ"
@@ -1374,7 +1386,7 @@ msgid "cannot insert/append line"
 msgstr "հնարավոր չէ զետեղել/կցել տողը"
 
 msgid "line number out of range"
-msgstr "տողի համարը միջակայքից անցել է"
+msgstr "տողի համարը տիրույթից անցել է"
 
 msgid "unknown flag: "
 msgstr "անծանոթ դրոշմանիշ: "
@@ -1414,49 +1426,49 @@ msgstr[0] "%ld տող խորացվել է "
 msgstr[1] "%ld տողեր խորացվել են "
 
 msgid " Keyword completion (^N^P)"
-msgstr " Հիմնաբառերի ավտոլրացում (^N^P)"
+msgstr " Հիմնաբառերի լրացում (^N^P)"
 
 msgid " ^X mode (^]^D^E^F^I^K^L^N^O^P^Rs^U^V^Y)"
 msgstr " ^X ավտոլրացման ռեժիմ (^]^D^E^F^I^K^L^N^O^Ps^U^V^Y)"
 
 msgid " Whole line completion (^L^N^P)"
-msgstr " Տողի ավտոլրացում (^L^N^P)"
+msgstr " Տողի լրացում (^L^N^P)"
 
 msgid " File name completion (^F^N^P)"
-msgstr " Ֆայլի անունի ավտոլրացում (^F^N^P)"
+msgstr " Ֆայլի անունի լրացում (^F^N^P)"
 
 msgid " Tag completion (^]^N^P)"
-msgstr " Պիտակի ավտոլրացում (^]^N^P)"
+msgstr " Պիտակի լրացում (^]^N^P)"
 
 msgid " Path pattern completion (^N^P)"
-msgstr " Ճանապարհի ավտոլրացում (^N^P)"
+msgstr " Ճանապարհի նմուշի լրացում (^N^P)"
 
 msgid " Definition completion (^D^N^P)"
-msgstr " Սահմանման ավտոլրացում (^D^N^P)"
+msgstr " Սահմանման լրացում (^D^N^P)"
 
 msgid " Dictionary completion (^K^N^P)"
-msgstr " Բառարանի ավտոլրացում (^K^N^P)"
+msgstr " Բառարանի լրացում (^K^N^P)"
 
 msgid " Thesaurus completion (^T^N^P)"
-msgstr " Հոմանիշների ավտոլրացում (^T^N^P)"
+msgstr " Հոմանիշների լրացում (^T^N^P)"
 
 msgid " Command-line completion (^V^N^P)"
-msgstr " Հրամանի տողի ավտոլրացում (^V^N^P)"
+msgstr " Հրամանի տողի լրացում (^V^N^P)"
 
 msgid " User defined completion (^U^N^P)"
-msgstr " Օգտագործողի սահմանած ավտոլրացում (^U^N^P)"
+msgstr " Օգտագործողի սահմանած լրացում (^U^N^P)"
 
 msgid " Omni completion (^O^N^P)"
-msgstr " Omni ավտոլրացում (^O^N^P)"
+msgstr " Omni լրացում (^O^N^P)"
 
 msgid " Spelling suggestion (^S^N^P)"
 msgstr " Ուղղագրական ճշգրտում (^S^N^P)"
 
 msgid " Keyword Local completion (^N^P)"
-msgstr " Տեղային հիմնաբառերի ավտոլրացում (^N^P)"
+msgstr " Տեղային հիմնաբառերի լրացում (^N^P)"
 
 msgid " Register completion (^N^P)"
-msgstr " Ռեգիստրերի ավտոլրացում (^N^P)"
+msgstr " Ռեգիստրերի լրացում (^N^P)"
 
 msgid "'dictionary' option is empty"
 msgstr "'dictionary' ընտրանքը դատարկ է"
@@ -1648,7 +1660,7 @@ msgid ""
 "case."
 msgstr ""
 "\n"
-"Where դեպքն անտեսվել է, ավելացրեք ՛/՛՝ դրոշմանիշը մեծատառ դարձնելու համար."
+"Where դեպքն անտեսվել է, ավելացրեք ՛/՛՝ դրոշը մեծատառ դարձնելու համար."
 
 msgid ""
 "\n"
@@ -1729,7 +1741,7 @@ msgstr "-N\t\t\tVi մասնակի համապատասխանեցված: 'nocompati
 
 msgid "-V[N][fname]\t\tBe verbose [level N] [log messages to fname]"
 msgstr ""
-"-V[N][ֆայլ]\t\tԱրտածել լրացուցիչ հաղորդագրություններ\n"
+"-V[N][ֆայլ]\t\tԱրտածել լրացուցիչ հհաղորդագրություններ\n"
 "\t\t\t\t[կարգ N] [արտածել ֆայլում]"
 
 msgid "-D\t\t\tDebugging mode"
@@ -1802,7 +1814,7 @@ msgstr "+<lnum>\t\t<lnum>-ի տողից սկսում"
 
 msgid "--cmd <command>\tExecute <command> before loading any vimrc file"
 msgstr ""
-"--cmd <հրաման>\tԿատարել <հրաման>֊ը նախքան ցանկացախ vimrc ֆայլի բեռնումը"
+"--cmd <հրաման>\tԿատարել <հրաման>֊ը նախքան ցանկացած vimrc ֆայլի բեռնումը"
 
 msgid "-c <command>\t\tExecute <command> after loading the first file"
 msgstr "-c <հրաման>\t\tԿատարել <հրաման>֊ը առաջին ֆայլի բեռնումից հետո"
@@ -1831,8 +1843,9 @@ msgstr "-X\t\t\tՉկպցնել X-server֊ին"
 msgid "-Y\t\t\tDo not connect to Wayland compositor"
 msgstr "-Y\t\t\tՉկպցնել X-server֊ին"
 
-msgid "--clientserver <socket|x11> Backend for clientserver communication"
-msgstr "--clientserver <socket|x11> clientserver հաղորդակցության backend"
+msgid ""
+"--clientserver <socket|x11|mswin> Backend for clientserver communication"
+msgstr "--clientserver <socket|x11|mswin> clientserver հաղորդակցության backend"
 
 msgid "--remote <files>\tEdit <files> in a Vim server if possible"
 msgstr "--remote <ֆայլեր>\tԽմբագրել <ֆայլեր>֊ը Vim server֊ում, եթե հնարավոր է"
@@ -1870,8 +1883,7 @@ msgid "--servername <name>\tSend to/become the Vim server <name>"
 msgstr "--servername <անուն>\tՈւղարկել/լինել <անուն>֊ով Vim server"
 
 msgid "--startuptime <file>\tWrite startup timing messages to <file>"
-msgstr ""
-"--startuptime <ֆայլ>\tԳրել սկսման ժամանակային հաղորդագրությունները <ֆայլ>֊ում"
+msgstr "--startuptime <ֆայլ>\tԳրել սկսման ժամանակային հհաղորդագրությունները <ֆայլ> ում"
 
 msgid "--log <file>\t\tStart logging to <file> early"
 msgstr "--log<file> Սկսեք մուտք գործել<file> վաղ"
@@ -1911,8 +1923,8 @@ msgstr ""
 
 msgid "-font <font>\t\tUse <font> for normal text (also: -fn)"
 msgstr ""
-"-font <տառատեսակ>\t\tՕգտագործել <տառատեսակ>֊ը նորմալ տեքստերի համար (նաև: "
-"-fn)"
+"-font <տառատեսակ>\t\tՕգտագործել <տառատեսակ>֊ը նորմալ տեքստերի համար (նաև: -"
+"fn)"
 
 msgid "-boldfont <font>\tUse <font> for bold text"
 msgstr "-boldfont <տառատեսակ>\tՕգտագործել <տառատեսակ>֊ը չաղ տեքստերի համար"
@@ -2005,7 +2017,7 @@ msgid ""
 "mark line  col file/text"
 msgstr ""
 "\n"
-"նշում տող սյուն ֆայլ/տեքստ"
+"նշակ տող  սյուն ֆայլ/տեքստ"
 
 msgid ""
 "\n"
@@ -2044,7 +2056,7 @@ msgid " cannot be used on this computer.\n"
 msgstr " հնարավոր չէ օգտագործել այս համակարգչում.\n"
 
 msgid "The file was created on "
-msgstr "Ֆայլը ստեղծվել է  "
+msgstr "Ֆայլը ստեղծվել է "
 
 msgid ""
 ",\n"
@@ -2087,7 +2099,7 @@ msgid ""
 "If you wrote the text file after changing the crypt key press enter"
 msgstr ""
 "\n"
-"Եթե գրում եք ֆայլում կոդավորման բանալու փոփոխումից հետ, ապա սեղմեք նոր տող"
+"Եթե գրում եք ֆայլում կոդավորման բանալու փոփոխումից հետո, ապա սեղմեք նոր տող"
 
 msgid ""
 "\n"
@@ -2108,11 +2120,20 @@ msgstr "???ԴԱՏԱՐԿ ԲԼՈԿ"
 msgid "???LINES MISSING"
 msgstr "???ՏՈՂԵՐ ԵՆ ԲԱՑԱԿԱՅՈՒՄ"
 
+msgid "???ILLEGAL BLOCK NUMBER"
+msgstr "???ԱՆԹՈՒՅԼԱՏՐԵԼԻ ԲԼՈԿԻ ՀԱՄԱՐ"
+
 msgid "???BLOCK MISSING"
 msgstr "???ԲԱՑԱԿԱՅՈՂ ԲԼՈԿ"
 
+msgid "??? BLOCK PAGE COUNT MISMATCH"
+msgstr "??? ԲԼՈԿԻ ԷՋԵՐԻ ՔԱՆԱԿԻ ԱՆՀԱՄԱՊԱՏԱՍԽԱՆՈՒԹՅՈՒՆ"
+
 msgid "??? from here until ???END lines may be messed up"
 msgstr "???այստեղից մինչև վերջ??? տողեր են պակասում"
+
+msgid "??? block header corrupted"
+msgstr "??? բլոկի վերնագիրը վնասված է"
 
 msgid "??? from here until ???END lines may have been inserted/deleted"
 msgstr "???այստեղից մինչև վերջ??? տողեր են ավելացվել/ջնջվել"
@@ -2137,7 +2158,7 @@ msgstr ""
 "(Կարող եք ֆայլն ամրագրել այլ անունով\n"
 
 msgid "and run diff with the original file to check for changes)"
-msgstr "կատարել diff֊ը սկզբնական ֆայլի հետ՝ փոփխությունները ստուգելու համար)"
+msgstr "կատարել diff֊ը սկզբնական ֆայլի հետ՝ փոփոխությունները ստուգելու համար)"
 
 msgid "Recovery completed. Buffer contents equals file contents."
 msgstr ""
@@ -2161,7 +2182,7 @@ msgid "Using crypt key from swap file for the text file.\n"
 msgstr "Տեքստ ֆայլի համար օգտագործվում է կոդավորման բանալի սվեփ ֆայլից.\n"
 
 msgid "Swap files found:"
-msgstr "Հայտնավերված սվեփ ֆայլեր:"
+msgstr "Հայտնաբերված սվեփ ֆայլեր:"
 
 msgid "   In current directory:\n"
 msgstr "   Այս թղթապանակում:\n"
@@ -2328,11 +2349,11 @@ msgstr "Սվեփ ֆայլ \""
 msgid "\" already exists!"
 msgstr "\" արդեն գոյություն ունի!"
 
-msgid "VIM - ATTENTION"
-msgstr "VIM - ՈՒՇԱԴՐՈՒԹՅՈՒՆ"
-
 msgid "Swap file already exists!"
 msgstr "Սվեփ ֆայլն արդեն գոյություն ունի!"
+
+msgid "VIM - ATTENTION"
+msgstr "VIM - ՈՒՇԱԴՐՈՒԹՅՈՒՆ"
 
 msgid ""
 "&Open Read-Only\n"
@@ -2459,6 +2480,10 @@ msgid "Beep!"
 msgstr "Ազդանշան!"
 
 #, c-format
+msgid "Executing directly: \"%s\""
+msgstr "Կատարվում է։ \"%s\""
+
+#, c-format
 msgid "Calling shell to execute: \"%s\""
 msgstr "Հրամանի կատարման համար կանչվում է տերմինալը: \"%s\""
 
@@ -2552,7 +2577,7 @@ msgid ""
 "--- Local option values ---"
 msgstr ""
 "\n"
-"---  Լոկալ ընտրանքների արժեքները ---"
+"--- Լոկալ ընտրանքների արժեքները ---"
 
 msgid ""
 "\n"
@@ -2645,14 +2670,14 @@ msgid ""
 "Could not get security context for "
 msgstr ""
 "\n"
-"Հնարավոր չէ ստանալ գաղտնի կոտնտեքստ "
+"Հնարավոր չէ ստանալ գաղտնի կոնտեքստ "
 
 msgid ""
 "\n"
 "Could not set security context for "
 msgstr ""
 "\n"
-"Հնարավոր չէ կարգավորել գաղտնի կոտնտեքստ  "
+"Հնարավոր չէ կարգավորել գաղտնի կոնտեքստ "
 
 #, c-format
 msgid "Could not set security context %s for %s"
@@ -2732,16 +2757,12 @@ msgstr "XSMP ICE կապակցման դիտարկումն անհաջող է ավ�
 msgid "XSMP SmcOpenConnection failed: %s"
 msgstr "XSMP SmcOpenConnection անհաջող է ավարտվել: %s"
 
-#, c-format
-msgid "Failed creating socket directory: %s"
-msgstr "Չհաջողվեց ստեղծել socket-ի թղթապանակը: %s"
-
 msgid "At line"
 msgstr "Տողում"
 
 #, c-format
 msgid "Vim: Caught %s event\n"
-msgstr "Vim: Բռնվել է %s բացառումը\n"
+msgstr "Vim: Բռնվել է %s իրադարձությունը\n"
 
 msgid "close"
 msgstr "փակել"
@@ -2793,7 +2814,7 @@ msgid "cannot have both a list and a \"what\" argument"
 msgstr "չի կարող ունենալ և՛ ցուցակ, և՛ \"what\" փաստարկ"
 
 msgid "Switching to backtracking RE engine for pattern: "
-msgstr "Նախշի համար անցում կատարվող RE շարժիչին. "
+msgstr "Նմուշի համար անցում backtracking RE շարժիչին. "
 
 msgid "External submatches:\n"
 msgstr "Արտաքին ենթահամընկնում:\n"
@@ -2966,7 +2987,7 @@ msgstr " ՀԱՅՏՆԱԲԵՐՎԱԾ ՉԷ"
 
 #, c-format
 msgid "Scanning included file: %s"
-msgstr "Կցվաֆայլերի ցուցադրում: %s"
+msgstr "Կցաֆայլի սկանավորում: %s"
 
 #, c-format
 msgid "Searching included file %s"
@@ -3016,6 +3037,10 @@ msgid " (not supported)"
 msgstr " (չի աջակցվում)"
 
 #, c-format
+msgid "Failed creating socket directory: %s"
+msgstr "Չհաջողվեց ստեղծել socket-ի թղթապանակը: %s"
+
+#, c-format
 msgid "Warning: Cannot find word list \"%s_%s.spl\" or \"%s_ascii.spl\""
 msgstr ""
 "Զգուշացում. հնարավոր չէ գտնել \"%s_%s.spl\" կամ \"%s_ascii.spl\" բառերի ցանկը"
@@ -3059,11 +3084,11 @@ msgstr "Փոխակերպումը %s-ում չի աջակցվում՝ %s-ից %s"
 
 #, c-format
 msgid "Invalid value for FLAG in %s line %d: %s"
-msgstr "ԴՐՈՇՄԱՆԻՇԻ անվավեր արժեք %s֊ում, տող %d: %s"
+msgstr "ԴՐՈՇԻ անվավեր արժեք %s֊ում, տող %d: %s"
 
 #, c-format
 msgid "FLAG after using flags in %s line %d: %s"
-msgstr "ԴՐՈՇՄԱՆԻՇ դրոշմանիշի օգտագործումից հետո, %s, տող %d: %s"
+msgstr "ԴՐՈՇ դրոշի օգտագործումից հետո, %s, տող %d: %s"
 
 #, c-format
 msgid ""
@@ -3108,7 +3133,7 @@ msgstr ""
 
 #, c-format
 msgid "Duplicate affix in %s line %d: %s"
-msgstr "Կրկնակի affix %s֊ում, տող %d: %s"
+msgstr "Կրկնվող affix %s֊ում, տող %d: %s"
 
 #, c-format
 msgid ""
@@ -3136,11 +3161,11 @@ msgstr "Սպասվող ՔԱՐՏԵԶԻ հաշվարկ %s տողում %d"
 
 #, c-format
 msgid "Duplicate character in MAP in %s line %d"
-msgstr "Կրկնակի տառ MAP֊ում, %s, տող %d"
+msgstr "Կրկնվող նիշ MAP֊ում, %s, տող %d"
 
 #, c-format
 msgid "Unrecognized or duplicate item in %s line %d: %s"
-msgstr "Անծանոթ կամ կրկնակի էլեմենտ %s֊ում, տող %d: %s"
+msgstr "Անծանոթ կամ կրկնվող էլեմենտ %s֊ում, տող %d: %s"
 
 #, c-format
 msgid "Missing FOL/LOW/UPP line in %s"
@@ -3168,7 +3193,7 @@ msgstr "SAL և SOFO գծերը %s-ում"
 
 #, c-format
 msgid "Flag is not a number in %s line %d: %s"
-msgstr "Դրոշմանիշը թիվ չէ, %s, տող %d: %s"
+msgstr "Դրոշը թիվ չէ, %s, տող %d: %s"
 
 #, c-format
 msgid "Illegal flag in %s line %d: %s"
@@ -3176,7 +3201,7 @@ msgstr "Չթույլատրված դրոշմանիշ, %s տող %d: %s"
 
 #, c-format
 msgid "%s value differs from what is used in another .aff file"
-msgstr "%s արժեքը տարբերէ այլ .aff ֆայլում օգտագործված արժեքից"
+msgstr "%s արժեքը տարբեր է այլ .aff ֆայլում օգտագործված արժեքից"
 
 #, c-format
 msgid "Reading dictionary file %s..."
@@ -3188,11 +3213,11 @@ msgstr "տող %6d, բառ %6ld - %s"
 
 #, c-format
 msgid "Duplicate word in %s line %d: %s"
-msgstr "Կրկնակի բառ %s֊ում, տող %d: %s"
+msgstr "Կրկնվող բառ %s֊ում, տող %d: %s"
 
 #, c-format
 msgid "First duplicate word in %s line %d: %s"
-msgstr "Առաջին կրկնված բառը %s֊ում, տող %d: %s"
+msgstr "Առաջին կրկնվող բառը %s֊ում, տող %d: %s"
 
 #, c-format
 msgid "%d duplicate word(s) in %s"
@@ -3200,7 +3225,7 @@ msgstr "%d կրկնվող բառեր՝ %s֊ում"
 
 #, c-format
 msgid "Ignored %d word(s) with non-ASCII characters in %s"
-msgstr "Անտեսված %d բառեր՝ ոչ ASCII նշաններով, %s"
+msgstr "Անտեսված %d բառեր՝ ոչ ASCII նիշերով, %s"
 
 #, c-format
 msgid "Reading word file %s..."
@@ -3220,7 +3245,7 @@ msgstr "/encoding= տողն անտեսված է %s֊ում, տող %ld: %s"
 
 #, c-format
 msgid "Duplicate /regions= line ignored in %s line %ld: %s"
-msgstr "Կրկնակի /regions= տողն անտեսված է %s֊ում, տող %ld: %s"
+msgstr "Կրկնվող /regions= տողն անտեսված է %s֊ում, տող %ld: %s"
 
 #, c-format
 msgid "Too many regions in %s line %ld: %s"
@@ -3240,7 +3265,7 @@ msgstr "Անծանոթ դրոշմանիշ, %s, տող %ld: %s"
 
 #, c-format
 msgid "Ignored %d words with non-ASCII characters"
-msgstr "Անտեսված %d բառեր՝ ոչ ASCII նշաններով"
+msgstr "Անտեսված %d բառեր՝ ոչ ASCII նիշերով"
 
 #, c-format
 msgid "Compressed %s: %ld of %ld nodes; %ld (%ld%%) remaining"
@@ -3283,7 +3308,7 @@ msgid "Word '%.*s' removed from %s"
 msgstr "'%.*s' բառը հեռացվել է %s-ից"
 
 msgid "Seek error in spellfile"
-msgstr "Սխալ փնտրեք spellfile-ում"
+msgstr "Ցուցչի տեղափոխման սխալ spellfile-ում"
 
 #, c-format
 msgid "Word '%.*s' added to %s"
@@ -3316,18 +3341,6 @@ msgstr "ուղղագրական iskeyword-ը սահմանված չէ"
 msgid "syncing on C-style comments"
 msgstr "C-style մեկնաբանությունների համաժամանակեցում"
 
-msgid "no syncing"
-msgstr "առանց սինխրոնիզացման"
-
-msgid "syncing starts at the first line"
-msgstr "համաժամացումը սկսվում է առաջին տողից"
-
-msgid "syncing starts "
-msgstr "համաժամանակեցումն սկսվում է "
-
-msgid " lines before top line"
-msgstr " տողեր՝ վերևի տողից առաջ"
-
 msgid ""
 "\n"
 "--- Syntax sync items ---"
@@ -3341,6 +3354,18 @@ msgid ""
 msgstr ""
 "\n"
 "էլեմենտների համաժամանակեցում"
+
+msgid "no syncing"
+msgstr "առանց համաժամացման"
+
+msgid "syncing starts at the first line"
+msgstr "համաժամացումը սկսվում է առաջին տողից"
+
+msgid "syncing starts "
+msgstr "համաժամացումն սկսվում է "
+
+msgid " lines before top line"
+msgstr " տողեր՝ վերևի տողից առաջ"
 
 msgid ""
 "\n"
@@ -3359,7 +3384,7 @@ msgid "maximal "
 msgstr "առավելագույնը "
 
 msgid "; match "
-msgstr "; համընկնում  "
+msgstr "; համընկնում "
 
 msgid " line breaks"
 msgstr " տողի ընդհատում"
@@ -3368,7 +3393,7 @@ msgid ""
 "  TOTAL      COUNT  MATCH   SLOWEST     AVERAGE   NAME               PATTERN"
 msgstr ""
 "  ԱՄԲՈՂՋ      ՔԱՆԱԿ  ՀԱՄԸՆԿՆՈՒՄ   ՄՆԱՑՅԱԼ    ՄԻՋԻՆ    ԱՆՈՒՆ                "
-"ՕՐԻՆԱԿ"
+"ՆՄՈՒՇ"
 
 #, c-format
 msgid "File \"%s\" does not exist"
@@ -3410,7 +3435,7 @@ msgstr "Որոնում %s պիտակների ֆայլում"
 
 #, c-format
 msgid "Duplicate field name: %s"
-msgstr "Կրկնակի դաշտի անուն: %s"
+msgstr "Կրկնվող դաշտի անուն: %s"
 
 msgid "' not known. Available builtin terminals are:"
 msgstr "' անծանոթ է. Գոյություն ունեցող ներդրված տերմինալներն հետևյալն են:"
@@ -3464,43 +3489,43 @@ msgid "Vim: Error reading input, exiting...\n"
 msgstr "Vim: Մուտքի ընթերցման սխալ, ավարտում...\n"
 
 msgid "No undo possible; continue anyway"
-msgstr "Չեղարկումն անհնար է; այնուամենայնիվ շարունակել"
+msgstr "Հետարկումն անհնար է; այնուամենայնիվ շարունակել"
 
 msgid "Cannot write undo file in any directory in 'undodir'"
 msgstr ""
-"Հնարավոր չէ ամրագրել չեղարկման ֆայլը՝ 'undodir'-ի որևէ ենթաթղթապանակում"
+"Հնարավոր չէ ամրագրել հետարկման ֆայլը՝ 'undodir'-ի որևէ ենթաթղթապանակում"
 
 #, c-format
 msgid "Will not overwrite with undo file, cannot read: %s"
-msgstr "Չեղարկման ֆայլը չի պահպանվելու, անհնար է ընթերցել: %s"
+msgstr "Հետարկման ֆայլը չի պահպանվելու, անհնար է ընթերցել: %s"
 
 #, c-format
 msgid "Will not overwrite, this is not an undo file: %s"
-msgstr "Չի պահպանվելու, սա չեղարկման ֆայլ չէ: %s"
+msgstr "Չի պահպանվելու, սա հետարկման ֆայլ չէ: %s"
 
 msgid "Skipping undo file write, nothing to undo"
-msgstr "Չեղարկման ֆայլի ամրագրումն անտեսվում է, չեղարկումներ չկան"
+msgstr "Հետարկման ֆայլի ամրագրումն անտեսվում է, հետարկումներ չկան"
 
 #, c-format
 msgid "Writing undo file: %s"
-msgstr "Չեղարկման ֆայլի պահպանում: %s"
+msgstr "Հետարկման ֆայլի պահպանում: %s"
 
 #, c-format
 msgid "Not reading undo file, owner differs: %s"
-msgstr "Չեղարկման ֆայլը չի ընթերցվելու, այն պատկանում է մեկ այլ օգտատիրոջը: %s"
+msgstr "Հետարկման ֆայլը չի ընթերցվելու, այն պատկանում է մեկ այլ օգտատիրոջը: %s"
 
 #, c-format
 msgid "Reading undo file: %s"
-msgstr "Չեղարկման ֆայլի ընթերցում: %s"
+msgstr "Հետարկման ֆայլի ընթերցում: %s"
 
 msgid "File contents changed, cannot use undo info"
 msgstr ""
-"Ֆայլի պարունակությունը փոփոխվել է, հնարավոր չէ օգտագործել չեղարկման "
+"Ֆայլի պարունակությունը փոփոխվել է, հնարավոր չէ օգտագործել հետարկման "
 "տեղեկատվությունը"
 
 #, c-format
 msgid "Finished reading undo file %s"
-msgstr "Չեղարկման ֆայլի ընթերցումն ավարտվել է: %s"
+msgstr "Հետարկման ֆայլի ընթերցումն ավարտվել է: %s"
 
 msgid "Already at oldest change"
 msgstr "Արդեն հին փոփոխությունն է"
@@ -3537,7 +3562,7 @@ msgid "after"
 msgstr "հետո"
 
 msgid "Nothing to undo"
-msgstr "Չեղարկում չկա"
+msgstr "Հետարկում չկա"
 
 msgid "number changes  when               saved"
 msgstr "թվերը փոփոխվում են երբ              պահպանված է"
@@ -3718,29 +3743,35 @@ msgstr ""
 msgid "without GUI."
 msgstr "առանց գրաֆիկական ինտերֆեյսի."
 
+msgid "with GTK4 GUI (hwaccel)."
+msgstr "GTK4 GUI (hwaccel)-ով."
+
+msgid "with GTK4 GUI."
+msgstr "GTK4 GUI-ով."
+
 msgid "with GTK3 GUI."
-msgstr "GTK3 GUI-ով:"
+msgstr "GTK3 GUI-ով."
 
 msgid "with GTK2-GNOME GUI."
-msgstr "GTK2-GNOME GUI-ով:"
+msgstr "GTK2-GNOME GUI-ով."
 
 msgid "with GTK2 GUI."
-msgstr "GTK2 GUI-ով:"
+msgstr "GTK2 GUI-ով."
 
 msgid "with X11-Motif GUI."
-msgstr "X11-Motif GUI-ով:"
+msgstr "X11-Motif GUI-ով,"
 
 msgid "with Haiku GUI."
-msgstr "Haiku GUI-ի հետ:"
+msgstr "Haiku GUI-ով."
 
 msgid "with Photon GUI."
-msgstr "Photon GUI-ով:"
+msgstr "Photon GUI-ով."
 
 msgid "with GUI."
-msgstr "GUI-ով:"
+msgstr "GUI-ով."
 
 msgid "  Features included (+) or not (-):\n"
-msgstr "  Առանձնահատկությունների միացում (+) և անջաատում (-):\n"
+msgstr "  Առանձնահատկությունների միացում (+) և անջատում (-):\n"
 
 msgid "   system vimrc file: \""
 msgstr "            համակարգային vimrc: \""
@@ -3749,10 +3780,10 @@ msgid "     user vimrc file: \""
 msgstr "         օգտատիրոջ ֆայլ vimrc: \""
 
 msgid " 2nd user vimrc file: \""
-msgstr "  օգտատիրոջ երկրորդ ֆայլ vimrc: \""
+msgstr " օգտատիրոջ երկրորդ ֆայլ vimrc: \""
 
 msgid " 3rd user vimrc file: \""
-msgstr " օգտատիրոջ երրորդ ֆայլ  vimrc: \""
+msgstr " օգտատիրոջ երրորդ ֆայլ vimrc: \""
 
 msgid " 4th user vimrc file: \""
 msgstr " օգտատիրոջ 4-րդ vimrc ֆայլ : \""
@@ -3770,10 +3801,10 @@ msgid "    user gvimrc file: \""
 msgstr "        օգտատիրոջ ֆայլ gvimrc: \""
 
 msgid "2nd user gvimrc file: \""
-msgstr "օգտատիրոջ երկրորդ ֆայլ  gvimrc: \""
+msgstr "օգտատիրոջ երկրորդ ֆայլ gvimrc: \""
 
 msgid "3rd user gvimrc file: \""
-msgstr "օգտատիրոջ երրորդ ֆայլ  gvimrc: \""
+msgstr "օգտատիրոջ երրորդ ֆայլ gvimrc: \""
 
 msgid "       defaults file: \""
 msgstr "       լռելյայն ֆայլ."
@@ -3785,10 +3816,10 @@ msgid "  fall-back for $VIM: \""
 msgstr "          վերադարձ $VIM֊ին: \""
 
 msgid " f-b for $VIMRUNTIME: \""
-msgstr "   $VIMRUNTIME՝ ըստ լռելիության: \""
+msgstr " $VIMRUNTIME՝ ըստ լռելիության: \""
 
 msgid "Compilation: "
-msgstr "Կառուցման պարամետրեր: "
+msgstr "Կառուցում : "
 
 msgid "Compiler: "
 msgstr "Կառուցող: "
@@ -3843,7 +3874,7 @@ msgid "Running modeless, typed text is inserted"
 msgstr "Անռեժիմ վիճակ, հավաքած տեքստի զետեղում"
 
 msgid "menu  Edit->Global Settings->Toggle Insert Mode  "
-msgstr "մենյու Խմբագրել->Գլոբալ կարգավորումներ->Փոխարկել Տեղադրման ռեժիմը  "
+msgstr "մենյու Խմբագրել->Գլոբալ կարգավորումներ->Փոխարկել զետեղման ռեժիմը  "
 
 msgid "                              for two modes      "
 msgstr "                         երկակի ռեժիմների համար      "
@@ -3861,7 +3892,7 @@ msgid "type  :help sponsor<Enter>    for information "
 msgstr ""
 "հավելյալ տեղեկատվություն ստանալու համար տալ :help sponsor<Enter>    հրամանը "
 
-msgid "menu  Help->Sponsor  for information    "
+msgid "menu  Help->Sponsor           for information    "
 msgstr "մենյու Օգնություն->Հովանավոր/Գրանցվել տեղեկությունների համար    "
 
 msgid "global"
@@ -4012,7 +4043,7 @@ msgid "Writing viminfo file \"%s\""
 msgstr "Viminfo ֆայլի փոփոխում \"%s\""
 
 msgid "wayland protocol error -> "
-msgstr "wayland պրոտոկոլի սխալ->  "
+msgstr "wayland պրոտոկոլի սխալ-> "
 
 #, c-format
 msgid "restoring Wayland display %s"
@@ -4075,30 +4106,30 @@ msgstr ""
 "որոնման ժամանակ"
 
 msgid "E13: File exists (add ! to override)"
-msgstr "E13: Ֆայլը գոյություն ունի (ամրագրելու համար ավելացրեք !)"
+msgstr "E13: Ֆայլը գոյություն ունի (ամրագրելու համար ավելացնել !)"
 
 #, c-format
 msgid "E15: Invalid expression: \"%s\""
 msgstr "E15: Անվավեր արտահայտություն: %s"
 
 msgid "E16: Invalid range"
-msgstr "E16: Անվավեր միջակայք"
+msgstr "E16: Անվավեր տիրույթ"
 
 #, c-format
 msgid "E17: \"%s\" is a directory"
-msgstr "E17: \"%s\" թղթապանակ է"
+msgstr "E17: \"%s\"-ը թղթապանակ է"
 
 msgid "E18: Unexpected characters in :let"
-msgstr "E18: Չսպասված տառ :let հրամանում"
+msgstr "E18: Չսպասված նիշեր :let հրամանում"
 
 msgid "E18: Unexpected characters in assignment"
-msgstr "E18: Չսպասված տառ վերագրման ժամանակ"
+msgstr "E18: Չսպասված նիշեր վերագրման ժամանակ"
 
 msgid "E19: Mark has invalid line number"
-msgstr "E19: Նշումն ունի անվավեր տողի համար"
+msgstr "E19: Նշակն ունի անվավեր տողի համար"
 
 msgid "E20: Mark not set"
-msgstr "E20: Նշումը սահմանված չէ"
+msgstr "E20: Նշակը սահմանված չէ"
 
 msgid "E21: Cannot make changes, 'modifiable' is off"
 msgstr "E21: Հնարավոր չէ փոփոխել, 'modifiable' հատկությունն անջատված է"
@@ -4154,7 +4185,7 @@ msgid "E37: No write since last change"
 msgstr "E37: Պահված չէ վերջին փոփոխությունից հետո"
 
 msgid "E37: No write since last change (add ! to override)"
-msgstr "E37: Փոփոխությունները պահպանված չեն (ամրագրելու համար ավելացրեք !)"
+msgstr "E37: Փոփոխությունները պահպանված չեն (ամրագրելու համար ավելացնել !)"
 
 msgid "E39: Number expected"
 msgstr "E39: Սպասվում է թիվ"
@@ -4170,7 +4201,7 @@ msgid "E42: No Errors"
 msgstr "E42: Սխալներ չկան"
 
 msgid "E45: 'readonly' option is set (add ! to override)"
-msgstr "E45: 'readonly' ընտրանքը միացված է (անցման համար ավելացնել !)"
+msgstr "E45: 'readonly' ընտրանքը միացված է (ամրագրելու համար ավելացնել !)"
 
 msgid "E46: Cannot change read-only variable"
 msgstr "E46: Հնարավոր չէ փոփոխել չխմբագրվող փոփոխականը"
@@ -4212,7 +4243,7 @@ msgstr "E55: Չհամընկնող %s)"
 
 #, c-format
 msgid "E59: Invalid character after %s@"
-msgstr "E59: Անվավեր նշան՝ %s@-ից հետո"
+msgstr "E59: Անվավեր նիշ՝ %s@-ից հետո"
 
 #, c-format
 msgid "E60: Too many complex %s{...}s"
@@ -4243,11 +4274,11 @@ msgid "E67: \\z1 - \\z9 not allowed here"
 msgstr "E67: \\z1 - \\z9 աստեղ չեն թույլատրվում"
 
 msgid "E68: Invalid character after \\z"
-msgstr "E68: Անվավեր նշան \\z֊ից հետո"
+msgstr "E68: Անվավեր նիշ \\z֊ից հետո"
 
 #, c-format
 msgid "E69: Missing ] after %s%%["
-msgstr "E69: Բացակայող ]  %s%%[֊ից հետո"
+msgstr "E69: Բացակայող ] %s%%[֊ից հետո"
 
 #, c-format
 msgid "E70: Empty %s%%[]"
@@ -4255,7 +4286,7 @@ msgstr "E70: Դատարկ %s%%[]"
 
 #, c-format
 msgid "E71: Invalid character after %s%%"
-msgstr "E71: Անվավեր նշան %s%%֊ից հետո"
+msgstr "E71: Անվավեր նիշ %s%%֊ից հետո"
 
 msgid "E72: Close error on swap file"
 msgstr "E72: Սվեփ ֆայլի փակման սխալ"
@@ -4276,13 +4307,13 @@ msgid "E77: Too many file names"
 msgstr "E77: Աննախադեպ շատ ֆայլերի անուններ"
 
 msgid "E78: Unknown mark"
-msgstr "E78: Անծանոթ նշում"
+msgstr "E78: Անծանոթ նշակ"
 
 msgid "E79: Cannot expand wildcards"
 msgstr "E79: Հնարավոր չէ արտածել"
 
 msgid "E80: Error while writing"
-msgstr "E80: Սխալ գրելու ընթացում"
+msgstr "E80: Սխալ գրելու ընթացքում"
 
 msgid "E81: Using <SID> not in a script context"
 msgstr "E81: <SID>-ն օգտագործվել է սկրիպտային կոնտեքստից դուրս"
@@ -4315,7 +4346,7 @@ msgstr "E88: Սա առաջին բուֆերն է"
 msgid "E89: No write since last change for buffer %d (add ! to override)"
 msgstr ""
 "E89: %d բուֆերի փոփոխությունները չեն ամրագրվել, (ամրագրելու համար "
-"ավելացրեք !)"
+"ավելացնել !)"
 
 msgid "E90: Cannot unload last buffer"
 msgstr "E90: Հնարավոր չէ բեռնաթափել վերջին բուֆերը"
@@ -4333,7 +4364,7 @@ msgstr "E93: Մի քանի համընկնումներ %s-ի համար"
 
 #, c-format
 msgid "E94: No matching buffer for %s"
-msgstr "E94: Չկա համապատասխան բուֆեր %s-ի համար"
+msgstr "E94: Չկա համընկնող բուֆեր %s-ի համար"
 
 msgid "E95: Buffer with this name already exists"
 msgstr "E95: Նմանատիպ անունով բուֆեր արդեն գոյություն ունի"
@@ -4352,7 +4383,7 @@ msgid "E99: Current buffer is not in diff mode"
 msgstr "E99: Տվյալ բուֆերը չի գտվում համեմատման կարգավիճակում"
 
 msgid "E100: No other buffer in diff mode"
-msgstr "E100:  Համեմատման բուֆերներ այլևս չկան"
+msgstr "E100: Համեմատման բուֆերներ այլևս չկան"
 
 msgid "E101: More than two buffers in diff mode, don't know which one to use"
 msgstr "E101: Տրված են մի քանի համեմատման բուֆերներ, չգիտեմ որն օգտագործել"
@@ -4462,8 +4493,7 @@ msgstr "E127: Հնարավոր չէ վերասահմանել %s ֆունկցիա
 
 #, c-format
 msgid "E128: Function name must start with a capital or \"s:\": %s"
-msgstr ""
-"E128: Ֆունկցիայի անունը պետք է սկսվի մեծատառով կամ պարունակի \"s:\": %s"
+msgstr "E128: Ֆունկցիայի անունը պետք է սկսվի մեծատառով կամ \"s:\"-ով: %s"
 
 msgid "E129: Function name required"
 msgstr "E129: Ֆունկցիայի անունը պարտադիր է"
@@ -4479,7 +4509,7 @@ msgid "E133: :return not inside a function"
 msgstr "E133: :return ոչ ֆունկցիայի ներսից"
 
 msgid "E134: Cannot move a range of lines into itself"
-msgstr "E134: Հնարավոր չէ տեղափոխել մի շարք տողեր իր մեջ"
+msgstr "E134: Հնարավոր չէ տեղափոխել տողերի տիրույթն իր մեջ"
 
 msgid "E135: *Filter* Autocommands must not change current buffer"
 msgstr "E135: *Filter* Ինքնահրամանները չպետք է փոխեն տվյալ բուֆերը"
@@ -4524,7 +4554,7 @@ msgid "E146: Regular expressions can't be delimited by letters"
 msgstr "E146: Ռեգուլյար արտահայտությունները չեն կարող բաժանված լինել տառերով"
 
 msgid "E147: Cannot do :global recursive with a range"
-msgstr "E147: global հրամանը չի կարող լինել ռեկուրսիվ"
+msgstr "E147: :global հրամանը չի կարող ռեկուրսիվ լինել տիրույթի հետ"
 
 msgid "E148: Regular expression missing from :global"
 msgstr "E148: Ռեգույլար արտահայտությունը բացակայում է :global-ից"
@@ -4551,7 +4581,7 @@ msgstr "E153: Հնարավոր չէ բացել %s֊ը կարդալու համա�
 
 #, c-format
 msgid "E154: Duplicate tag \"%s\" in file %s/%s"
-msgstr "E154: Կրկնված պիտակ \"%s\" %s/%s֊ֆայլում"
+msgstr "E154: Կրկնվող պիտակ \"%s\" %s/%s֊ֆայլում"
 
 #, c-format
 msgid "E155: Unknown sign: %s"
@@ -4672,14 +4702,14 @@ msgid "E186: No previous directory"
 msgstr "E186: Չկա նախկին թղթապանակ"
 
 msgid "E187: Directory unknown"
-msgstr "E187: Անծանոթ բառարան"
+msgstr "E187: Անծանոթ թղթապանակ"
 
 msgid "E188: Obtaining window position not implemented for this platform"
 msgstr "E188: Պատուհանի չափեր վերցնելն իրականացված չէ այս պլատֆորմի համար"
 
 #, c-format
 msgid "E189: \"%s\" exists (add ! to override)"
-msgstr "E189: \"%s\" արդեն գոյություն ունի (անցման համար ավելացնել !)"
+msgstr "E189: \"%s\" արդեն գոյություն ունի (ամրագրելու համար ավելացնել !)"
 
 #, c-format
 msgid "E190: Cannot open \"%s\" for writing"
@@ -4709,13 +4739,13 @@ msgid "E197: Cannot set language to \"%s\""
 msgstr "E197: Հնարավոր չէ փոխել լեզուն \"%s\""
 
 msgid "E199: Active window or buffer changed or deleted"
-msgstr "E199: Ակտիվ պատուհանը կամ բուֆերը ջնջնվել կամ փոփոխվել է"
+msgstr "E199: Ակտիվ պատուհանը կամ բուֆերը ջնջվել կամ փոփոխվել է"
 
 msgid "E200: *ReadPre autocommands made the file unreadable"
 msgstr "E200: *ReadPre ինքնահրամանները ֆայլը դարձրել են անընթեռնելի"
 
 msgid "E201: *ReadPre autocommands must not change current buffer"
-msgstr "E201: ReadPre ինքնահրամանները չեն կարող փոխել տվյալ բուֆերը"
+msgstr "E201: *ReadPre ինքնահրամանները չեն կարող փոխել տվյալ բուֆերը"
 
 msgid "E202: Conversion made file unreadable!"
 msgstr "E202: Փոխակերպումը ֆայլը դարձրել է անընթեռնելի!"
@@ -4737,7 +4767,7 @@ msgstr "E207: Հնարավոր չէ ջնջել պահպանման ֆայլը"
 
 #, c-format
 msgid "E208: Error writing to \"%s\""
-msgstr "E208: Սխալ \"%s\" գրոլու ընթացքում"
+msgstr "E208: Սխալ \"%s\" գրելու ընթացքում"
 
 #, c-format
 msgid "E209: Error closing \"%s\""
@@ -4749,7 +4779,7 @@ msgstr "E210: Սխալ \"%s\" կարդալու ընթացքում"
 
 #, c-format
 msgid "E211: File \"%s\" no longer available"
-msgstr "E211: \"%s\" ֆայլն արդեն հասնելի չէ"
+msgstr "E211: \"%s\" ֆայլն արդեն հասանելի չէ"
 
 msgid "E212: Can't open file for writing"
 msgstr "E212: Գրելու համար հնարավոր չէ բացել ֆայլը"
@@ -4762,7 +4792,7 @@ msgstr "E214: Ժամանակավոր ֆայլը չի գտնվել՝ գրելու
 
 #, c-format
 msgid "E215: Illegal character after *: %s"
-msgstr "E215: Չթույլատրված նշան * նշանից հետո: %s"
+msgstr "E215: Չթույլատրված նիշ * նշանից հետո: %s"
 
 #, c-format
 msgid "E216: No such event: %s"
@@ -4808,7 +4838,7 @@ msgid "E227: Mapping already exists for %s"
 msgstr "E227: Համապատասխանեցումն արդեն գոյություն ունի %s-ի համար"
 
 msgid "E229: Cannot start the GUI"
-msgstr "E229: Հնարավոր չէ սկսել  գրաֆիկական ինտերֆեյսը"
+msgstr "E229: Հնարավոր չէ սկսել գրաֆիկական ինտերֆեյսը"
 
 #, c-format
 msgid "E230: Cannot read from \"%s\""
@@ -4855,7 +4885,7 @@ msgstr "E242: Չի կարելի պատուհանը բաժանել մյուսը �
 
 #, c-format
 msgid "E243: Argument not supported: \"-%s\"; Use the OLE version."
-msgstr "E243: Արգումենտն իրականցաված չէ: \"-%s\"; Օգտագործել OLE տարբերակը."
+msgstr "E243: Արգումենտը չի աջակցվում: \"-%s\"; Օգտագործել OLE տարբերակը."
 
 #, c-format
 msgid "E244: Illegal %s name \"%s\" in font name \"%s\""
@@ -4863,7 +4893,7 @@ msgstr "E244: %s չթույլատրված անուն \"%s\"՝ \"%s\" տառատ�
 
 #, c-format
 msgid "E245: Illegal char '%c' in font name \"%s\""
-msgstr "E245: Չթույլատրված '%c'  նշան՝ \"%s\" տառատեսակի անվանման մեջ"
+msgstr "E245: Չթույլատրված '%c' նշան՝ \"%s\" տառատեսակի անվանման մեջ"
 
 msgid "E246: FileChangedShell autocommand deleted buffer"
 msgstr ""
@@ -4996,7 +5026,7 @@ msgid "E285: Failed to create input context"
 msgstr "E285: Հնարավոր չէ ստեղծել մուտքային կոնտեքստ"
 
 msgid "E286: Failed to open input method"
-msgstr "E286: Հնարավոր չէ բացել մուտքային մեթոսը"
+msgstr "E286: Հնարավոր չէ բացել մուտքային մեթոդը"
 
 msgid "E287: Warning: Could not set destroy callback to IM"
 msgstr "E287: Զգուշացում: հնարավոր չէ վերագրել IM֊ի ջնջման կանչըввода"
@@ -5059,7 +5089,7 @@ msgstr "E309: Հնարավոր չե կարդալ 1֊ին բլոկը %s֊ից"
 
 #, c-format
 msgid "E310: Block 1 ID wrong (%s not a .swp file?)"
-msgstr "E310: Սխալ բլոկի համար, 1,  (%s֊ը .swp սվեփ ֆայլ չի՞)"
+msgstr "E310: Սխալ բլոկի համար, 1, (%s֊ը .swp սվեփ ֆայլ չի՞)"
 
 msgid "E311: Recovery Interrupted"
 msgstr "E311: Վերականգնումն ընդհատված է"
@@ -5112,7 +5142,7 @@ msgid "E332: Separator cannot be part of a menu path"
 msgstr "E332: Բաժանիչը չի կարող լինել մենյուի ճանապարհի մաս"
 
 msgid "E333: Menu path must lead to a menu item"
-msgstr "E333: Մենյուի ճանապարհը պետք է ներկայացնի մենյուի էլէմենտ"
+msgstr "E333: Մենյուի ճանապարհը պետք է ներկայացնի մենյուի էլեմենտ"
 
 #, c-format
 msgid "E334: Menu not found: %s"
@@ -5195,11 +5225,11 @@ msgstr "E355: Անծանոթ ընտրանք: %s"
 
 #, c-format
 msgid "E357: 'langmap': Matching character missing for %s"
-msgstr "E357: 'langmap':  %s-ի համար չկա համընկնման նշան"
+msgstr "E357: 'langmap': %s-ի համար չկա համընկնման նիշ"
 
 #, c-format
 msgid "E358: 'langmap': Extra characters after semicolon: %s"
-msgstr "E358: 'langmap': Ստորակետից հետո տրված են հավելյալ նշաններ: %s"
+msgstr "E358: 'langmap': Ստորակետից հետո տրված են հավելյալ նիշեր: %s"
 
 msgid "E359: Screen mode setting not supported"
 msgstr "E359: Տրված էկրանի ռեժիմն աջակցված չէ"
@@ -5212,7 +5242,7 @@ msgstr "E362: բուլյան արժեքի օգտագործումը որպես Fl
 
 msgid "E363: Pattern uses more memory than 'maxmempattern'"
 msgstr ""
-"E363: Օրինակն օգտագործում է ավելի շատ հիշողություն քան տրված է "
+"E363: Նմուշն օգտագործում է ավելի շատ հիշողություն, քան տրված է "
 "'maxmempattern'-ով"
 
 #, c-format
@@ -5265,7 +5295,7 @@ msgstr "E376: Անվավեր %%%c տողային ֆորմատի նախածանց
 
 #, c-format
 msgid "E377: Invalid %%%c in format string"
-msgstr "E377: Անվավեր  %%%c"
+msgstr "E377: Անվավեր %%%c"
 
 msgid "E378: 'errorformat' contains no pattern"
 msgstr "E378: 'errorformat'-ը չի պարունակում նմուշներ"
@@ -5277,7 +5307,7 @@ msgid "E380: At bottom of quickfix stack"
 msgstr "E380: quickfix ստեկի ներքևում"
 
 msgid "E381: At top of quickfix stack"
-msgstr "E381:  quickfix ստեկի վերևում"
+msgstr "E381: quickfix ստեկի վերևում"
 
 msgid "E382: Cannot write, 'buftype' option is set"
 msgstr "E382: Պահպանումն անհնար է, 'buftype' ընտրանքը միացված է"
@@ -5288,11 +5318,11 @@ msgstr "E383: Անվավեր որոնման բառ: %s"
 
 #, c-format
 msgid "E384: Search hit TOP without match for: %s"
-msgstr "E384: Որոնումն ավարտված է ֆայլի սկզբում; %s-ը չի գտնվել"
+msgstr "E384: Որոնումն ավարտված է ֆայլի սկզբում; %s-ի համընկնում չի գտնվել"
 
 #, c-format
 msgid "E385: Search hit BOTTOM without match for: %s"
-msgstr "E385: Որոնումն ավարտված է ֆայլի վերջում; %s-ը չի գտնվել"
+msgstr "E385: Որոնումն ավարտված է ֆայլի վերջում; %s-ի համընկնում չի գտնվել"
 
 msgid "E386: Expected '?' or '/'  after ';'"
 msgstr "E386:  ';'-ից հետո սպասվում '?' կամ '/'"
@@ -5337,7 +5367,7 @@ msgstr "E398: Բացակայող '=': %s"
 
 #, c-format
 msgid "E399: Not enough arguments: syntax region %s"
-msgstr "E399: Անբավարար քանակությամբ արգումենտներ։  syntax region %s"
+msgstr "E399: Անբավարար քանակությամբ արգումենտներ։ syntax region %s"
 
 msgid "E400: No cluster specified"
 msgstr "E400: Համակարգը տրված չէ"
@@ -5356,7 +5386,7 @@ msgstr ""
 
 #, c-format
 msgid "E404: Illegal arguments: %s"
-msgstr "E404: Չթույլատրված պարամետրեր: %s"
+msgstr "E404: Չթույլատրված արգումենտներ: %s"
 
 #, c-format
 msgid "E405: Missing equal sign: %s"
@@ -5364,7 +5394,7 @@ msgstr "E405: Բացակայող վերագրման նշան: %s"
 
 #, c-format
 msgid "E406: Empty argument: %s"
-msgstr "E406: Դատարկ պարամետեր: %s"
+msgstr "E406: Դատարկ արգումենտ: %s"
 
 #, c-format
 msgid "E407: %s not allowed here"
@@ -5388,14 +5418,14 @@ msgstr "E411: %s գունանշման խումբը չի հայտնաբերվել
 
 #, c-format
 msgid "E412: Not enough arguments: \":highlight link %s\""
-msgstr "E412: Անբավարար քանակությամբ պարամետրեր: \":highlight link %s\""
+msgstr "E412: Անբավարար քանակությամբ արգումենտներ: \":highlight link %s\""
 
 #, c-format
 msgid "E413: Too many arguments: \":highlight link %s\""
-msgstr "E413: Շատ քանակությամ պարամետրեր: \":highlight link %s\""
+msgstr "E413: Շատ քանակությամբ արգումենտներ: \":highlight link %s\""
 
 msgid "E414: Group has settings, highlight link ignored"
-msgstr "E414: Խումբն ունի կարգաբերումներ, գունանշման հղումն անտեսված է"
+msgstr "E414: Խումբն ունի կարգավորումներ, գունանշման հղումն անտեսված է"
 
 #, c-format
 msgid "E415: Unexpected equal sign: %s"
@@ -5414,7 +5444,7 @@ msgid "E418: Illegal value: %s"
 msgstr "E418: Չթույլատրված արժեք: %s"
 
 msgid "E418: I'm a teapot"
-msgstr "E418: Ես թեյնիկ եմ"
+msgstr "E418: Ես թեյնիկ եմ :)"
 
 msgid "E419: FG color unknown"
 msgstr "E419: Տողի անծանոթ գույն"
@@ -5432,7 +5462,7 @@ msgstr "E422: Տերմինալի կոդը չափազանց երկար է՝ %s"
 
 #, c-format
 msgid "E423: Illegal argument: %s"
-msgstr "E423: Չթույլատրված պարամետեր: %s"
+msgstr "E423: Չթույլատրված արգումենտ: %s"
 
 msgid "E424: Too many different highlighting attributes in use"
 msgstr "E424: Աննախադեպ շատ գունանշման բնորոշիչներ են օգտագործվում"
@@ -5477,7 +5507,7 @@ msgstr "E435: Պիտակը չի գտնվել, փորձում եմ գուշակե
 
 #, c-format
 msgid "E436: No \"%s\" entry in termcap"
-msgstr "E436:  \"%s\"֊ը termcap֊ում չկա"
+msgstr "E436: \"%s\"֊ը termcap֊ում չկա"
 
 msgid "E437: Terminal capability \"cm\" required"
 msgstr "E437: Պահանջվում է \"cm\" տերմինալի առկայություն"
@@ -5542,11 +5572,6 @@ msgstr "E456: PostScript֊ի \"%s.ps\" ռեսուրսային ֆայլը չի գ
 msgid "E457: Can't read PostScript resource file \"%s\""
 msgstr "E457: Հնարավոր չէ կարդալ \"%s\" PostScript֊ի ռեսուրս ֆայլը"
 
-msgid "E458: Cannot allocate colormap entry, some colors may be incorrect"
-msgstr ""
-"E458: Հնարավոր չէ ստեղծել colormap տիպի էլեմենտ, որոշ գույներ հնարավոր է "
-"սխալ լինեն"
-
 msgid "E459: Cannot go back to previous directory"
 msgstr "E459: Հնարավոր չէ վերադառնալ նախկին թղթապանակ"
 
@@ -5555,7 +5580,7 @@ msgstr "E460: Mapset()-ում բացակայում են գրառումները d
 
 #, c-format
 msgid "E461: Illegal variable name: %s"
-msgstr "E461: Չթույլատրված արժեք: %s"
+msgstr "E461: Փոփոխականի անթույլատրելի անուն: %s"
 
 #, c-format
 msgid "E462: Could not prepare for reloading \"%s\""
@@ -5565,7 +5590,7 @@ msgid "E463: Region is guarded, cannot modify"
 msgstr "E463: Ռեգիոնը պահպանվում է, հնարավոր չէ փոփոխել"
 
 msgid "E464: Ambiguous use of user-defined command"
-msgstr "E464: Օգտատիրոջ սահմանած հրամաի սխալ օգտագործում"
+msgstr "E464: Օգտատիրոջ սահմանած հրամանի սխալ օգտագործում"
 
 #, c-format
 msgid "E464: Ambiguous use of user-defined command: %s"
@@ -5578,12 +5603,12 @@ msgid "E466: :winpos requires two number arguments"
 msgstr "E466: :winpos հրամանը պահանջում է երկու թվային արգումենտներ"
 
 msgid "E467: Custom completion requires a function argument"
-msgstr "E467: անհատականացված ավտոլրացումը պահանջում է ֆունկցիայի արգումենտ"
+msgstr "E467: անհատականացված լրացումը պահանջում է ֆունկցիայի արգումենտ"
 
 msgid "E468: Completion argument only allowed for custom completion"
 msgstr ""
-"E468: Ավտոլրացման արգումենտ թույլատրվում է միայն անհատականացված "
-"ավտոլրացումների համար"
+"E468: Ավտոլրացման արգումենտ թույլատրվում է միայն անհատականացված լրացումների "
+"համար"
 
 #, c-format
 msgid "E469: Invalid cscopequickfix flag %c for %c"
@@ -5599,19 +5624,19 @@ msgid "E472: Command failed"
 msgstr "E472: Հրամանը ձախողվել է"
 
 msgid "E474: Invalid argument"
-msgstr "E474: Անվավեր պարամետր"
+msgstr "E474: Անվավեր արգումենտ"
 
 #, c-format
 msgid "E475: Invalid argument: %s"
-msgstr "E475: Անվավեր պարամետր: %s"
+msgstr "E475: Անվավեր արգումենտ: %s"
 
 #, c-format
 msgid "E475: Invalid value for argument %s"
-msgstr "E475: Անվավեր պարամետրի արժեք: %s"
+msgstr "E475: Անվավեր արգումենտի արժեք: %s"
 
 #, c-format
 msgid "E475: Invalid value for argument %s: %s"
-msgstr "E475: Անվավեր պարամետրի արժեք: %s: %s"
+msgstr "E475: Անվավեր արգումենտի արժեք: %s: %s"
 
 msgid "E476: Invalid command"
 msgstr "E476: Անվավեր հրաման"
@@ -5638,7 +5663,7 @@ msgid "E480: No match: %s"
 msgstr "E480: Համընկնում չկա: %s"
 
 msgid "E481: No range allowed"
-msgstr "E481: Չթույլատրված միջակայք"
+msgstr "E481: Չթույլատրված տիրույթ"
 
 #, c-format
 msgid "E482: Can't create file %s"
@@ -5670,11 +5695,11 @@ msgid "E487: Argument must be positive: %s"
 msgstr "E487: Արգումենտը պետք է լինի դրական ամբողջաթիվ։ %s"
 
 msgid "E488: Trailing characters"
-msgstr "E488: Ավելորդ նշաններ"
+msgstr "E488: Ավելորդ նիշեր"
 
 #, c-format
 msgid "E488: Trailing characters: %s"
-msgstr "E488: Ավելորդ նշաններ։ %s"
+msgstr "E488: Ավելորդ նիշեր։ %s"
 
 msgid "E489: No call stack to substitute for \"<stack>\""
 msgstr "E489: Կանչերի կույտ չկա \"<stack>\"-ի համար"
@@ -5690,7 +5715,7 @@ msgid "E492: Not an editor command"
 msgstr "E492: Անծանոթ հրաման"
 
 msgid "E493: Backwards range given"
-msgstr "E493: Տրված է հակադարձ միջակայք"
+msgstr "E493: Տրված է հակադարձ տիրույթ"
 
 msgid "E494: Use w or w>>"
 msgstr "E494: Օգտագործել w կամ w>>"
@@ -5732,15 +5757,15 @@ msgid "is read-only (cannot override: \"W\" in 'cpoptions')"
 msgstr "չխմբագրվող է (\"W\" in 'cpoptions')"
 
 msgid "is read-only (add ! to override)"
-msgstr "չխմբագրվող է (անցնելու համար ավելացրեք !)"
+msgstr "չխմբագրվող է (ամրագրելու համար ավելացնել !)"
 
 #, c-format
 msgid "E505: \"%s\" is read-only (add ! to override)"
-msgstr "E505: \"%s\" չխմբագրվող է (ավելացնել !)"
+msgstr "E505: \"%s\" չխմբագրվող է (ամրագրելու համար ավելացնել !)"
 
 msgid "E506: Can't write to backup file (add ! to override)"
 msgstr ""
-"E506: Հնարավոր չէ ամրագրել պահպանման ֆայլում (ամրագրելու համար ավելացրեք !)"
+"E506: Հնարավոր չէ ամրագրել պահպանման ֆայլում (ամրագրելու համար ավելացնել !)"
 
 msgid "E507: Close error for backup file (add ! to write anyway)"
 msgstr "E507: Պահպանման ֆայլի փակման սխալ (ամրագրելու համար ավելացրեք !)"
@@ -5751,7 +5776,7 @@ msgstr ""
 
 msgid "E509: Cannot create backup file (add ! to override)"
 msgstr ""
-"E509: Հնարավոր չէ ստեղծել պահպանման ֆայլը (ամրագրելու համար ավելացրեք !)"
+"E509: Հնարավոր չէ ստեղծել պահպանման ֆայլ (ամրագրելու համար ավելացնել !)"
 
 msgid "E510: Can't make backup file (add ! to write anyway)"
 msgstr ""
@@ -5803,13 +5828,13 @@ msgid "E521: Number required: &%s = '%s'"
 msgstr "E521: Պահանջվում է թիվ: &%s = '%s'"
 
 msgid "E522: Not found in termcap"
-msgstr "E522:  termcap֊ում չի հայտնաբերվել"
+msgstr "E522: termcap֊ում չի հայտնաբերվել"
 
 msgid "E523: Not allowed here"
 msgstr "E523: Այստեղ չի թույլատրվում"
 
 msgid "E524: Missing colon"
-msgstr "E524: Բացակայող վերջակետ"
+msgstr "E524: Բացակայող երկկետ"
 
 msgid "E525: Zero length string"
 msgstr "E525: Դատարկ տող"
@@ -5822,7 +5847,7 @@ msgid "E527: Missing comma"
 msgstr "E527: Բացակայող ստորակետ"
 
 msgid "E528: Must specify a ' value"
-msgstr "E528: Անհրաժեշտ է  '-ի համար տալ արժեք"
+msgstr "E528: Անհրաժեշտ է '-ի համար տալ արժեք"
 
 msgid "E529: Cannot set 'term' to empty string"
 msgstr "E529: Հնարավոր չէ 'term'-ին վերագրել դատարկ արժեք"
@@ -5844,14 +5869,14 @@ msgstr "E534: Անվավեր երկարությամբ տառատեսակ"
 
 #, c-format
 msgid "E535: Illegal character after <%c>"
-msgstr "E535: Սխալ նշան <%c>֊ից հետո"
+msgstr "E535: Սխալ նիշ <%c>֊ից հետո"
 
 msgid "E536: Comma required"
 msgstr "E536: Անհրաժեշտ է ստորակետ"
 
 #, c-format
 msgid "E537: 'commentstring' must be empty or contain %s"
-msgstr "E537:  'commentstring'֊ը պետք լինի դատարկ կամ պարունակի %s"
+msgstr "E537: 'commentstring'֊ը պետք է լինի դատարկ կամ պարունակի %s"
 
 #, c-format
 msgid "E538: Pattern found in every line: %s"
@@ -5859,7 +5884,7 @@ msgstr "E538: Ամեն տողում նմուշ է հայտնաբերվել: %s"
 
 #, c-format
 msgid "E539: Illegal character <%s>"
-msgstr "E539: Չթույլատրված նշան <%s>"
+msgstr "E539: Չթույլատրված նիշ <%s>"
 
 msgid "E540: Unclosed expression sequence"
 msgstr "E540: Չփակված արտահայտությունների հաջորդականություն"
@@ -5874,7 +5899,7 @@ msgid "E544: Keymap file not found"
 msgstr "E544: Բանալիային համապատասխանեցման ֆայլը չի հայտնաբերվել"
 
 msgid "E545: Missing colon"
-msgstr "E545: Բացակայող վերջակետ"
+msgstr "E545: Բացակայող երկկետ"
 
 msgid "E546: Illegal mode"
 msgstr "E546: Անծանոթ ռեժիմ"
@@ -5883,13 +5908,13 @@ msgid "E547: Illegal mouseshape"
 msgstr "E547: Կուրսորի անծանոթ տեսք"
 
 msgid "E548: Digit expected"
-msgstr "E548: Սպասվում է թիվ"
+msgstr "E548: Սպասվում է թվանշան"
 
 msgid "E549: Illegal percentage"
 msgstr "E549: Տոկոսի անսպասելի արժեք"
 
 msgid "E550: Missing colon"
-msgstr "E550: Բացակայող չակերտ"
+msgstr "E550: Բացակայող երկկետ"
 
 msgid "E551: Illegal component"
 msgstr "E551: Սխալ բաղադրիչ"
@@ -5947,7 +5972,7 @@ msgid "E567: No cscope connections"
 msgstr "E567: cscope կապեր չկան"
 
 msgid "E568: Duplicate cscope database not added"
-msgstr "E568: Գոյություն ունեցող cscope տվյալների բազան չի ավելացվել"
+msgstr "E568: Կրկնվող cscope տվյալների բազան չի ավելացվել"
 
 msgid ""
 "E571: Sorry, this command is disabled: the Tcl library could not be loaded."
@@ -6024,7 +6049,7 @@ msgstr ""
 
 msgid "E592: 'winwidth' cannot be smaller than 'winminwidth'"
 msgstr ""
-"E592:  'winwidth'-ի արժեքը չի կարող լինել ավելի փոքր քան 'winminwidth'-ի "
+"E592: 'winwidth'-ի արժեքը չի կարող լինել ավելի փոքր քան 'winminwidth'-ի "
 "արժեքը"
 
 #, c-format
@@ -6036,7 +6061,7 @@ msgid "E594: Need at least %d columns"
 msgstr "E594: Անհրաժեշտ են գոնե %d սյուններ"
 
 msgid "E595: 'showbreak' contains unprintable or wide character"
-msgstr "E595: 'showbreak'-ը պարունակում է չտպագրվող կամ երկար տառեր"
+msgstr "E595: 'showbreak'-ը պարունակում է չտպագրվող կամ լայն նիշ"
 
 msgid "E596: Invalid font(s)"
 msgstr "E596: Անվավեր տառատեսակներ"
@@ -6045,7 +6070,7 @@ msgid "E597: Can't select fontset"
 msgstr "E597: Հնարավոր չէ նշել տառատեսակների խումբը"
 
 msgid "E598: Invalid fontset"
-msgstr "E598:  Անվավեր տառատեսակների խումբ"
+msgstr "E598: Անվավեր տառատեսակների խումբ"
 
 msgid "E599: Value of 'imactivatekey' is invalid"
 msgstr "E599: 'imactivatekey'-ի արժեքն անվավեր է"
@@ -6137,7 +6162,7 @@ msgstr "E626: Անհնար է ստանալ cscope տվյալների բազայ�
 
 #, c-format
 msgid "E627: Missing colon: %s"
-msgstr "E627: Բացակայող վերջակետ։ %s"
+msgstr "E627: Բացակայող երկկետ։ %s"
 
 #, c-format
 msgid "E628: Missing ! or / in: %s"
@@ -6203,6 +6228,9 @@ msgstr "E647: Անվավեր բուֆերի անուն setDot-ում"
 msgid "E648: Invalid buffer identifier in close"
 msgstr "E648: Անվավեր բուֆերի անուն close-ում"
 
+msgid "E649: Invalid identifier name in defineAnnoType"
+msgstr "E649: Անվավեր նույնացուցիչ defineAnnoType-ում"
+
 msgid "E650: Invalid buffer identifier in defineAnnoType"
 msgstr "E650: Անվավեր բուֆերի նույնացուցիչ defineAnnoType-ում"
 
@@ -6214,7 +6242,7 @@ msgstr "E652: Անվավեր բուֆերի անուն getAnno-ում"
 
 #, c-format
 msgid "E654: Missing delimiter after search pattern: %s"
-msgstr "E654: Բացակայող բացատանիշ %s-ից հետո"
+msgstr "E654: Բացակայող բացատանիշ որոնման նմուշից հետո՝ %s"
 
 msgid "E655: Too many symbolic links (cycle?)"
 msgstr "E655: Աննախադեպ շատ խորհրդանշական հղումներ (ցի՞կլ)"
@@ -6262,7 +6290,7 @@ msgid "E668: Wrong access mode for NetBeans connection info file: \"%s\""
 msgstr "E668: NetBeans կապակցման տեղեկատվական ֆայլի սխալ ռեժիմ: \"%s\""
 
 msgid "E669: Unprintable character in group name"
-msgstr "E669: Չտպագրելի նշան՝ խմբի անվան մեջ"
+msgstr "E669: Չտպագրելի նիշ՝ խմբի անվան մեջ"
 
 #, c-format
 msgid "E670: Mix of help file encodings within a language: %s"
@@ -6277,7 +6305,7 @@ msgid "E672: Unable to open window inside MDI application"
 msgstr "E672: Հնարավոր չէ բացել պատուհանը MDI ծրագրում"
 
 msgid "E673: Incompatible multi-byte encoding and character set"
-msgstr "E673: Անհամապատասխան բազմաբայթ կոդավորում և տառատեսակների բազմություն"
+msgstr "E673: Անհամապատասխան բազմաբայթ կոդավորում և նիշերի բազմություն"
 
 msgid "E674: printmbcharset cannot be empty with multi-byte encoding."
 msgstr "E674: printmbcharset֊ը չի կարող դատարկ լինել բազմաբայթ կոդավորման հետ."
@@ -6288,14 +6316,14 @@ msgstr ""
 
 #, c-format
 msgid "E676: No matching autocommands for buftype=%s buffer"
-msgstr "E676: Buftype=%s բուֆերի համար համապատասխան ինքնահրամաններ չկան"
+msgstr "E676: Buftype=%s բուֆերի համար համընկնող ինքնահրամաններ չկան"
 
 msgid "E677: Error writing temp file"
 msgstr "E677: Սխալ է տեղի ունեցել ժամանակավոր ֆայլում գրելու ընթացքում"
 
 #, c-format
 msgid "E678: Invalid character after %s%%[dxouU]"
-msgstr "E678: Անվավեր նշան՝ %s%%[dxouU]-ից հետո"
+msgstr "E678: Անվավեր նիշ՝ %s%%[dxouU]-ից հետո"
 
 msgid "E679: Recursive loop loading syncolor.vim"
 msgstr "E679: Ռեկուրսիվ շրջակցային բեռնում syncolor.vim"
@@ -6315,15 +6343,15 @@ msgstr "E683: Ֆայլի անունը տրված չէ կամ տրված է ան�
 
 #, c-format
 msgid "E684: List index out of range: %ld"
-msgstr "E684: Ցանկի ինդեքսն անցել է թույլատրելի միջակայքը: %ld"
+msgstr "E684: Ցանկի ինդեքսն անցել է թույլատրելի տիրույթը: %ld"
 
 #, c-format
 msgid "E685: Internal error: %s"
-msgstr "E685:  Ներքին համակարգային սխալ: %s"
+msgstr "E685: Ներքին համակարգային սխալ: %s"
 
 #, c-format
 msgid "E686: Argument of %s must be a List"
-msgstr "E686: %s պարամետրը պետք է լինի ցանկ"
+msgstr "E686: %s արգումենտը պետք է լինի List"
 
 msgid "E687: Less targets than List items"
 msgstr "E687: Ավելի քիչ նշաններ քան ցանկի էլեմենտները"
@@ -6437,11 +6465,11 @@ msgstr "E719: Հնարավոր չէ կտրատել բառարանը"
 
 #, c-format
 msgid "E720: Missing colon in Dictionary: %s"
-msgstr "E720: Բառարանում բաց թողնված չակերտ: %s"
+msgstr "E720: Բառարանում բացակայող երկկետ: %s"
 
 #, c-format
 msgid "E721: Duplicate key in Dictionary: \"%s\""
-msgstr "E721: Բառարանի բանալու կրկնություն: \"%s\""
+msgstr "E721: Կրկնվող բանալի բառարանում: \"%s\""
 
 #, c-format
 msgid "E722: Missing comma in Dictionary: %s"
@@ -6506,7 +6534,7 @@ msgstr "E739: Հնարավոր չէ ստեղծել թղթապանակ: %s"
 
 #, c-format
 msgid "E740: Too many arguments for function %s"
-msgstr "E740:  %s֊ին տրված են աննախադեպ շատ Ֆունկցիայի արգումենտներ"
+msgstr "E740: %s֊ին տրված են աննախադեպ շատ Ֆունկցիայի արգումենտներ"
 
 msgid "E741: Value is locked"
 msgstr "E741: Արժեքը բլոկավորված է"
@@ -6537,11 +6565,11 @@ msgstr "E746: Ֆունկցիայի անունը չի համընկնում սկր
 
 msgid "E747: Cannot change directory, buffer is modified (add ! to override)"
 msgstr ""
-"E747: Հնարավոր չէ փոխել թղթապանակը, կա փոփոխված buffer (անցման համար "
-"ավելցանել !)"
+"E747: Հնարավոր չէ փոխել թղթապանակը, կա փոփոխված buffer (ամրագրելու համար "
+"ավելացնել !)"
 
 msgid "E748: No previously used register"
-msgstr "E748: Չկան նախկինում օգտագորխված ռեգիստրներ"
+msgstr "E748: Չկան նախկինում օգտագործված ռեգիստրներ"
 
 msgid "E749: Empty buffer"
 msgstr "E749: Դատարկ բուֆեր"
@@ -6587,12 +6615,10 @@ msgid "E761: Format error in affix file FOL, LOW or UPP"
 msgstr "E761: Ֆորմատի սխալ FOL, LOW կամ UPP ֆայլերում"
 
 msgid "E762: Character in FOL, LOW or UPP is out of range"
-msgstr "E762: FOL, LOW կամ UPP ֆայլերում տրված տառը դուրս է եկել դիապազոնցի"
+msgstr "E762: FOL, LOW կամ UPP ֆայլերում տրված նիշը դուրս է եկել տիրույթից"
 
 msgid "E763: Word characters differ between spell files"
-msgstr ""
-"E763: Տառերի քանակությունը չի համընկնում ուղղագրման ֆայլում սահմանված բառի "
-"տառերի քանակությանը"
+msgstr "E763: Բառի նիշերը տարբերվում են ուղղագրման ֆայլերում"
 
 #, c-format
 msgid "E764: Option '%s' is not set"
@@ -6656,14 +6682,14 @@ msgstr "E780: .sug ֆայլը նախատեսված է ավելի թարմ Vim-ի
 
 #, c-format
 msgid "E781: .sug file doesn't match .spl file: %s"
-msgstr "E781: .sug ֆայլը չի համապատասխանում .spl: ֆայլի հետ %s"
+msgstr "E781: .sug ֆայլը չի համընկնում .spl ֆայլի հետ: %s"
 
 #, c-format
 msgid "E782: Error while reading .sug file: %s"
 msgstr "E782: .sug ֆայլի ընթերցման սխալ: %s"
 
 msgid "E783: Duplicate char in MAP entry"
-msgstr "E783: Կրկնակի տառ MAP-ի էլեմենտում"
+msgstr "E783: Կրկնվող տառ MAP-ի էլեմենտում"
 
 msgid "E784: Cannot close last tab page"
 msgstr "E784: Հնարավոր չէ փակել վերջին բացված թաբը"
@@ -6672,7 +6698,7 @@ msgid "E785: complete() can only be used in Insert mode"
 msgstr "E785: complete() կարող է օգտագործվել միայն զետեղման ռեժիմում"
 
 msgid "E786: Range not allowed"
-msgstr "E786: Միջակայք թույլատրված չէ"
+msgstr "E786: Տիրույթ թույլատրված չէ"
 
 msgid "E787: Buffer changed unexpectedly"
 msgstr "E787: Բուֆֆերն անսպասելի փոփոխվել է"
@@ -6685,7 +6711,7 @@ msgid "E789: Missing ']': %s"
 msgstr "E789: Բացակայող ']': %s"
 
 msgid "E790: undojoin is not allowed after undo"
-msgstr "E790: չեղարկման միավորումն անհնար է չեղարկումից հետո"
+msgstr "E790: հետարկման միավորումն անհնար է հետարկումից հետո"
 
 msgid "E791: Empty keymap entry"
 msgstr "E791: Դատարկ բանալիային համապատասխանեցում"
@@ -6726,7 +6752,7 @@ msgid "E799: Invalid ID: %d (must be greater than or equal to 1)"
 msgstr "E799: Անվավեր համար։ %d (համարը պետք է լինի 1-ից մեծ կամ հավասար)"
 
 msgid "E800: Arabic cannot be used: Not enabled at compile time\n"
-msgstr "E800: Արաբերենը հնարավոր չէ օգտագործել, միացված չէ կառուղման ժամանակ\n"
+msgstr "E800: Արաբերենը հնարավոր չէ օգտագործել, միացված չէ կառուցման ժամանակ\n"
 
 #, c-format
 msgid "E801: ID already taken: %d"
@@ -6763,7 +6789,7 @@ msgid "E810: Cannot read or write temp files"
 msgstr "E810: Հնարավոր չէ գրել կամ կարդալ ժամանակավոր ֆայլերում"
 
 msgid "E811: Not allowed to change buffer information now"
-msgstr "E811: Հնարավոր չէ փոփոխել բուֆորի ինֆորմացիան"
+msgstr "E811: Հնարավոր չէ փոփոխել բուֆերի ինֆորմացիան"
 
 msgid "E812: Autocommands changed buffer or buffer name"
 msgstr "E812: Ինքնահրամանները փոփոխել են բուֆերը կամ բուֆերի անունը"
@@ -6803,43 +6829,43 @@ msgstr "E821: Ֆայլը կոդավորված է անծանոթ մեթոդներ
 
 #, c-format
 msgid "E822: Cannot open undo file for reading: %s"
-msgstr "E822: Հնարավոր չէ բացել չեղարկման ֆայլն ընթերցման համար: %s"
+msgstr "E822: Հնարավոր չէ բացել հետարկման ֆայլն ընթերցման համար: %s"
 
 #, c-format
 msgid "E823: Not an undo file: %s"
-msgstr "E823: Չեղարկման ֆայլ չէ: %s"
+msgstr "E823: Հետարկման ֆայլ չէ: %s"
 
 #, c-format
 msgid "E824: Incompatible undo file: %s"
-msgstr "E824: Անհամապատասխան չեղարկման ֆայլ: %s"
+msgstr "E824: Անհամապատասխան հետարկման ֆայլ: %s"
 
 #, c-format
 msgid "E825: Corrupted undo file (%s): %s"
-msgstr "E825: Վնասված չեղարկման ֆայլ (%s): %s"
+msgstr "E825: Վնասված հետարկման ֆայլ (%s): %s"
 
 #, c-format
 msgid "E826: Undo file decryption failed: %s"
-msgstr "E826: Չեղարկման ֆայլի դեկոդավորումն ավարտվել է անհաջողությամբ: %s"
+msgstr "E826: Հետարկման ֆայլի դեկոդավորումն ավարտվել է անհաջողությամբ: %s"
 
 #, c-format
 msgid "E827: Undo file is encrypted: %s"
-msgstr "E827: Չեղարկման ֆայլը կոդավորված է: %s"
+msgstr "E827: Հետարկման ֆայլը կոդավորված է: %s"
 
 #, c-format
 msgid "E828: Cannot open undo file for writing: %s"
-msgstr "E828: Պահպանման համար հնարավոր չէ բացել չեղարկման ֆայլը: %s"
+msgstr "E828: Պահպանման համար հնարավոր չէ բացել հետարկման ֆայլը: %s"
 
 #, c-format
 msgid "E829: Write error in undo file: %s"
-msgstr "E829: Չեղարկման ֆայլի ամրագրման սխալ: %s"
+msgstr "E829: Հետարկման ֆայլի ամրագրման սխալ: %s"
 
 #, c-format
 msgid "E830: Undo number %ld not found"
-msgstr "E830: Չեղարկման %ld համարը չի հայտնաբերվել"
+msgstr "E830: Հետարկման %ld համարը չի հայտնաբերվել"
 
 #, c-format
 msgid "E832: Non-encrypted file has encrypted undo file: %s"
-msgstr "E832: Չկոդավորված ֆայլն ունի կոդավորված չեղարկման ֆայլ: %s"
+msgstr "E832: Չկոդավորված ֆայլն ունի կոդավորված հետարկման ֆայլ: %s"
 
 #, c-format
 msgid ""
@@ -6903,17 +6929,17 @@ msgid "E851: Failed to create a new process for the GUI"
 msgstr "E851: Հնարավոր չէ ստեղծել նոր պրոցես գրաֆիկական ինտերֆեյսի համար"
 
 msgid "E852: The child process failed to start the GUI"
-msgstr "E852: Ճուտ պրոցեսին չի հաջողվել սկսել  գրաֆիկական ինտերֆեյսը"
+msgstr "E852: Ճուտ պրոցեսին չի հաջողվել սկսել գրաֆիկական ինտերֆեյսը"
 
 #, c-format
 msgid "E853: Duplicate argument name: %s"
-msgstr "E853: Կրկնված արգումենտի անուն: %s"
+msgstr "E853: Կրկնվող արգումենտի անուն: %s"
 
 msgid "E854: Path too long for completion"
-msgstr "E854: Ճանապարհն անսպասելի երկար է ավտոլրացման համար"
+msgstr "E854: Ճանապարհն անսպասելի երկար է լրացման համար"
 
 msgid "E855: Autocommands caused command to abort"
-msgstr "E855: Ինքնահրամմանները ստիպել են հրամանին անհաջող ավարտվել"
+msgstr "E855: Ինքնահրամանները հանգեցրել են հրամանի ընդհատմանը"
 
 msgid ""
 "E856: \"assert_fails()\" second argument must be a string or a list with one "
@@ -6967,7 +6993,7 @@ msgid "E867: (NFA regexp) Unknown operator '\\%%%c'"
 msgstr "E867: (NFA regexp) անծանոթ հրաման '\\%%%c'"
 
 msgid "E868: Error building NFA with equivalence class!"
-msgstr "E868: Սխալ՝ NFA կառուցման ընթացքում !"
+msgstr "E868: Սխալ NFA-ի կառուցման ընթացքում համարժեքության դասով!"
 
 #, c-format
 msgid "E869: (NFA regexp) Unknown operator '\\@%c'"
@@ -6983,7 +7009,7 @@ msgid "E872: (NFA regexp) Too many '('"
 msgstr "E872: (NFA regexp) աննախադեպ շատ '('"
 
 msgid "E873: (NFA regexp) proper termination error"
-msgstr "E873: (NFA regexp)  ավարտման սխալ"
+msgstr "E873: (NFA regexp) ավարտման սխալ"
 
 msgid "E874: (NFA regexp) Could not pop the stack!"
 msgstr "E874: (NFA regexp) Հնարավոր չէ ընթերցել ստեկից!"
@@ -7000,7 +7026,7 @@ msgstr "E876: (NFA regexp) Հիշողությունն անբավարար է՝ NF
 
 #, c-format
 msgid "E877: (NFA regexp) Invalid character class: %d"
-msgstr "E877: (NFA regexp) Անվավեր դաս : %d"
+msgstr "E877: (NFA regexp) Անվավեր նիշերի դաս՝ %d"
 
 msgid "E878: (NFA regexp) Could not allocate memory for branch traversal!"
 msgstr ""
@@ -7019,16 +7045,13 @@ msgstr "E881: Տողերի քանակն անսպասելիորեն փոփոխվ�
 msgid "E882: Uniq compare function failed"
 msgstr "E882: Անհաջող համեմատում դասավորման կանչի համար"
 
-msgid ""
-"E883: Search pattern and expression register may not contain two or more "
-"lines"
-msgstr ""
-"E883: Որոնման օրինակը և արտահայտությունների ռեգիստրը չեն կարող պարունակել "
-"երկու կամ ավելի տող"
+#, c-format
+msgid "E883: Register '%c' cannot contain multiple lines"
+msgstr "E883: Register '%c' չի կարող պարունակել մի քանի տողեր"
 
 #, c-format
 msgid "E884: Function name cannot contain a colon: %s"
-msgstr "E884: Ֆունկցիայի անունը չի կարող պարունակել ստորակետ: %s"
+msgstr "E884: Ֆունկցիայի անունը չի կարող պարունակել երկկետ: %s"
 
 #, c-format
 msgid "E885: Not possible to change sign %s"
@@ -7087,7 +7110,7 @@ msgstr "E898: socket() channel_connect()-ում"
 
 #, c-format
 msgid "E899: Argument of %s must be a List or Blob"
-msgstr "E899: %s պարամետրը պետք է լինի ցանկ"
+msgstr "E899: %s արգումենտը պետք է լինի List կամ Blob"
 
 msgid "E900: maxdepth must be non-negative number"
 msgstr "E900: առավելագույն խորությունը պետք է լինի ոչ բացասական թիվ"
@@ -7134,9 +7157,11 @@ msgstr "E910: Աշխատանքի օգտագործումը որպես համար"
 msgid "E911: Using a Job as a Float"
 msgstr "E911: Աշխատանքի օգտագործումը որպես բոց"
 
-msgid "E912: Cannot use ch_evalexpr()/ch_sendexpr() with a raw or nl channel"
+msgid ""
+"E912: Cannot use ch_evalexpr()/ch_sendexpr() with a raw, nl or blob channel"
 msgstr ""
-"E912: Հնարավոր չէ օգտագործել ch_evalexpr()/ch_sendexpr() հումքի կամ nl ալիքով"
+"E912: Հնարավոր չէ օգտագործել ch_evalexpr()/ch_sendexpr() raw, nl կամ blob "
+"ալիքով"
 
 msgid "E913: Using a Channel as a Number"
 msgstr "E913: ալիքի օգտագործումը որպես համար"
@@ -7156,7 +7181,7 @@ msgstr "E917: Հնարավոր չէ օգտագործել հետզանգ %s()-ո�
 
 #, c-format
 msgid "E918: Buffer must be loaded: %s"
-msgstr "E918:  Բուֆերը չի բեռնվել: %s"
+msgstr "E918: Բուֆերը չի բեռնվել: %s"
 
 #, c-format
 msgid "E919: Directory not found in '%s': \"%s\""
@@ -7221,7 +7246,7 @@ msgstr "E937: Փորձեք ջնջել օգտագործվող բուֆերը՝ %s
 
 #, c-format
 msgid "E938: Duplicate key in JSON: \"%s\""
-msgstr "E938: Բանալու կրկնություն: \"%s\""
+msgstr "E938: Կրկնվող բանալի JSON-ում: \"%s\""
 
 msgid "E939: Positive count required"
 msgstr "E939: Պահանջվում է դրական քանակ"
@@ -7237,10 +7262,10 @@ msgid "E942: +clientserver feature not available"
 msgstr "E942: +clientserver առանձնահատկությունը հասանելի չէ"
 
 msgid "E944: Reverse range in character class"
-msgstr "E944: Հակադարձ միջակայքը նիշերի դասում"
+msgstr "E944: Հակադարձ տիրույթը նիշերի դասում"
 
 msgid "E945: Range too large in character class"
-msgstr "E945: Նիշերի դասի միջակայքը չափազանց մեծ է"
+msgstr "E945: Նիշերի դասի տիրույթը չափազանց մեծ է"
 
 msgid "E946: Cannot make a terminal with running job modifiable"
 msgstr "E946: Հնարավոր չէ կատարել տերմինալ՝ փոփոխվող գործող աշխատանքով"
@@ -7272,10 +7297,10 @@ msgstr "E952: Ինքնահրամանն առաջացրել է ռեկուրսիվ 
 
 #, c-format
 msgid "E953: File exists: %s"
-msgstr "E953:  Ֆայլն արդեն գոյություն ունի: %s"
+msgstr "E953: Ֆայլն արդեն գոյություն ունի: %s"
 
 msgid "E954: 24-bit colors are not supported on this environment"
-msgstr "E954: 24-բիթանոց գույները չեն ապահովվում այս միջավայրում"
+msgstr "E954: 24-բիթանոց գույները չեն աջակցվում այս միջավայրում"
 
 msgid "E955: Not a terminal buffer"
 msgstr "E955: Տերմինալային բուֆեր չէ"
@@ -7358,7 +7383,7 @@ msgid "E979: Blob index out of range: %ld"
 msgstr "E979: Blob ինդեքսը դուրս է տիրույթից՝ %ld"
 
 msgid "E980: Lowlevel input not supported"
-msgstr "E980: Ցածր մակարդակի մուտքագրումը չի ապահովվում"
+msgstr "E980: Ցածր մակարդակի մուտքագրումը չի աջակցվում"
 
 msgid "E981: Command not allowed in rvim"
 msgstr "E981: rvim֊ում չեն թույլատրվում վահանակի հրամաններ"
@@ -7368,7 +7393,7 @@ msgstr "E982: ConPTY հասանելի չէ"
 
 #, c-format
 msgid "E983: Duplicate argument: %s"
-msgstr "E983: Կրկնված արգումենտ: %s"
+msgstr "E983: Կրկնվող արգումենտ: %s"
 
 msgid "E984: :scriptversion used outside of a sourced file"
 msgstr "E984: :scriptversion հրամանը օգտագործվում է կցվող ֆայլից դուրս"
@@ -7409,10 +7434,10 @@ msgid "E995: Cannot modify existing variable"
 msgstr "E995: Հնարավոր չէ փոփոխել գոյություն ունեցող փոփոխականը"
 
 msgid "E996: Cannot lock a range"
-msgstr "E996: Հնարավոր չէ կողպել միջակայքը"
+msgstr "E996: Հնարավոր չէ կողպել տիրույթը"
 
 msgid "E996: Cannot lock an option"
-msgstr "E996: Հնարավոր չէ արգելափակել տարբերակը"
+msgstr "E996: Հնարավոր չէ արգելափակել ընտրանքը"
 
 msgid "E996: Cannot lock a list or dict"
 msgstr "E996: Հնարավոր չէ կողպել ցուցակը կամ թելադրանքը"
@@ -7437,7 +7462,7 @@ msgstr "E999: սցենարի տարբերակը չի աջակցվում՝ %d"
 
 #, c-format
 msgid "E1001: Variable not found: %s"
-msgstr "E1001: փոփոխականը չի գտնվել՝ %s"
+msgstr "E1001: Փոփոխականը չի գտնվել՝ %s"
 
 #, c-format
 msgid "E1002: Syntax error at %s"
@@ -7478,24 +7503,25 @@ msgstr "E1011: Անունը մի քիչ երկար է: %s"
 
 #, c-format
 msgid "E1012: Type mismatch; expected %s but got %s"
-msgstr "E1012: Տիպի անհամապատասխանություն; սպասվում էր %s, բայց ստացավ %s"
+msgstr ""
+"E1012: Տիպերի անհամապատասխանություն; սպասվում էր %s, բայց սստացվել է %s"
 
 #, c-format
 msgid "E1012: Type mismatch; expected %s but got %s in %s"
 msgstr ""
-"E1012: Տիպի անհամապատասխանություն; սպասվում էր %s, բայց ստացավ %s %s-ում"
+"E1012: Տիպի անհամապատասխանություն; սպասվում էր %s, բայց ստացվել է %s %s-ում"
 
 #, c-format
 msgid "E1013: Argument %d: type mismatch, expected %s but got %s"
 msgstr ""
-"E1013: արգումենտ %d. տեսակի անհամապատասխանություն, սպասվում էր %s, բայց "
-"ստացավ %s"
+"E1013: Արգումենտ %d: տեսակի անհամապատասխանություն, սպասվում էր %s, բայց "
+"սստացվել է %s"
 
 #, c-format
 msgid "E1013: Argument %d: type mismatch, expected %s but got %s in %s"
 msgstr ""
-"E1013: Փաստարկ %d. տիպի անհամապատասխանություն, սպասվում էր %s, բայց ստացավ "
-"%s %s-ում"
+"E1013: Փաստարկ %d. տիպի անհամապատասխանություն, սպասվում էր %s, բայց սստացվել "
+"է %s %s-ում"
 
 #, c-format
 msgid "E1014: Invalid key: %s"
@@ -7622,7 +7648,7 @@ msgstr "E1049: Տարրը չի արտահանվել սկրիպտով՝ %s"
 
 #, c-format
 msgid "E1050: Colon required before a range: %s"
-msgstr "E1050: երկու կետ պահանջվում է ընդգրկույթից առաջ՝ %s"
+msgstr "E1050: Երկկետ է պահանջվում տիրույթից առաջ՝ %s"
 
 msgid "E1051: Wrong argument type for +"
 msgstr "E1051: +-ի համար սխալ արգումենտի տեսակ"
@@ -7654,7 +7680,7 @@ msgstr "E1058: Ֆունկցիայի կանչը շատ է ներդրված"
 
 #, c-format
 msgid "E1059: No white space allowed before colon: %s"
-msgstr "E1059: երկու կետից առաջ սպիտակ տարածություն չի թույլատրվում՝ %s"
+msgstr "E1059: երկկետից առաջ սպիտակ տարածություն չի թույլատրվում՝ %s"
 
 #, c-format
 msgid "E1060: Expected dot after name: %s"
@@ -7829,7 +7855,7 @@ msgstr "E1110: Ցանկի %d տարրը չի պարունակում 3 թվեր"
 
 #, c-format
 msgid "E1111: List item %d range invalid"
-msgstr "E1111: Ցանկի տարրի %d միջակայքն անվավեր է"
+msgstr "E1111: Ցանկի տարրի %d տիրույթն անվավեր է"
 
 #, c-format
 msgid "E1112: List item %d cell width invalid"
@@ -7837,7 +7863,7 @@ msgstr "E1112: Ցանկի տարր %d բջիջի լայնությունը անվ
 
 #, c-format
 msgid "E1113: Overlapping ranges for 0x%lx"
-msgstr "E1113: համընկնող միջակայքեր 0x%lx-ի համար"
+msgstr "E1113: համընկնող տիրույթներ 0x%lx-ի համար"
 
 msgid "E1114: Only values of 0x80 and higher supported"
 msgstr "E1114: Աջակցվում են միայն 0x80 և ավելի բարձր արժեքները"
@@ -7917,7 +7943,7 @@ msgid "E1138: Using a Bool as a Number"
 msgstr "E1138: Bool-ի օգտագործումը որպես թիվ"
 
 msgid "E1139: Missing matching bracket after dict key"
-msgstr "E1139: Դիկտիվ ստեղնից հետո բացակայում է համապատասխան փակագիծը"
+msgstr "E1139: Dict բանալիից հետո բացակայում է համընկնող փակագիծը"
 
 msgid "E1140: :for argument must be a sequence of lists or tuples"
 msgstr ""
@@ -7945,7 +7971,7 @@ msgstr "E1145: heredoc վերջի նշիչը բացակայում է՝ %s"
 
 #, c-format
 msgid "E1146: Command not recognized: %s"
-msgstr "E1146:  Անծանոթ հրաման։ %s"
+msgstr "E1146: Անծանոթ հրաման։ %s"
 
 msgid "E1147: List not set"
 msgstr "E1147: Ցանկը սահմանված չէ"
@@ -7972,7 +7998,7 @@ msgid "E1153: Invalid operation for %s"
 msgstr "E1153: Չթույլատրված գործողություն %s"
 
 msgid "E1154: Divide by zero"
-msgstr "E1154: Բաժանել զրոյի"
+msgstr "E1154: Զրոյի վրա բաժանում"
 
 msgid "E1155: Cannot define autocommands for ALL events"
 msgstr ""
@@ -8012,18 +8038,18 @@ msgstr ""
 #, c-format
 msgid "E1163: Variable %d: type mismatch, expected %s but got %s in %s"
 msgstr ""
-"E1163: փոփոխական %d. տիպի անհամապատասխանություն, սպասվում էր %s, բայց ստացավ "
-"%s %s-ում"
+"E1163: փոփոխական %d. տիպի անհամապատասխանություն, սպասվում էր %s, բայց "
+"սստացվել է %s %s-ում"
 
 msgid "E1164: vim9cmd must be followed by a command"
 msgstr "E1164: vim9cmd-ին պետք է հետևի հրաման"
 
 #, c-format
 msgid "E1165: Cannot use a range with an assignment: %s"
-msgstr "E1165: Հնարավոր չէ օգտագործել ընդգրկույթ հանձնարարությամբ՝ %s"
+msgstr "E1165: Հնարավոր չէ օգտագործել տիրույթ հանձնարարությամբ՝ %s"
 
 msgid "E1166: Cannot use a range with a dictionary"
-msgstr "E1166: Հնարավոր չէ օգտագործել ընդգրկույթ բառարանով"
+msgstr "E1166: Հնարավոր չէ օգտագործել տիրույթ բառարանով"
 
 #, c-format
 msgid "E1167: Argument name shadows existing variable: %s"
@@ -8089,7 +8115,7 @@ msgstr "E1182: Vim9 սկրիպտում հնարավոր չէ դիկտի ֆուն
 
 #, c-format
 msgid "E1183: Cannot use a range with an assignment operator: %s"
-msgstr "E1183: Հնարավոր չէ օգտագործել ընդգրկույթ նշանակման օպերատորի հետ՝ %s"
+msgstr "E1183: Հնարավոր չէ օգտագործել տիրույթ նշանակման օպերատորի հետ՝ %s"
 
 msgid "E1184: Blob not set"
 msgstr "E1184: Բլոբը կարգավորված չէ"
@@ -8122,7 +8148,7 @@ msgid "E1191: Call to function that failed to compile: %s"
 msgstr "E1191: Ֆունկցիայի կանչ, որը չի հաջողվել կոմպիլացնել՝ %s"
 
 msgid "E1192: Empty function name"
-msgstr "E1192:  Դատարկ ֆունկցիայի անուն"
+msgstr "E1192: Դատարկ ֆունկցիայի անուն"
 
 msgid "E1193: cryptmethod xchacha20 not built into this Vim"
 msgstr "E1193: cryptmethod xchacha20-ը ներկառուցված չէ այս Vim-ում"
@@ -8164,7 +8190,7 @@ msgid "E1204: No Number allowed after .: '\\%%%c'"
 msgstr "E1204: '\\%%%c' հետո համարը չի թույլատրվում"
 
 msgid "E1205: No white space allowed between option and"
-msgstr "E1205: Չի թույլատրվում սպիտակ տարածություն տարբերակի և"
+msgstr "E1205: Չի թույլատրվում սպիտակ տարածություն ընտրանքի և"
 
 #, c-format
 msgid "E1206: Dictionary required for argument %d"
@@ -8263,7 +8289,8 @@ msgstr "E1228: արգումենտի համար պահանջվում է ցուց�
 #, c-format
 msgid "E1229: Expected dictionary for using key \"%s\", but got %s"
 msgstr ""
-"E1229: Բանալի \"%s\" օգտագործելու համար սպասվում էր բառարան, բայց ստացավ %s"
+"E1229: Բանալի \"%s\" օգտագործելու համար սպասվում էր բառարան, բայց սստացվել է "
+"%s"
 
 msgid "E1230: Encryption: sodium_mlock() failed"
 msgstr "E1230: Կոդավորումը՝ sodium_mlock() ձախողվեց"
@@ -8315,7 +8342,7 @@ msgid "E1242: No white space allowed before separator: %s"
 msgstr "E1242: Չի թույլատրվում սպիտակ տարածություն բաժանարարից առաջ՝ %s"
 
 msgid "E1243: ASCII code not in 32-127 range"
-msgstr "E1243: ASCII կոդը 32-127 միջակայքում չէ"
+msgstr "E1243: ASCII կոդը 32-127 տիրույթում չէ"
 
 #, c-format
 msgid "E1244: Bad color string: %s"
@@ -8329,7 +8356,7 @@ msgid "E1246: Cannot find variable to (un)lock: %s"
 msgstr "E1246: Հնարավոր չէ գտնել փոփոխական (ապ)կողպելու համար՝ %s"
 
 msgid "E1247: Line number out of range"
-msgstr "E1247: Տողի համարը միջակայքից անցել է"
+msgstr "E1247: Տողի համարը տիրույթից անցել է"
 
 msgid "E1248: Closure called from invalid context"
 msgstr "E1248: Փակումը կանչվել է անվավեր համատեքստից"
@@ -8450,14 +8477,14 @@ msgstr "E1277: Հունի և աշխատանքի առանձնահատկությո
 
 #, c-format
 msgid "E1278: Stray '}' without a matching '{': %s"
-msgstr "E1278: Ձևավոր '}' առանց համապատասխան '{': %s"
+msgstr "E1278: Ավելորդ '}' առանց համընկնող '{'՝ %s"
 
 #, c-format
 msgid "E1279: Missing '}': %s"
 msgstr "E1279: Բացակայող '}': %s"
 
 msgid "E1280: Illegal character in word"
-msgstr "E1280: Չթույլատրված նշան"
+msgstr "E1280: Չթույլատրված նիշ բառում"
 
 #, c-format
 msgid "E1281: Atom '\\%%#=%c' must be at the start of the pattern"
@@ -8503,9 +8530,8 @@ msgstr "E1291: Անվավեր արգումենտ: %ld"
 msgid "E1292: Command-line window is already open"
 msgstr "E1292: հրամանի տողի պատուհանն արդեն բաց է"
 
-msgid "E1293: Cannot use a negative id after adding a textprop with text"
-msgstr ""
-"E1293: Չի կարող օգտագործել բացասական ID՝ տեքստով տեքստ ավելացնելուց հետո"
+msgid "E1293: Cannot use a negative id for a text property"
+msgstr "E1293: Հնարավոր չէ օգտագործել բացասական ինդեքս text property-ի համար"
 
 msgid "E1294: Can only use text_align when column is zero"
 msgstr "E1294: Կարող է օգտագործվել միայն text_align, երբ սյունակը զրո է"
@@ -8618,7 +8644,7 @@ msgstr "E1326: \"%s\" փոփոխականը չի գտնվել \"%s\" օբյեկտ
 
 #, c-format
 msgid "E1327: Object required, found %s"
-msgstr "E1327: Պահանջվում է օբյեկտ, գտնվել է %s"
+msgstr "E1327: Պահանջվում է օբյեկտ, ստացվել է %s"
 
 #, c-format
 msgid "E1328: Constructor default value must be v:none: %s"
@@ -8655,13 +8681,6 @@ msgstr "E1335: \"%s\" փոփոխականը \"%s\" դասի գրառելի չէ"
 #, c-format
 msgid "E1337: Class variable \"%s\" not found in class \"%s\""
 msgstr "E1337: \"%s\" դասի փոփոխականը \"%s\" դասում չի գտնվել"
-
-msgid ""
-"E1339: Cannot add a textprop with text after using a textprop with a "
-"negative id"
-msgstr ""
-"E1339: Բացասական ID-ով տեքստային պրոպ օգտագործելուց հետո հնարավոր չէ "
-"ավելացնել տեքստային պրոպ"
 
 #, c-format
 msgid "E1340: Argument already declared in the class: %s"
@@ -8702,14 +8721,14 @@ msgid "E1349: Method \"%s\" of interface \"%s\" is not implemented"
 msgstr "E1349: \"%s\" ինտերֆեյսի \"%s\" մեթոդը իրականացված չէ"
 
 msgid "E1350: Duplicate \"implements\""
-msgstr "E1350: Կրկնված \"implements\""
+msgstr "E1350: Կրկնվող \"implements\""
 
 #, c-format
 msgid "E1351: Duplicate interface after \"implements\": %s"
-msgstr "E1351: Կրկնված ինտերֆեյս \"implements\" ից հետո: %s"
+msgstr "E1351: Կրկնվող ինտերֆեյս \"implements\" ից հետո: %s"
 
 msgid "E1352: Duplicate \"extends\""
-msgstr "E1352: Կրկնված \"extends\""
+msgstr "E1352: Կրկնվող \"extends\""
 
 #, c-format
 msgid "E1353: Class name not found: %s"
@@ -8721,10 +8740,10 @@ msgstr "E1354: Հնարավոր չէ լրացնել %s֊ը"
 
 #, c-format
 msgid "E1355: Duplicate function: %s"
-msgstr "E1355: Կրկնված ֆունկցիա: %s"
+msgstr "E1355: Կրկնվող ֆունկցիա: %s"
 
 msgid "E1356: \"super\" must be followed by a dot"
-msgstr "E1356: \"super\" պետք լինի ․-ից հետո"
+msgstr "E1356: \"super\" պետք է լինի ․-ից հետո"
 
 msgid "E1357: Using \"super\" not in a class method"
 msgstr "E1357: \"super\"-ի օգտագործումը դասի մեթոդից դուրս"
@@ -8739,8 +8758,7 @@ msgid "E1360: Using a null object"
 msgstr "E1360: Օգտագործելով զրոյական օբյեկտ"
 
 msgid "E1361: Cannot use color \"none\", did you mean \"NONE\"?"
-msgstr ""
-"E1361: Չի կարելի օգտագործել \"none\" գույնի փոխարեն, նկատի ունեիք \"NONE\"՞"
+msgstr "E1361: Չի կարելի օգտագործել \"none\" գույն, նկատի ունեիք \"NONE\"?"
 
 msgid "E1362: Cannot use a non-null object"
 msgstr "E1362: Հնարավոր չէ օգտագործել non-null օբյեկտը"
@@ -8772,7 +8790,7 @@ msgstr ""
 
 #, c-format
 msgid "E1369: Duplicate variable: %s"
-msgstr "E1369: Կրկնված փոփոխական : %s"
+msgstr "E1369: Կրկնվող փոփոխական : %s"
 
 msgid "E1370: Cannot define a \"new\" method as static"
 msgstr "E1370: Հնարավոր չէ սահմանել \"new\" մեթոդը որպես ստատիկ"
@@ -8826,8 +8844,8 @@ msgstr ""
 #, c-format
 msgid "E1383: Method \"%s\": type mismatch, expected %s but got %s"
 msgstr ""
-"E1383: \"%s\" մեթոդ. տիպի անհամապատասխանություն, սպասվում էր %s, բայց ստացավ "
-"%s"
+"E1383: \"%s\" մեթոդ. տիպի անհամապատասխանություն, սպասվում էր %s, բայց "
+"սստացվել է %s"
 
 #, c-format
 msgid "E1384: Class method \"%s\" accessible only inside class \"%s\""
@@ -8902,6 +8920,10 @@ msgstr "E1404: Abstract հնարավոր չէ օգտագործել ինտերֆ�
 msgid "E1405: Class \"%s\" cannot be used as a value"
 msgstr "E1405: \"%s\" դասը չի կարող օգտագործվել որպես արժեք"
 
+#, c-format
+msgid "E1406: Public and protected member have the same name: %s and _%s"
+msgstr "E1406: Public և protected անդամներն ունեն նույն անունը: %s և _%s"
+
 msgid "E1407: Cannot use a Typealias as a variable or value"
 msgstr "E1407: Հնարավոր չէ օգտագործել Typealias-ը որպես փոփոխական կամ արժեք"
 
@@ -8952,15 +8974,15 @@ msgstr "E1420: Բացակայող :endenum"
 
 #, c-format
 msgid "E1421: Enum \"%s\" cannot be used as a value"
-msgstr "E1421: \"%s\" թիվը չի կարող օգտագործվել որպես արժեք"
+msgstr "E1421: \"%s\" թվարկումը չի կարող օգտագործվել որպես արժեք"
 
 #, c-format
 msgid "E1422: Enum value \"%s\" not found in enum \"%s\""
-msgstr "E1422: \"%s\" թվային արժեքը \"%s\"-ում չի գտնվել"
+msgstr "E1422: \"%s\" թվարկման արժեքը չի գտնվել \"%s\"-ում"
 
 #, c-format
 msgid "E1423: Enum value \"%s.%s\" cannot be modified"
-msgstr "E1423: \"%s.%s\" թվային արժեքը չի կարող փոփոխվել"
+msgstr "E1423: \"%s.%s\" թվարկման արժեքը չի կարող փոփոխվել"
 
 #, c-format
 msgid "E1424: Using an Enum \"%s\" as a Number"
@@ -8972,15 +8994,15 @@ msgstr "E1425: \"%s\" Թվարկում է օգտագործվել տողի փոխ
 
 #, c-format
 msgid "E1426: Enum \"%s\" ordinal value cannot be modified"
-msgstr "E1426: \"%s\" թվի հերթական արժեքը հնարավոր չէ փոփոխել"
+msgstr "E1426: \"%s\" թվարկման դասական արժեքը հնարավոր չէ փոփոխել"
 
 #, c-format
 msgid "E1427: Enum \"%s\" name cannot be modified"
-msgstr "E1427: \"%s\" թվի անունը չի կարող փոփոխվել"
+msgstr "E1427: \"%s\" թվարկման անունը չի կարող փոփոխվել"
 
 #, c-format
 msgid "E1428: Duplicate enum value: %s"
-msgstr "E1428: Կրկնված արգումենտի անուն թվարկման մեջ: %s"
+msgstr "E1428: Կրկնվող թվարկման արժեք: %s"
 
 msgid "E1429: Class can only be used in a script"
 msgstr "E1429: Դասը կարող է օգտագործվել միայն սցենարով"
@@ -9018,7 +9040,7 @@ msgstr ""
 "անհամապատասխանություն"
 
 msgid "E1435: Enum can only be used in a script"
-msgstr "E1435: Թվարկումը հնարավոր է օգտագործել միայն սցենարում"
+msgstr "E1435: Թվարկումը հնարավոր է օգտագործել միայն սկրիպտում"
 
 msgid "E1436: Interface can only be used in a script"
 msgstr "E1436: Ինտերֆեյսը հնարավոր է օգտագործել միայն սցենարում"
@@ -9063,11 +9085,11 @@ msgid ""
 "E1508: Size of the extended attribute value is larger than the maximum size "
 "allowed"
 msgstr ""
-"E1508: Ընդլայնված հատկանիշի արժեքի չափն ավելի մեծ է, քան թույլատրելի "
+"E1508: Ընդլայնված բնորոշիչի արժեքի չափն ավելի մեծ է, քան թույլատրելի "
 "առավելագույն չափը"
 
 msgid "E1509: Error occurred when reading or writing extended attribute"
-msgstr "E1509: Սխալ է տեղի ունեցել ընդլայնված հատկանիշը կարդալիս կամ գրելիս"
+msgstr "E1509: Սխալ է տեղի ունեցել ընդլայնված բնորոշիչը կարդալիս կամ գրելիս"
 
 #, c-format
 msgid "E1510: Value too large: %s"
@@ -9196,13 +9218,13 @@ msgid "E1544: Failed resizing the quickfix/location list stack"
 msgstr "E1544: Չհաջողվեց փոխել quickfix/location ցուցակների stack-ի չափը"
 
 msgid "E1545: Quickfix list stack unavailable"
-msgstr "E1545: Quickfix ցուցակների stack-ը հասանելի չէ։"
+msgstr "E1545: Quickfix ցուցակների stack-ը հասանելի չէ"
 
 msgid "E1546: Cannot switch to a closing buffer"
 msgstr "E1546: Չի կարելի անցնել փակվող բուֆերի վրա"
 
-msgid "E1547: This version of Vim does support :redrawtabpanel"
-msgstr "E1547: Այս Vim-ի տարբերակը չի աջակցում :redrawtabpanel հրամանին"
+msgid "E1547: This version of Vim does not support :redrawtabpanel"
+msgstr "E1547: Vim-ի այս տարբերակը չի աջակցում :redrawtabpanel"
 
 msgid "E1548: Wayland connection is unavailable"
 msgstr "E1548: Wayland կապը հասանելի չէ"
@@ -9261,22 +9283,25 @@ msgstr "E1561: Տիպային փոփոխականի կրկնվող անուն: %s
 msgid "E1562: Diff anchors cannot be used with hidden diff windows"
 msgstr "E1562: Diff anchor-ները կիրառելի չեն թաքնված diff պատուհանների համար"
 
-msgid "E1563: Socket path is too big"
-msgstr "E1563: Սոքետի ճանապարհը գերազանցում է թույլատրելի երկարությունը"
-
-msgid "E1564: Socket name cannot have slashes in it without being a path"
-msgstr "E1564: Սոքետի անունը չի կարող պարունակել '/' նշաններ, եթե այն ուղի չէ"
+#, c-format
+msgid "E1564: Socket name '%s' cannot have slashes in it without being a path"
+msgstr ""
+"E1564: '%s' սոկետի անունը չի կարող պարունակել շեղ գծեր, եթե այն ուղի չէ"
 
 msgid "E1565: Socket server is not online, call remote_startserver() first"
 msgstr ""
 "E1565: Սոքետ սերվերն ակտիվ չէ, նախ պետք է գործարկել remote_startserver()"
 
 #, c-format
-msgid "E1566: Failed connecting to socket %s: %s"
-msgstr "E1566: Չհաջողվեց միանալ սոկետին (%s)․ %s"
+msgid "E1566: Failed connecting to socket '%s'"
+msgstr "E1566: Չհաջողվեց հաղորդակցվել '%s' socket-ին"
 
-msgid "E1567: Cannot start socket server, socket path is unavailable"
-msgstr "E1567: Չի հաջողվում սկսել socket սերվերը, socket-ի ուղին հասանելի չէ"
+msgid ""
+"E1567: Socket server protocol version mismatch, check what Vim version you "
+"are using"
+msgstr ""
+"E1567: Սոկետ սերվերի արձանագրության տարբերակի անհամապատասխանություն, "
+"ստուգեք, թե Vim-ի որ տարբերակն եք օգտագործում"
 
 #, c-format
 msgid "E1568: OSC command response timed out: %.*s"
@@ -9293,26 +9318,36 @@ msgstr ""
 msgid "E1571: Must specify at least one callback for redraw_listener_add"
 msgstr "E1571: redraud_listener_add-ը պահանջում է առնվազն մեկ callback"
 
+msgid "E1572: 'listchars' field \"leadtab\" requires \"tab\" to be specified"
+msgstr ""
+"E1572: 'listchars' դաշտի \"leadtab\"-ը պահանջում է, որ \"tab\"-ը նշված լինի"
+
+msgid "E1573: Cannot listen on port"
+msgstr "E1573: Չի հաջողվում բացել պորտը"
+
+msgid "E1574: gethostbyname(): cannot resolve hostname in channel_listen()"
+msgstr ""
+"E1574: gethostbyname()։ չի հաջողվում պարզել հոսթի անունը channel_listen() "
+"ֆունկցիայում"
+
+msgid "E1575: Cannot create pipes"
+msgstr "E1575: Հնարավոր չէ ստեղծէլ սրնգափողեր"
+
+msgid "E1576: Tag file entry must not be a URL"
+msgstr "E1576: Թեգերի ֆայլի գրառումը չպետք է URL լինի"
+
+#, c-format
+msgid "E1577: Invalid format string, only one \"%s\" is allowed"
+msgstr "E1577: Անվավեր ֆորմատի տող, միայն մեկ \"%s\" է թույլատրվում"
+
+msgid "E1578: Too many postponed prefixes and/or compound flags"
+msgstr "E1578: Աննախադեպ շատ հետաձգված նախածանցներ կամ պարփակման դրոշմանիշեր"
+
+msgid "E1579: -completeopt=escape cannot be used with -nargs=_"
+msgstr "E1579: -completeopt=escape-ը չի կարող օգտագործվել -nargs=_-ի հետ"
+
 msgid "--No lines in buffer--"
 msgstr "-- Բուֆերում տողեր չկան --"
-
-msgid "int"
-msgstr "ամբողջ"
-
-msgid "long int"
-msgstr "երկար ինտ"
-
-msgid "long long int"
-msgstr "երկար երկար ինտ"
-
-msgid "unsigned int"
-msgstr "անստորագիր միջ"
-
-msgid "unsigned long int"
-msgstr "անստորագիր երկար միջ"
-
-msgid "unsigned long long int"
-msgstr "անստորագիր long long int"
 
 msgid "pointer"
 msgstr "ցուցիչ"
@@ -9320,14 +9355,8 @@ msgstr "ցուցիչ"
 msgid "percent"
 msgstr "տոկոս"
 
-msgid "char"
-msgstr "տառ"
-
 msgid "string"
 msgstr "տող"
-
-msgid "float"
-msgstr "սահող կետով թվանշան"
 
 msgid "search hit TOP, continuing at BOTTOM"
 msgstr "փնտրումն ավարտվել է, որոնումն սկսվելու է վերջից"
@@ -9361,11 +9390,11 @@ msgstr "ինդեքսը պետք է լինի int կամ slice, ոչ թե %s"
 
 #, c-format
 msgid "expected str() or unicode() instance, but got %s"
-msgstr "սպասվում էր str() կամ unicode() օրինակ, բայց ստացավ %s"
+msgstr "սպասվում էր str() կամ unicode() օրինակ, բայց սստացվել է %s"
 
 #, c-format
 msgid "expected bytes() or str() instance, but got %s"
-msgstr "սպասվում էր բայթ() կամ str() օրինակ, բայց ստացավ %s"
+msgstr "սպասվում էր բայթ() կամ str() օրինակ, բայց սստացվել է %s"
 
 #, c-format
 msgid ""
@@ -9377,7 +9406,7 @@ msgstr ""
 #, c-format
 msgid "expected int() or something supporting coercing to int(), but got %s"
 msgstr ""
-"սպասվում էր int() կամ ինչ-որ բան, որն աջակցում է int(-ին), բայց ստացավ %s"
+"սպասվում էր int() կամ ինչ-որ բան, որն աջակցում է int(-ին), բայց սստացվել է %s"
 
 msgid "value is too large to fit into C int type"
 msgstr "արժեքը չափազանց մեծ է C int տեսակի մեջ տեղավորվելու համար"
@@ -9389,7 +9418,7 @@ msgid "number must be greater than zero"
 msgstr "թիվը պետք է լինի զրոյից մեծ"
 
 msgid "number must be greater or equal to zero"
-msgstr "թիվը պետք լինի 0-ից մեծ կամ հավասար"
+msgstr "թիվը պետք է լինի 0-ից մեծ կամ հավասար"
 
 msgid "can't delete OutputObject attributes"
 msgstr "հնարավոր չէ ջնջել OutputObject բնորոշիչները"
@@ -9438,7 +9467,7 @@ msgid "list constructor does not accept keyword arguments"
 msgstr "ցուցակի կառուցողը չի ընդունում հիմնաբառերի փաստարկները"
 
 msgid "list index out of range"
-msgstr "ցանկի ինդեքսը անցել է թույլատրելի միջակայքը"
+msgstr "ցանկի ինդեքսը անցել է թույլատրելի տիրույթը"
 
 #, c-format
 msgid "internal error: failed to get Vim list item %d"
@@ -9453,10 +9482,10 @@ msgstr "փորձեք նշանակել %d-ից մեծ չափի հաջորդակա
 
 #, c-format
 msgid "internal error: no Vim list item %d"
-msgstr "ներքին համակարգային սխալ: չկա %d ցանկի էլէմենտը"
+msgstr "ներքին համակարգային սխալ: չկա %d ցանկի էլեմենտը"
 
 msgid "internal error: not enough list items"
-msgstr "ներքին համակարգային սխալ: չկան բավարար ցանկի էլէմենտներ"
+msgstr "ներքին համակարգային սխալ: չկան բավարար ցանկի էլեմենտներ"
 
 msgid "internal error: failed to add item to list"
 msgstr "ներքին համակարգային սխալ: հնարավոր չէ ցանկին էլեմենտ ավելացնել"
@@ -9478,10 +9507,10 @@ msgid "tuple constructor does not accept keyword arguments"
 msgstr "tuple կոնստրուկտորը չի ընդունում հիմնաբառ արգումենտներ"
 
 msgid "tuple index out of range"
-msgstr "tuple-ի ինդեքսը դուրս է թույլատրելի միջակայքից"
+msgstr "tuple-ի ինդեքսը դուրս է թույլատրելի տիրույթից"
 
 msgid "cannot delete vim.Tuple attributes"
-msgstr "vim.Tuple-ի հատկությունները հնարավոր չէ ջնջել"
+msgstr "vim.Tuple-ի բնորոշիչները հնարավոր չէ ջնջել"
 
 msgid "cannot modify fixed tuple"
 msgstr "չի կարելի փոփոխել ֆիքսված Tuple"
@@ -9540,11 +9569,11 @@ msgid "failed to rename buffer"
 msgstr "չհաջողվեց վերանվանել բուֆերը"
 
 msgid "mark name must be a single character"
-msgstr "նշանի անունը պետք է լինի մեկ նիշ"
+msgstr "նշակի անունը պետք է լինի մեկ նիշ"
 
 #, c-format
 msgid "expected vim.Buffer object, but got %s"
-msgstr "սպասվում էր vim.Buffer օբյեկտ, բայց ստացավ %s"
+msgstr "սպասվում էր vim.Buffer օբյեկտ, բայց սստացվել է %s"
 
 #, c-format
 msgid "failed to switch to buffer %d"
@@ -9552,7 +9581,7 @@ msgstr "չհաջողվեց անցնել բուֆեր %d-ին"
 
 #, c-format
 msgid "expected vim.Window object, but got %s"
-msgstr "սպասվում էր vim.Window օբյեկտ, բայց ստացավ %s"
+msgstr "սպասվում էր vim.Window օբյեկտ, բայց սստացվել է %s"
 
 msgid "failed to find window in the current tab page"
 msgstr "չհաջողվեց գտնել պատուհան ընթացիկ ներդիրի էջում"
@@ -9562,7 +9591,7 @@ msgstr "չի անցել նշված պատուհանին"
 
 #, c-format
 msgid "expected vim.TabPage object, but got %s"
-msgstr "սպասվում էր vim.TabPage օբյեկտ, բայց ստացավ %s"
+msgstr "սպասվում էր vim.TabPage օբյեկտ, բայց սստացվել է %s"
 
 msgid "did not switch to the specified tab page"
 msgstr "չի անցել նշված ներդիրի էջին"
@@ -9677,26 +9706,26 @@ msgstr "(գլոբալ կամ տեղական բուֆերային)"
 msgid ""
 "\" Each \"set\" line shows the current value of an option (on the left)."
 msgstr ""
-"\" Յուրաքանչյուր \"set\" տող ցույց է տալիս որևէ տարբերակի ընթացիկ արժեքը "
-"(ձախ կողմում):"
+"\" Յուրաքանչյուր \"set\" տող ցույց է տալիս որևէ ընտրանքի ընթացիկ արժեքը (ձախ "
+"կողմում):"
 
 msgid "\" Hit <Enter> on a \"set\" line to execute it."
 msgstr "\" Հպել<Enter> \"set\" տողի վրա՝ այն կատարելու համար:"
 
 msgid "\"            A boolean option will be toggled."
-msgstr "\"            Բուլյան տարբերակը կփոխանցվի:"
+msgstr "\"            Բուլյան ընտրանքը կփոխանցվի:"
 
 msgid ""
 "\"            For other options you can edit the value before hitting "
 "<Enter>."
 msgstr ""
-"\"            Մյուս տարբերակների համար կարող եք փոխել արժեքը նախքան "
+"\"            Մյուս ընտրանքների համար կարող եք փոխել արժեքը նախքան "
 "հպելը<Enter> ."
 
 msgid "\" Hit <Enter> on a help line to open a help window on this option."
 msgstr ""
-"\" Հպել<Enter> օգնության տողում՝ այս տարբերակի վրա օգնության պատուհան "
-"բացելու համար:"
+"\" Հպել<Enter> օգնության տողում՝ այս ընտրանքի վրա օգնության պատուհան բացելու "
+"համար:"
 
 msgid "\" Hit <Enter> on an index line to jump there."
 msgstr "\" Հպել<Enter> ինդեքսի գծի վրա՝ այնտեղ ցատկելու համար:"
@@ -9714,7 +9743,7 @@ msgid "list of flags to specify Vi compatibility"
 msgstr "դրոշների ցուցակ՝ Vi-ի համատեղելիությունը նշելու համար"
 
 msgid "use Insert mode as the default mode"
-msgstr "օգտագործեք Տեղադրման ռեժիմը որպես լռելյայն ռեժիմ"
+msgstr "օգտագործեք զետեղման ռեժիմը որպես լռելյայն ռեժիմ"
 
 msgid "paste mode, insert typed text literally"
 msgstr "տեղադրեք ռեժիմ, մուտքագրված տեքստը բառացիորեն տեղադրեք"
@@ -9723,10 +9752,10 @@ msgid "key sequence to toggle paste mode"
 msgstr "ստեղների հաջորդականությունը՝ տեղադրելու ռեժիմը փոխելու համար"
 
 msgid "list of directories used for runtime files and plugins"
-msgstr "գործարկման ֆայլերի և պլագինների համար օգտագործվող դիրեկտորիաների ցանկը"
+msgstr "գործարկման ֆայլերի և պլագինների համար օգտագործվող թղթապանակների ցանկը"
 
 msgid "list of directories used for plugin packages"
-msgstr "plugin փաթեթների համար օգտագործվող դիրեկտորիաների ցանկը"
+msgstr "plugin փաթեթների համար օգտագործվող թղթապանակների ցանկը"
 
 msgid "name of the main help file"
 msgstr "հիմնական օգնության ֆայլի անվանումը"
@@ -9736,14 +9765,14 @@ msgstr "շարժվել, որոնումներ և նմուշներ"
 
 msgid "list of flags specifying which commands wrap to another line"
 msgstr ""
-"դրոշակների ցանկ, որը նշում է, թե որ հրամանները փոխվում են մեկ այլ տողի վրա"
+"դրոշների ցանկ, որը նշում է, թե որ հրամանները փոխվում են մեկ այլ տողի վրա"
 
 msgid ""
 "many jump commands move the cursor to the first non-blank\n"
 "character of a line"
 msgstr ""
 "շատ jump հրամաններ կուրսորը տեղափոխում են տողի առաջին ոչ դատարկ\n"
-"նշանի մոտ"
+"նիշի մոտ"
 
 msgid "nroff macro names that separate paragraphs"
 msgstr "nroff մակրո անվանումներ, որոնք առանձնացնում են պարբերությունները"
@@ -9773,17 +9802,16 @@ msgid "show match for partly typed search command"
 msgstr "ցույց տալ համընկնումը մասամբ մուտքագրված որոնման հրամանի համար"
 
 msgid "change the way backslashes are used in search patterns"
-msgstr ""
-"փոխել հետադարձ շեղերի օգտագործման եղանակը որոնման օրինաչափություններում"
+msgstr "փոխել հետադարձ շեղերի օգտագործման եղանակը որոնման նմուշներում"
 
 msgid "select the default regexp engine used"
 msgstr "ընտրեք օգտագործված լռելյայն regexp շարժիչը"
 
 msgid "ignore case when using a search pattern"
-msgstr "անտեսել գործը որոնման օրինաչափություն օգտագործելիս"
+msgstr "անտեսել մեծատառ/փոքրատառ տարբերությունը որոնման նմուշ օգտագործելիս"
 
 msgid "override 'ignorecase' when pattern has upper case characters"
-msgstr "անտեսել 'ignorecase', երբ նախշն ունի մեծատառ նիշեր"
+msgstr "անտեսել 'ignorecase', երբ նմուշն ունի մեծատառ նիշեր"
 
 msgid "maximum number for the search count feature"
 msgstr "փնտրման քանակի ֆունկցիայի առավելագույն թույլատրելի արժեքը"
@@ -9793,8 +9821,8 @@ msgstr "ինչ մեթոդ օգտագործել տառերը փոխելու հա�
 
 msgid "maximum amount of memory in Kbyte used for pattern matching"
 msgstr ""
-"Kbyte հիշողության առավելագույն քանակը, որն օգտագործվում է "
-"օրինաչափությունների համապատասխանեցման համար"
+"Kbyte հիշողության առավելագույն քանակը, որն օգտագործվում է նմուշների "
+"համընկնեցման համար"
 
 msgid "pattern for a macro definition line"
 msgstr "մակրո սահմանման գծի համար նմուշ"
@@ -9829,12 +9857,15 @@ msgstr ""
 msgid "file names in a tags file are relative to the tags file"
 msgstr "պիտակ ֆայլում ֆայլերի անունները հարաբերական են պիտակների ֆայլին"
 
+msgid "a :tag command cannot access remote files"
+msgstr ":tag հրամանը չի կարող հասանելիություն ունենալ հեռավոր ֆայլերին"
+
 msgid "a :tag command will use the tagstack"
 msgstr "a :tag հրամանը կօգտագործի tagstack-ը"
 
 msgid "when completing tags in Insert mode show more info"
 msgstr ""
-"ցուցադրել ավելի շատ տեղեկություններ, երբ տեղադրման ռեժիմում լրացվում են "
+"ցուցադրել ավելի շատ տեղեկություններ, երբ զետեղման ռեժիմում լրացվում են "
 "պիտակները"
 
 msgid "a function to be used to perform tag searches"
@@ -9850,7 +9881,7 @@ msgid "0 or 1; the order in which \":cstag\" performs a search"
 msgstr "0 կամ 1; հերթականությունը, որով \":cstag\"-ը կատարում է որոնում"
 
 msgid "give messages when adding a cscope database"
-msgstr "cscope տվյալների բազա ավելացնելիս հաղորդագրություններ տվեք"
+msgstr "cscope տվյալների բազա ավելացնելիս հհաղորդագրություններ տվեք"
 
 msgid "how many components of the path to show"
 msgstr "ճանապարհի քանի բաղադրիչ ցույց տալ"
@@ -9873,11 +9904,14 @@ msgstr "ոլորել ըստ էկրանի տողով"
 msgid "number of screen lines to show around the cursor"
 msgstr "էկրանի գծերի քանակը՝ կուրսորի շուրջը ցուցադրելու համար"
 
+msgid "vertically center cursor even at end of file"
+msgstr "ուղղահայաց կենտրոնացնել կուրսորը նույնիսկ ֆայլի վերջում"
+
 msgid "long lines wrap"
 msgstr "երկար տողերի ծանում"
 
 msgid "wrap long lines at a character in 'breakat'"
-msgstr "երկար տողեր փաթաթել կերպարի վրա 'breakat'-ում"
+msgstr "երկար տողեր փաթաթել նիշի վրա 'breakat'-ում"
 
 msgid "preserve indentation in wrapped text"
 msgstr "պահպանել ներքևը փաթաթված տեքստում"
@@ -9909,9 +9943,9 @@ msgid ""
 "characters to use for the status line, folds, diffs,\n"
 "buffer text, filler lines and truncation in the completion menu"
 msgstr ""
-"թվանշաններ, որոնք օգտագործվում են՝ status line-ի, folds-ի, diffs-ի, buffer-ի "
+"նիշեր, որոնք օգտագործվում են՝ status line-ի, փաթաթների, diffs-ի, buffer-ի "
 "տեքստի, \n"
-"լրացման (filler) տողերի և ավտոլրացման մենյուում կրճատման համար"
+"լրացման (filler) տողերի և լրացման մենյուում կրճատման համար"
 
 msgid "number of lines used for the command-line"
 msgstr "հրամանի տողի համար օգտագործվող տողերի քանակը"
@@ -9927,6 +9961,12 @@ msgstr "ոլորման համար տողերի քանակը՝ CTRL-F և CTRL-B �
 
 msgid "don't redraw while executing macros"
 msgstr "մի վերագծեք մակրոները կատարելիս"
+
+msgid "configure method of receiving terminal size changes"
+msgstr "Կարգավորել տերմինալի չափի փոփոխությունները ստանալու մեթոդը"
+
+msgid "enable terminal sync mode"
+msgstr "ակտիվացնել տերմինալի համաժամացման ռեժիմը"
 
 msgid "timeout for 'hlsearch' and :match highlighting in msec"
 msgstr "'hlsearch'-ի և msec-ում ընդգծված :match-ի ժամանակի դադարեցում"
@@ -9981,13 +10021,16 @@ msgid "maximum column to look for syntax items"
 msgstr "առավելագույն սյունակ՝ ուղղագրման տարրեր փնտրելու համար"
 
 msgid "which highlighting to use for various occasions"
-msgstr "որը կարևորում է օգտագործել տարբեր առիթների համար"
+msgstr "թե որ գունանշումն օգտագործել տարբեր դեպքերում"
 
 msgid "highlight all matches for the last used search pattern"
 msgstr "գունանշել բոլոր համընկնումները վերջին օգտագործված որոնման նմուշի համար"
 
 msgid "highlight group to use for the window"
 msgstr "պատուհանում օգտագործվելու համար գունանշել խումբը"
+
+msgid "highlight group mappings for the window"
+msgstr "գունանշման խմբի համապատասխանեցում պատուհանում օգտագործվելու համար"
 
 msgid "use GUI colors for the terminal"
 msgstr "օգտագործեք GUI գույները տերմինալի համար"
@@ -10034,6 +10077,9 @@ msgstr "0, 1 կամ 2; երբ օգտագործել կարգավիճակի տող
 
 msgid "alternate format to be used for a status line"
 msgstr "կարգավիճակի տողի համար օգտագործվող այլընտրանքային ձևաչափ"
+
+msgid "optional settings for the status line"
+msgstr "կարգագծի (status line) կամընտիր կարգավորումներ"
 
 msgid "make all windows the same size when adding/removing windows"
 msgstr ""
@@ -10097,7 +10143,7 @@ msgid "this window scrolls together with other bound windows"
 msgstr "այս պատուհանը պտտվում է այլ կապված պատուհանների հետ միասին"
 
 msgid "\"ver\", \"hor\" and/or \"jump\"; list of options for 'scrollbind'"
-msgstr "\"ver\", \"hor\" և/կամ \"jump\"; 'scrollbind'-ի տարբերակների ցանկը"
+msgstr "\"ver\", \"hor\" և/կամ \"jump\"; 'scrollbind'-ի ընտրանքների ցանկը"
 
 msgid "this window's cursor moves together with other bound windows"
 msgstr "այս պատուհանի կուրսորը շարժվում է մյուս փակ պատուհանների հետ միասին"
@@ -10163,7 +10209,7 @@ msgid "what keyboard protocol to use for which terminal"
 msgstr "ստեղնաշարի ինչ արձանագրություն, որ տերմինալի համար օգտագործել"
 
 msgid "recognize keys that start with <Esc> in Insert mode"
-msgstr "ճանաչել ստեղները, որոնք սկսվում են <Esc> Ներդիր ռեժիմում"
+msgstr "ճանաչել ստեղները, որոնք սկսվում են <Esc> զետեղման ռեժիմում"
 
 msgid "minimal number of lines to scroll at a time"
 msgstr "միևնույն ժամանակ ոլորելու համար տողերի նվազագույն քանակը"
@@ -10222,8 +10268,8 @@ msgid ""
 "\"extend\", \"popup\" or \"popup_setpos\"; what the right\n"
 "mouse button is used for"
 msgstr ""
-"\"extend\", \"popup\" կամ \"popup_setpos\"; ինչ իրավունք\n"
-"մկնիկի կոճակը օգտագործում է"
+"\"extend\", \"popup\" կամ \"popup_setpos\"; ինչի համար է\n"
+"օգտագործվում մկնիկի աջ կոճակը"
 
 msgid "maximum time in msec to recognize a double-click"
 msgstr "առավելագույն ժամանակը msec-ում կրկնակի սեղմումը ճանաչելու համար"
@@ -10264,11 +10310,10 @@ msgstr "սենյակ (պիքսելներով) պատուհանից վերևու�
 msgid ""
 "list of ASCII characters that can be combined into complex\n"
 "shapes"
-msgstr ""
-"ASCII թվանշանների ցանկ, որոնք կարող են համակցվել բարդ ձևերի ստեղծման համար"
+msgstr "ASCII նիշերի ցանկ, որոնք կարող են համակցվել բարդ ձևերի ստեղծման համար"
 
 msgid "options for text rendering"
-msgstr "տեքստի մատուցման տարբերակներ"
+msgstr "տեքստի մատուցման ընտրանքներ"
 
 msgid "use a pseudo-tty for I/O to external commands"
 msgstr "օգտագործել կեղծ-tty արտաքին հրամանների մուտքի/ելքի համար"
@@ -10338,22 +10383,20 @@ msgstr ""
 "CJK նիշերի հավաքածուն, որը պետք է օգտագործվի CJK ելքի համար :hardcopy-ից"
 
 msgid "list of font names to be used for CJK output from :hardcopy"
-msgstr ""
-"տառատեսակների անունների ցանկը, որոնք պետք է օգտագործվեն CJK-ի ելքի "
-"համար :hardcopy-ից"
+msgstr "տառատեսակների անունների ցանկը, որոնք պետք է օգտագործվեն CJK-ի ելքի համար :hardcopy"
 
 msgid "messages and info"
-msgstr "հաղորդագրություններ և տեղեկատվություն"
+msgstr "հհաղորդագրություններ և տեղեկատվություն"
 
 msgid "add 's' flag in 'shortmess' (don't show search message)"
 msgstr ""
 "ավելացնել 's' դրոշը 'shortmess'-ում (որոնման հաղորդագրություն չցուցադրել)"
 
 msgid "list of flags to make messages shorter"
-msgstr "դրոշների ցուցակ՝ հաղորդագրություններն ավելի կարճ դարձնելու համար"
+msgstr "դրոշների ցուցակ՝ հհաղորդագրություններն ավելի կարճ դարձնելու համար"
 
 msgid "options for outputting messages"
-msgstr "hաղորդագրություններ արտածելու ընտրանքներ"
+msgstr "hհաղորդագրություններ արտածելու ընտրանքներ"
 
 msgid "show (partial) command keys in location given by 'showcmdloc'"
 msgstr ""
@@ -10375,10 +10418,10 @@ msgid "threshold for reporting number of changed lines"
 msgstr "փոփոխված տողերի քանակի հաշվետվության շեմը"
 
 msgid "the higher the more messages are given"
-msgstr "որքան բարձր է, այնքան շատ հաղորդագրություններ են տրվում"
+msgstr "որքան բարձր է, այնքան շատ հհաղորդագրություններ են տրվում"
 
 msgid "file to write messages in"
-msgstr "ֆայլ՝ հաղորդագրություններ գրելու համար"
+msgstr "ֆայլ՝ հհաղորդագրություններ գրելու համար"
 
 msgid "pause listings when the screen is full"
 msgstr "դադարեցնել ցանկերը, երբ էկրանը լիքն է"
@@ -10387,7 +10430,7 @@ msgid "start a dialog when a command fails"
 msgstr "սկսել երկխոսություն, երբ հրամանը ձախողվում է"
 
 msgid "ring the bell for error messages"
-msgstr "զանգահարեք սխալի հաղորդագրությունների համար"
+msgstr "զանգահարեք սխալի հհաղորդագրությունների համար"
 
 msgid "use a visual bell instead of beeping"
 msgstr "ձայնային ազդանշանի փոխարեն օգտագործեք տեսողական զանգ"
@@ -10428,12 +10471,6 @@ msgstr "Wayland-ում տվյալներ կարդալու կամ գրելու ս�
 msgid "Wayland seat to use"
 msgstr "Wayland seat ընտրելու համար"
 
-msgid ""
-"Enable wayland focus stealing functionality in order to access the clipboard"
-msgstr ""
-"Սեղմատախտակին հասանելիություն ունենալու համար միացնել Wayland-ի focus "
-"stealing ֆունկցիոնալությունը"
-
 msgid "\"startsel\" and/or \"stopsel\"; what special keys can do"
 msgstr "\"startsel\" և/կամ \"stopsel\"; ինչ կարող են անել հատուկ ստեղները"
 
@@ -10447,12 +10484,12 @@ msgid "automatically save and restore undo history"
 msgstr "ինքնաբերաբար պահպանել և վերականգնել հետարկման պատմությունը"
 
 msgid "list of directories for undo files"
-msgstr "ֆայլերի հետարկման դիրեկտորիաների ցանկ"
+msgstr "ֆայլերի հետարկման թղթապանակների ցանկ"
 
 msgid "maximum number lines to save for undo on a buffer reload"
 msgstr ""
 "առավելագույն թվով տողեր, որոնք պահվում են բուֆերի վերաբեռնման ժամանակ "
-"չեղարկելու համար"
+"հետարկելու համար"
 
 msgid "changes have been made and not written to a file"
 msgstr "փոփոխություններ են կատարվել և չեն գրվել ֆայլում"
@@ -10471,7 +10508,7 @@ msgstr "լուսանցք աջից, որտեղ կարելի է գիծ կտրել"
 
 msgid "specifies what <BS>, CTRL-W, etc. can do in Insert mode"
 msgstr ""
-"հստակեցնում է, թե ինչ<BS> , CTRL-W և այլն կարող են անել Insert ռեժիմում"
+"հստակեցնում է, թե ինչ <BS>, CTRL-W և այլն կարող են անել զետեղման ռեժիմում"
 
 msgid "definition of what comment lines look like"
 msgstr "սահմանում, թե ինչ տեսք ունեն մեկնաբանությունների տողերը"
@@ -10481,7 +10518,7 @@ msgstr "մեկնաբանությունների ձևանմուշ; օգտագոր�
 
 msgid "list of flags that tell how automatic formatting works"
 msgstr ""
-"դրոշակների ցանկ, որոնք պատմում են, թե ինչպես է աշխատում ավտոմատ ձևաչափումը"
+"դրոշների ցանկ, որոնք պատմում են, թե ինչպես է աշխատում ավտոմատ ձևաչափումը"
 
 msgid "pattern to recognize a numbered list"
 msgstr "նմուշ՝ համարակալված ցուցակը ճանաչելու համար"
@@ -10492,11 +10529,11 @@ msgstr ""
 
 msgid "specifies how Insert mode completion works for CTRL-N and CTRL-P"
 msgstr ""
-"նշում է, թե ինչպես է աշխատում Ներդիր ռեժիմի ավտոլրացումը CTRL-N-ի և CTRL-P-ի "
+"նշում է, թե ինչպես է աշխատում զետեղման ռեժիմի լրացումը CTRL-N-ի և CTRL-P-ի "
 "համար"
 
 msgid "automatic completion in insert mode"
-msgstr "ավտոլրացում ներմուծման ռեժիմում"
+msgstr "ավտոլրացում զետեղման ռեժիմում"
 
 msgid ""
 " \n"
@@ -10520,7 +10557,7 @@ msgstr ""
 "տառ մուտքագրելուց հետո մենյուի հայտնվելու ուշացում (միլիվայրկյաններով)"
 
 msgid "whether to use a popup menu for Insert mode completion"
-msgstr "արդյոք օգտագործել սահապատ ընտրացանկը Ներդիր ռեժիմի ավտոլրացման համար"
+msgstr "արդյոք օգտագործել սահապատ ընտրացանկը զետեղման ռեժիմի լրացման համար"
 
 msgid ""
 " \n"
@@ -10530,7 +10567,7 @@ msgstr ""
 "սահապատի տարրերի ուղղման կարգ"
 
 msgid "options for the Insert mode completion info popup"
-msgstr "ընտրանքներ Ներդիր ռեժիմի ավտոլրացման սահապատ պատուհանի համար"
+msgstr "ընտրանքներ զետեղման ռեժիմի լրացման սահապատ պատուհանի համար"
 
 msgid "maximum height of the popup menu"
 msgstr "սահապատ ընտրացանկի առավելագույն բարձրությունը"
@@ -10544,23 +10581,26 @@ msgstr "սահապատ ընտրացանկի առավելագույն լայնո�
 msgid "popup border style"
 msgstr "սահապատի եզրագծի ոճ"
 
+msgid "additional options for the popup menu"
+msgstr "սահապատի լրացուցիչ ընտրանքներ"
+
 msgid "user defined function for Insert mode completion"
-msgstr "օգտատիրոջ կողմից սահմանված ֆունկցիա՝ Ներդիր ռեժիմի ավտոլրացման համար"
+msgstr "օգտատիրոջ կողմից սահմանված ֆունկցիա՝ զետեղման ռեժիմի լրացման համար"
 
 msgid "function for filetype-specific Insert mode completion"
-msgstr "ֆայլին հատուկ ֆունկցիա՝ Ներդիր ռեժիմի ավտոլրացման համար"
+msgstr "ֆայլին հատուկ ֆունկցիա՝ զետեղման ռեժիմի լրացման համար"
 
 msgid "list of dictionary files for keyword completion"
-msgstr "բառարանի ֆայլերի ցանկ՝ հիմնաբառի ավտոլրացման համար"
+msgstr "բառարանի ֆայլերի ցանկ՝ հիմնաբառի լրացման համար"
 
 msgid "list of thesaurus files for keyword completion"
-msgstr "թեզաուրուսի ֆայլերի ցանկ՝ հիմնաբառի ավտոլրացման համար"
+msgstr "thesaurus ֆայլերի ցանկ՝ հիմնաբառի լրացման համար"
 
 msgid "function used for thesaurus completion"
-msgstr "ֆունկցիա, որն օգտագործվում է թեզաուրուսի ավտոլրացման համար"
+msgstr "ֆունկցիա, որն օգտագործվում է թեզաուրուսի լրացման համար"
 
 msgid "adjust case of a keyword completion match"
-msgstr "հարմարեցնել հիմնաբառի ավտոլրացման համընկնման գրության տեսակը"
+msgstr "հարմարեցնել հիմնաբառի լրացման համընկնման գրության տեսակը"
 
 msgid "enable entering digraphs with c1 <BS> c2"
 msgstr "միացնել c1-ով դիգրաֆներ մուտքագրելը<BS> գ2"
@@ -10575,10 +10615,10 @@ msgid "when inserting a bracket, briefly jump to its match"
 msgstr "փակագիծ տեղադրելիս համառոտ անցեք դրա համընկնումին"
 
 msgid "tenth of a second to show a match for 'showmatch'"
-msgstr "վայրկյանի տասներորդը՝ 'showmatch' համար խաղ ցուցադրելու համար"
+msgstr "վայրկյանի տասներորդներ՝ 'showmatch'-ի համընկնումը ցուցադրելու համար"
 
 msgid "list of pairs that match for the \"%\" command"
-msgstr "\"%\" հրամանին համապատասխանող զույգերի ցանկը"
+msgstr "\"%\" հրամանի համար համընկնող զույգերի ցանկը"
 
 msgid "use two spaces after '.' when joining a line"
 msgstr "օգտագործել երկու բացատ '.'-ից հետո: տողին միանալիս"
@@ -10615,7 +10655,7 @@ msgid "round to 'shiftwidth' for \"<<\" and \">>\""
 msgstr "կլոր դեպի 'shiftwidth' \"<<\" և \">>\"-ի համար"
 
 msgid "expand <Tab> to spaces in Insert mode"
-msgstr "ընդլայնել<Tab> Տեղադրել ռեժիմում գտնվող բացատներին"
+msgstr "զետեղման ռեժիմում <Tab>-ը վերածել բացատների"
 
 msgid "automatically set the indent of a new line"
 msgstr "ինքնաբերաբար սահմանել նոր տողի նահանջը"
@@ -10627,10 +10667,10 @@ msgid "enable specific indenting for C code"
 msgstr "միացնել հատուկ նահանջը C կոդի համար"
 
 msgid "options for C-indenting"
-msgstr "տարբերակներ C-ի ներքևման համար"
+msgstr "ընտրանքներ C-ի ներքևման համար"
 
 msgid "keys that trigger C-indenting in Insert mode"
-msgstr "ստեղներ, որոնք գործարկում են C-indenting-ը Ներդիր ռեժիմում"
+msgstr "ստեղներ, որոնք գործարկում են C-indenting-ը զետեղման ռեժիմում"
 
 msgid "list of words that cause more C-indent"
 msgstr "բառերի ցանկ, որոնք ավելի շատ C-indent են առաջացնում"
@@ -10642,7 +10682,7 @@ msgid "expression used to obtain the indent of a line"
 msgstr "արտահայտություն, որն օգտագործվում է տողի նահանջը ստանալու համար"
 
 msgid "keys that trigger indenting with 'indentexpr' in Insert mode"
-msgstr "ստեղներ, որոնք 'indentexpr' հետ մղում են Insert ռեժիմում"
+msgstr "ստեղներ, որոնք 'indentexpr'-ով նահանջ են գործարկում զետեղման ռեժիմում"
 
 msgid "copy whitespace for indenting from previous line"
 msgstr "պատճենեք բաց տարածությունը նախորդ տողից նահանջելու համար"
@@ -10663,7 +10703,7 @@ msgid "folding"
 msgstr "փաթաթում"
 
 msgid "unset to display all folds open"
-msgstr "unset՝ բոլոր ծալքերը բաց ցուցադրելու համար"
+msgstr "unset՝ բոլոր փաթաթները բաց ցուցադրելու համար"
 
 msgid "folds with a level higher than this number will be closed"
 msgstr "այս թվից բարձր մակարդակ ունեցող փաթաթները կփակվեն"
@@ -10672,16 +10712,17 @@ msgid "value for 'foldlevel' when starting to edit a file"
 msgstr "արժեքը 'foldlevel'-ի համար, երբ սկսում եք խմբագրել ֆայլը"
 
 msgid "width of the column used to indicate folds"
-msgstr "սյունակի լայնությունը, որն օգտագործվում է ծալքերը նշելու համար"
+msgstr "սյունակի լայնությունը, որն օգտագործվում է փաթաթները նշելու համար"
 
 msgid "expression used to display the text of a closed fold"
-msgstr "արտահայտություն, որն օգտագործվում է փակ ծալքի տեքստը ցուցադրելու համար"
+msgstr ""
+"արտահայտություն, որն օգտագործվում է փակ փաթաթի տեքստը ցուցադրելու համար"
 
 msgid "set to \"all\" to close a fold when the cursor leaves it"
 msgstr "սահմանել \"all\"՝ փաթաթը փակելու համար, երբ կուրսորը թողնում է այն"
 
 msgid "specifies for which commands a fold will be opened"
-msgstr "նշում է, թե որ հրամանների համար կբացվի fold-ը"
+msgstr "նշում է, թե որ հրամանների համար կբացվի փաթաթը"
 
 msgid "minimum number of screen lines for a fold to be closed"
 msgstr "էկրանի գծերի նվազագույն քանակը փաթաթի փակման համար"
@@ -10690,7 +10731,7 @@ msgid ""
 "folding type: \"manual\", \"indent\", \"expr\", \"marker\",\n"
 "\"syntax\" or \"diff\""
 msgstr ""
-"փաթաթի տեսակը`  \"manual\", \"indent\", \"expr\", \"marker\",\n"
+"փաթաթի տեսակը` \"manual\", \"indent\", \"expr\", \"marker\",\n"
 "\"syntax\" կամ \"diff\""
 
 msgid "expression used when 'foldmethod' is \"expr\""
@@ -10714,7 +10755,7 @@ msgid "use diff mode for the current window"
 msgstr "օգտագործեք տարբեր ռեժիմը ընթացիկ պատուհանի համար"
 
 msgid "options for using diff mode"
-msgstr "համեմատման ռեժիմ օգտագործելու տարբերակներ"
+msgstr "համեմատման ռեժիմ օգտագործելու ընտրանքներ"
 
 msgid "expression used to obtain a diff file"
 msgstr "արտահայտոթյունն օգտագործվել է ֆայլի տարբերություններն ստեղծելու համար"
@@ -10753,7 +10794,10 @@ msgid "enable using settings from modelines when reading a file"
 msgstr "միացնել ֆայլը կարդալիս մոդելների կարգավորումների օգտագործումը"
 
 msgid "allow setting expression options from a modeline"
-msgstr "թույլ է տալիս սահմանել արտահայտման տարբերակները մոդելից"
+msgstr "թույլ է տալիս սահմանել արտահայտման ընտրանքները մոդելից"
+
+msgid "only allow safe options to be set from a modeline"
+msgstr "թույլատրել միայն անվտանգ ընտրանքներ modeline-ից"
 
 msgid "number of lines to check for modelines"
 msgstr "գծերի քանակը՝ մոդելների առկայությունը ստուգելու համար"
@@ -10803,7 +10847,7 @@ msgstr ""
 "ֆայլը"
 
 msgid "list of directories to put backup files in"
-msgstr "պահուստային ֆայլեր տեղադրելու դիրեկտորիաների ցանկը"
+msgstr "պահուստային ֆայլեր տեղադրելու թղթապանակների ցանկը"
 
 msgid "file name extension for the backup file"
 msgstr "ֆայլի անվան ընդլայնում պահուստային ֆայլի համար"
@@ -10836,13 +10880,13 @@ msgid "the swap file"
 msgstr "սվեփ ֆայլը"
 
 msgid "list of directories for the swap file"
-msgstr "սվեփ ֆայլի դիրեկտորիաների ցանկը"
+msgstr "սվեփ ֆայլի թղթապանակների ցանկը"
 
 msgid "use a swap file for this buffer"
 msgstr "օգտագործեք սվեփ ֆայլ այս բուֆերի համար"
 
 msgid "\"sync\", \"fsync\" or empty; how to flush a swap file to disk"
-msgstr "\"sync\", \"fsync\" կամ դատարկ; ինչպես փոխանակել ֆայլը սկավառակի վրա"
+msgstr "\"sync\", \"fsync\" կամ դատարկ; ինչպես գրել սվեփ ֆայլը սկավառակի վրա"
 
 msgid "number of characters typed to cause a swap file update"
 msgstr "սվեփ ֆայլի թարմացում առաջացնելու համար մուտքագրված նիշերի քանակը"
@@ -10873,12 +10917,11 @@ msgid "like 'wildchar' but can also be used in a mapping"
 msgstr "ինչպես 'wildchar'-ը, բայց կարող է օգտագործվել նաև քարտեզագրման մեջ"
 
 msgid "specifies how command line completion works"
-msgstr "նկարագրում է, թե ինչպես է հրամանային տողում աշխատում ավտոլրացումը"
+msgstr "նկարագրում է, թե ինչպես է հրամանային տողում աշխատում լրացումը"
 
 msgid "empty or \"tagfile\" to list file name of matching tags"
 msgstr ""
-"դատարկ կամ \"tagfile\"՝ համապատասխան պիտակների ֆայլի անունը ցուցակագրելու "
-"համար"
+"դատարկ կամ \"tagfile\"՝ համընկնող պիտակների ֆայլի անունը ցուցակագրելու համար"
 
 msgid "list of file name extensions that have a lower priority"
 msgstr "ավելի ցածր առաջնահերթություն ունեցող ֆայլային ընդարձակումների ցուցակ"
@@ -10887,7 +10930,7 @@ msgid "list of file name extensions added when searching for a file"
 msgstr "ֆայլ որոնելիս ավելացվող ֆայլային ընդարձակումների ցանկը"
 
 msgid "list of patterns to ignore files for file name completion"
-msgstr "ֆայլային անվան ավտոլրացման համար անտեսվելիք նմուշների ցանկ"
+msgstr "ֆայլային անվան լրացման համար անտեսվելիք նմուշների ցանկ"
 
 msgid "ignore case when using file names"
 msgstr "ֆայլերի անուններ օգտագործելիս անտեսել գործը"
@@ -10896,7 +10939,7 @@ msgid "ignore case when completing file names"
 msgstr "անտեսել գրության տեսակը ֆայլերի անունների ավտոլրացման ժամանակ"
 
 msgid "command-line completion shows a list of matches"
-msgstr "հրամանի տողի ավտոլրացումը ցուցադրում է համընկնումների ցանկը"
+msgstr "հրամանի տողի լրացումը ցուցադրում է համընկնումների ցանկը"
 
 msgid "key used to open the command-line window"
 msgstr "բանալին, որն օգտագործվում է հրամանի տողի պատուհանը բացելու համար"
@@ -10920,7 +10963,7 @@ msgid "like 'shellquote' but include the redirection"
 msgstr "նման է \"shellquote\"-ին, բայց ներառում է վերահղումը"
 
 msgid "characters to escape when 'shellxquote' is ("
-msgstr "նշաններ, որոնք պետք է արտաքսվեն (escape) երբ 'shellxquote' = \"(\""
+msgstr "նիշեր, որոնք պետք է արտաքսվեն (escape) երբ 'shellxquote' = \"(\""
 
 msgid "argument for 'shell' to execute a command"
 msgstr "'shell' փաստարկ՝ հրամանը կատարելու համար"
@@ -10947,13 +10990,13 @@ msgstr ""
 "զգուշացնել, երբ օգտագործում եք shell հրամանը, և բուֆերը փոփոխություններ ունի"
 
 msgid "running make and jumping to errors (quickfix)"
-msgstr "վազում և ցատկում դեպի սխալներ (արագ ուղղում)"
+msgstr "make-ի գործարկում և սխալներին անցում (quickfix)"
 
 msgid "name of the file that contains error messages"
-msgstr "ֆայլի անունը, որը պարունակում է սխալի հաղորդագրություններ"
+msgstr "ֆայլի անունը, որը պարունակում է սխալի հհաղորդագրություններ"
 
 msgid "list of formats for error messages"
-msgstr "սխալների հաղորդագրությունների ձևաչափերի ցանկ"
+msgstr "սխալների հհաղորդագրությունների ձևաչափերի ցանկ"
 
 msgid "program used for the \":make\" command"
 msgstr "ծրագիր, որն օգտագործվում է \":make\" հրամանի համար"
@@ -10989,13 +11032,13 @@ msgstr ""
 "ֆայլերի անուններում օգտագործել առաջ շեղեր; Unix-ի նման պատյանների համար"
 
 msgid "specifies slash/backslash used for completion"
-msgstr "նշում է ավտոլրացման մեջ օգտագործվող շեղ/հետին շեղ գծերը"
+msgstr "նշում է լրացման մեջ օգտագործվող շեղ/հետին շեղ գծերը"
 
 msgid "language specific"
 msgstr "լեզվի հատուկ"
 
 msgid "specifies the characters in a file name"
-msgstr "ֆայլի անվան մեջ պարունակում է նշաններ"
+msgstr "ֆայլի անվան մեջ պարունակում է նիշեր"
 
 msgid "specifies the characters in an identifier"
 msgstr "նշում է նույնացուցիչի նիշերը"
@@ -11004,7 +11047,7 @@ msgid "specifies the characters in a keyword"
 msgstr "սահմանում է հիմնաբառի նիշերը"
 
 msgid "specifies printable characters"
-msgstr "պարունակում է տպագրվող տառեր"
+msgstr "պարունակում է տպագրվող նիշեր"
 
 msgid "specifies escape characters in a string"
 msgstr "նշում է փախուստի նիշերը տողի մեջ"
@@ -11051,7 +11094,7 @@ msgstr "կիրառել 'langmap' քարտեզագրված նիշերի վրա"
 
 msgid "when set never use IM; overrules following IM options"
 msgstr ""
-"երբ սահմանված է, երբեք մի օգտագործեք IM; Չեղարկում է հետևյալ IM տարբերակները"
+"երբ սահմանված է, երբեք մի օգտագործեք IM; Չեղարկում է հետևյալ IM ընտրանքները"
 
 msgid "in Insert mode: 1: use :lmap; 2: use IM; 0: neither"
 msgstr "զետեղման ռեժիմում՝ 1: օգտագործել :lmap; 2: օգտագործել IM; 0: ոչ մեկը"
@@ -11073,7 +11116,7 @@ msgid "function to enable/disable IME"
 msgstr "IME-ը միացնելու/անջատելու ֆունկցիա"
 
 msgid "multi-byte characters"
-msgstr "բազմաբայթ նշաններ"
+msgstr "բազմաբայթ նիշեր"
 
 msgid ""
 "character encoding used in Vim: \"latin1\", \"utf-8\",\n"
@@ -11124,7 +11167,7 @@ msgid "list of autocommand events which are to be ignored"
 msgstr "ինքնահրամանի իրադարձությունների ցանկը, որոնք պետք է անտեսվեն"
 
 msgid "list of autocommand events which are to be ignored in a window"
-msgstr "ինքնահրաման events՝ անտեսվող պատուհանում"
+msgstr "պատուհանում անտեսվող ինքնահրամանի իրադարձությունների ցանկ"
 
 msgid "load plugin scripts when starting up"
 msgstr "բեռնել plugin-ի սկրիպտները գործարկման ժամանակ"
@@ -11172,14 +11215,14 @@ msgid "whether the buffer shows up in the buffer list"
 msgstr "արդյոք բուֆերը հայտնվում է բուֆերային ցուցակում"
 
 msgid "set to \"msg\" to see all error messages"
-msgstr "սահմանել \"msg\"՝ բոլոր սխալ հաղորդագրությունները տեսնելու համար"
+msgstr "սահմանել \"msg\"՝ բոլոր սխալ հհաղորդագրությունները տեսնելու համար"
 
 msgid "whether to show the signcolumn"
 msgstr "ցույց տալ նշանի սյունակը"
 
 msgid "interval in milliseconds between polls for MzScheme threads"
 msgstr ""
-"MzScheme շղթաների հարցումների միջև ընկած ժամանակահատվածը միլիվայրկյաններով"
+"MzScheme հոսքերի հարցումների միջև ընկած ժամանակահատվածը միլիվայրկյաններով"
 
 msgid "name of the Lua dynamic library"
 msgstr "Lua դինամիկ գրադարանի անվանումը"
@@ -11226,6 +11269,45 @@ msgstr "անհատականացված ներդիրների էջեր ներդիր�
 
 msgid "options for using tabpanel"
 msgstr "tabpanel օգտագործելու ընտրանքներ"
+
+msgid "Notice"
+msgstr "Ծանուցում"
+
+msgid "Quickfix list not found, stopping the job"
+msgstr "Quickfix ցանկը չի գտնվել, առաջադրանքը դադարեցվում է"
+
+msgid "Success!"
+msgstr "Հաջողվեց!"
+
+msgid "Job terminated"
+msgstr "Առաջադրանքն ընդհատված է"
+
+msgid "There are errors."
+msgstr "Սխալներ կան."
+
+msgid "Could not create quickfix list"
+msgstr "Հնարավոր չէ ստեղծել quickfix ցանկ"
+
+msgid "File not readable:"
+msgstr "Ֆայլն ընթեռնելի չէ:"
+
+msgid "Failed to start job"
+msgstr "Հնարավոր չեղավ սկսել առաջադրանքը"
+
+msgid "Typesetting..."
+msgstr "Շարվածք..."
+
+msgid "Jobs still running:"
+msgstr "Առաջադրանքները դեռևս կատարվում են:"
+
+msgid "Done."
+msgstr "Ավարտված է."
+
+msgid "Typeset"
+msgstr "Շարվածք"
+
+msgid "Please save the buffer first."
+msgstr "Խնդրում ենք նախ պահպանել բուֆերը."
 
 msgid "You discovered the command-line window! You can close it with \":q\"."
 msgstr "Դուք հայտնաբերեցիք հրամանի տողի պատուհանը: Կարող եք փակել \":q\"-ով։"

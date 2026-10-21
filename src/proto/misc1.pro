@@ -1,4 +1,4 @@
-/* misc1.c */
+// misc1.c
 int get_leader_len(char_u *line, char_u **flags, int backward, int include_space);
 int get_last_leader_offset(char_u *line, char_u **flags);
 int plines(linenr_T lnum);
@@ -29,9 +29,9 @@ void free_homedir(void);
 void free_users(void);
 void init_vimdir(void);
 char_u *expand_env_save(char_u *src);
-char_u *expand_env_save_opt(char_u *src, int one);
+char_u *expand_env_save_opt(char_u *src, int one, char_u *esc_chars);
 size_t expand_env(char_u *src, char_u *dst, int dstlen);
-size_t expand_env_esc(char_u *srcp, char_u *dst, int dstlen, int esc, int one, char_u *startstr);
+size_t expand_env_esc(char_u *srcp, char_u *dst, int dstlen, char_u *esc_chars, int one, char_u *startstr);
 char_u *vim_getenv(char_u *name, int *mustfree);
 void vim_unsetenv(char_u *var);
 void vim_unsetenv_ext(char_u *var);
@@ -56,4 +56,4 @@ void restore_v_event(dict_T *v_event, save_v_event_T *sve);
 void may_trigger_modechanged(void);
 int vim_append_digit_long(long *value, int digit);
 int trim_to_int(vimlong_T x);
-/* vim: set ft=c : */
+// vim: ft=c

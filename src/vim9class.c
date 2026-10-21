@@ -461,13 +461,14 @@ extends_check_dup_members(
     {
 	class_T	    *p_cl = extends_cl;
 	ocmember_T  *c_m = members + c_i;
-	char_u	    *pstr = (*c_m->ocm_name.string == '_')
-				    ? c_m->ocm_name.string + 1 : c_m->ocm_name.string;
+	bool	    c_protected = (*c_m->ocm_name.string == '_');
+	char_u	    *pstr = c_m->ocm_name.string + c_protected;
 
 	// Check in all the parent classes in the lineage
 	while (p_cl != NULL)
 	{
 	    int p_member_count = p_cl->class_obj_member_count;
+
 	    if (p_member_count == 0)
 	    {
 		p_cl = p_cl->class_extends;
@@ -478,12 +479,17 @@ extends_check_dup_members(
 	    // Compare against all the members in the parent class
 	    for (int p_i = 0; p_i < p_member_count; p_i++)
 	    {
-		ocmember_T	*p_m = p_members + p_i;
-		char_u	*qstr = (*p_m->ocm_name.string == '_')
-		    ? p_m->ocm_name.string + 1 : p_m->ocm_name.string;
+		ocmember_T  *p_m = p_members + p_i;
+		bool	    p_protected = (*p_m->ocm_name.string == '_');
+		char_u	    *qstr = p_m->ocm_name.string + p_protected;
 		if (STRCMP(pstr, qstr) == 0)
 		{
-		    semsg(_(e_duplicate_variable_str), c_m->ocm_name.string);
+		    if (c_protected != p_protected)
+			semsg(_(e_public_and_protected_member_have_same_name_str_str),
+				pstr, pstr);
+		    else
+			semsg(_(e_duplicate_variable_str),
+				c_m->ocm_name.string);
 		    return FALSE;
 		}
 	    }
@@ -727,12 +733,25 @@ validate_interface_variables(
 }
 
 /*
- * Returns TRUE if the method signature of "if_method" and "cl_method" matches.
+ * Returns TRUE if the method signature of "if_method" of interface
+ * "intf_name" and "cl_method" matches.
  */
     static int
-intf_method_type_matches(ufunc_T *if_method, ufunc_T *cl_method)
+intf_method_type_matches(
+    ufunc_T	*if_method,
+    ufunc_T	*cl_method,
+    char_u	*intf_name)
 {
     where_T where = WHERE_INIT;
+
+    // A generic method must have the same number of type variables, like
+    // when overriding a method, see validate_extends_generic_method().
+    if (cl_method->uf_generic_argcount != if_method->uf_generic_argcount)
+    {
+	semsg(_(e_type_var_count_of_method_str_differs_from_interface_str),
+						cl_method->uf_name, intf_name);
+	return FALSE;
+    }
 
     // Ensure the type is matching.
     where.wt_func_name = (char *)if_method->uf_name;
@@ -745,16 +764,17 @@ intf_method_type_matches(ufunc_T *if_method, ufunc_T *cl_method)
 }
 
 /*
- * Returns TRUE if the interface method "if_ufunc" is present in the list of
- * methods in "cl_fp" or in the parent lineage of one of the extended classes
- * in "extends_cl".  For a class method, 'is_class_method' is TRUE.
+ * Returns TRUE if the method "if_ufunc" of interface "intf_name" is present in
+ * the list of methods in "cl_fp" or in the parent lineage of one of the
+ * extended classes in "extends_cl".
  */
     static int
 intf_method_present(
     ufunc_T *if_ufunc,
     ufunc_T **cl_fp,
     int	    cl_count,
-    class_T *extends_cl)
+    class_T *extends_cl,
+    char_u  *intf_name)
 {
     int		method_present  = FALSE;
 
@@ -763,7 +783,7 @@ intf_method_present(
 	if (STRCMP(if_ufunc->uf_name, cl_fp[cl_i]->uf_name) == 0)
 	{
 	    // Ensure the type is matching.
-	    if (!intf_method_type_matches(if_ufunc, cl_fp[cl_i]))
+	    if (!intf_method_type_matches(if_ufunc, cl_fp[cl_i], intf_name))
 		return FALSE;
 	    method_present = TRUE;
 	    break;
@@ -775,7 +795,7 @@ intf_method_present(
 	ufunc_T **ext_cl_fp = (ufunc_T **)(extends_cl->class_obj_methods);
 	int	ext_cl_count = extends_cl->class_obj_method_count;
 	return intf_method_present(if_ufunc, ext_cl_fp, ext_cl_count,
-						extends_cl->class_extends);
+					extends_cl->class_extends, intf_name);
     }
 
     return method_present;
@@ -807,7 +827,8 @@ validate_interface_methods(
     {
 	char_u	*if_name = if_fp[if_i]->uf_name;
 
-	if (!intf_method_present(if_fp[if_i], cl_fp, cl_count, extends_cl))
+	if (!intf_method_present(if_fp[if_i], cl_fp, cl_count, extends_cl,
+							    intf_class_name))
 	{
 	    semsg(_(e_method_str_of_interface_str_not_implemented),
 		    if_name, intf_class_name);
@@ -819,14 +840,15 @@ validate_interface_methods(
 }
 
 /*
- * Validate all the "implements" classes when creating a new class.  The
- * classes are returned in "intf_classes".  The class functions, class members,
- * object methods and object members in the new class are in
+ * Validate all the "implements" classes when creating the new class "cl".
+ * The classes are returned in "intf_classes".  The class functions, class
+ * members, object methods and object members in the new class are in
  * "classfunctions_gap", "classmembers_gap", "objmethods_gap", and
  * "objmembers_gap" respectively.
  */
     static int
 validate_implements_classes(
+    class_T	*cl,
     garray_T	*impl_gap,
     garray_T	*intf_classes_gap,
     garray_T	*objmethods_gap,
@@ -872,14 +894,27 @@ validate_implements_classes(
 	// check the variables of the interface match the members of the class
 	success = validate_interface_variables(impl, ifcl, objmembers_gap,
 								extends_cl);
-
-	// check the functions/methods of the interface match the
-	// functions/methods of the class
-	if (success)
-	    success = validate_interface_methods(impl, ifcl, objmethods_gap,
-								extends_cl);
 	clear_tv(&tv);
     }
+
+    if (!success)
+	return FALSE;
+
+    // check if the functions/methods of the interface match the
+    // functions/methods of the class.  A method may return the new class
+    // where an interface or the parent class is expected, temporarily set
+    // them in "cl" to make the type check work.
+    cl->class_interfaces_cl = (class_T **)intf_classes_gap->ga_data;
+    cl->class_interface_count = intf_classes_gap->ga_len;
+    cl->class_extends = extends_cl;
+    for (int i = 0; i < impl_gap->ga_len && success; ++i)
+	success = validate_interface_methods(
+		((char_u **)impl_gap->ga_data)[i],
+		((class_T **)intf_classes_gap->ga_data)[i], objmethods_gap,
+		extends_cl);
+    cl->class_interfaces_cl = NULL;
+    cl->class_interface_count = 0;
+    cl->class_extends = NULL;
 
     return success;
 }
@@ -893,7 +928,7 @@ is_interface_class_present(garray_T *intf_classes_gap, class_T *ifcl)
 {
     for (int j = 0; j < intf_classes_gap->ga_len; j++)
     {
-	if (((class_T **)intf_classes_gap)[j] == ifcl)
+	if (((class_T **)intf_classes_gap->ga_data)[j] == ifcl)
 	    return TRUE;
     }
 
@@ -918,7 +953,7 @@ add_interface_from_super_class(
 	return FALSE;
 
     if (ga_grow(impl_gap, 1) == FAIL)
-	return FALSE;
+	goto fail;
 
     char_u **intf_names = (char_u **)impl_gap->ga_data;
     intf_names[impl_gap->ga_len] = intf_name;
@@ -926,7 +961,10 @@ add_interface_from_super_class(
 
     // Add the interface class to "intf_classes_gap"
     if (ga_grow(intf_classes_gap, 1) == FAIL)
-	return FALSE;
+    {
+	--impl_gap->ga_len;
+	goto fail;
+    }
 
     class_T **intf_classes = (class_T **)intf_classes_gap->ga_data;
     intf_classes[intf_classes_gap->ga_len] = ifcl;
@@ -934,6 +972,9 @@ add_interface_from_super_class(
     ++ifcl->class_refcount;
 
     return TRUE;
+fail:
+    vim_free(intf_name);
+    return FALSE;
 }
 
 /*
@@ -1034,18 +1075,18 @@ is_duplicate_variable(
     char_u	*varname,
     char_u	*varname_end)
 {
-    string_T	pstr = {varname, (size_t)(varname_end - varname)};  // Note: the .string field may
-								    // point to a string longer
-								    // than the .length field.
-								    // So we need to use STRNCMP()
-								    // to compare it.
+    // Note: the .string field may point to a string longer than the .length
+    // field.  So we need to use STRNCMP() to compare it.
+    string_T	pstr = {varname, (size_t)(varname_end - varname)};
     int		dup = FALSE;
+    bool	p_protected = false;
 
     // Step over a leading '_'.
     if (*pstr.string == '_')
     {
 	pstr.string++;
 	pstr.length--;
+	p_protected = true;
     }
 
     // loop == 1: class variables, loop == 2: object variables
@@ -1056,12 +1097,14 @@ is_duplicate_variable(
 	{
 	    ocmember_T *m = ((ocmember_T *)vgap->ga_data) + i;
 	    string_T	qstr = {m->ocm_name.string, m->ocm_name.length};
+	    bool	q_protected = false;
 
 	    // Step over a leading '_'.
 	    if (*qstr.string == '_')
 	    {
 		qstr.string++;
 		qstr.length--;
+		q_protected = true;
 	    }
 
 	    if (pstr.length == qstr.length
@@ -1070,7 +1113,11 @@ is_duplicate_variable(
 		char_u	save_c = *varname_end;
 
 		*varname_end = NUL;
-		semsg(_(e_duplicate_variable_str), varname);
+		if (p_protected != q_protected)
+		    semsg(_(e_public_and_protected_member_have_same_name_str_str),
+					       pstr.string, pstr.string);
+		else
+		    semsg(_(e_duplicate_variable_str), varname);
 		*varname_end = save_c;
 		dup = TRUE;
 		break;
@@ -1458,7 +1505,7 @@ add_default_constructor(
     int		is_enum = IS_ENUM(cl);
 
     ga_init2(&fga, 1, 1000);
-    ga_concat_len(&fga, (char_u *)"new(", 4);
+    GA_CONCAT_LITERAL(&fga, "new(");
     for (int i = 0; i < cl->class_obj_member_count; ++i)
     {
 	if (i < 2 && is_enum)
@@ -1469,13 +1516,13 @@ add_default_constructor(
 	    continue;
 
 	if (i > (is_enum ? 2 : 0))
-	    ga_concat_len(&fga, (char_u *)", ", 2);
-	ga_concat_len(&fga, (char_u *)"this.", 5);
+	    GA_CONCAT_LITERAL(&fga, ", ");
+	GA_CONCAT_LITERAL(&fga, "this.");
 	ocmember_T *m = cl->class_obj_members + i;
 	ga_concat_len(&fga, (char_u *)m->ocm_name.string, m->ocm_name.length);
-	ga_concat_len(&fga, (char_u *)" = v:none", 9);
+	GA_CONCAT_LITERAL(&fga, " = v:none");
     }
-    ga_concat_len(&fga, (char_u *)")\nenddef\n", 9);	// Note: not 11!
+    GA_CONCAT_LITERAL(&fga, ")\nenddef\n");
     ga_append(&fga, NUL);
 
     exarg_T fea;
@@ -1571,7 +1618,14 @@ add_classfuncs_objmethods(
 		// methods may be overruled, then "super.Method()" is used to
 		// find a method from the parent.
 		ufunc_T *pf = (extends_cl->class_obj_methods)[i];
-		(*fup)[gap->ga_len + i] = copy_function(pf, 0);
+		ufunc_T *nf = copy_function(pf, 0);
+		(*fup)[gap->ga_len + i] = nf;
+
+		// The types of a generic method use the type variables of the
+		// parent method, make them use the type variables of the copy.
+		if (nf != NULL && IS_GENERIC_FUNC(nf)
+					      && nf->uf_generic_args != NULL)
+		    generic_func_copy_types(pf, nf);
 
 		// If the child class overrides a function from the parent
 		// the signature must be equal.
@@ -1826,18 +1880,18 @@ enum_add_values_member(
     int		rc = FAIL;
 
     ga_init2(&fga, 1, 1000);
-    ga_concat_len(&fga, (char_u *)"[", 1);
+    GA_CONCAT_LITERAL(&fga, "[");
     for (int i = 0; i < num_enum_values; ++i)
     {
 	ocmember_T *m = ((ocmember_T *)gap->ga_data) + i;
 
 	if (i > 0)
-	    ga_concat_len(&fga, (char_u *)", ", 2);
+	    GA_CONCAT_LITERAL(&fga, ", ");
 	ga_concat_len(&fga, en->class_name.string, en->class_name.length);
-	ga_concat_len(&fga, (char_u *)".", 1);
+	GA_CONCAT_LITERAL(&fga, ".");
 	ga_concat_len(&fga, (char_u *)m->ocm_name.string, m->ocm_name.length);
     }
-    ga_concat_len(&fga, (char_u *)"]", 1);
+    GA_CONCAT_LITERAL(&fga, "]");
     ga_append(&fga, NUL);
 
     char_u *varname = (char_u *)"values";
@@ -1916,6 +1970,35 @@ enum_set_internal_obj_vars(class_T *en, object_T *enval)
 }
 
 /*
+ * Read the body up to ":endclass", ":endenum" or ":endinterface" and throw it
+ * away.  Used while skipping.
+ */
+    static void
+skip_class_body(exarg_T *eap)
+{
+    for (;;)
+    {
+	char_u	*theline = eap->ea_getline(':', eap->cookie, 0,
+							  GETLINE_CONCAT_ALL);
+	if (theline == NULL)
+	    break;
+
+	char_u	*p = theline;
+	int	found;
+
+	// skip ':' and blanks
+	for (; VIM_ISWHITE(*p) || *p == ':'; ++p)
+	    ;
+	found = checkforcmd(&p, "endclass", 4)
+			|| checkforcmd(&p, "endenum", 4)
+			|| checkforcmd(&p, "endinterface", 5);
+	vim_free(theline);
+	if (found)
+	    break;
+    }
+}
+
+/*
  * Handle ":class" and ":abstract class" up to ":endclass".
  * Handle ":enum" up to ":endenum".
  * Handle ":interface" up to ":endinterface".
@@ -1930,6 +2013,12 @@ ex_class(exarg_T *eap)
     int		is_interface;
     long	start_lnum = SOURCING_LNUM;
     char_u	*arg = eap->arg;
+
+    if (eap->skip)
+    {
+	skip_class_body(eap);
+	return;
+    }
 
     if (is_abstract)
     {
@@ -2105,6 +2194,7 @@ early_ret:
     class_T *cl = NULL;
     class_T *extends_cl = NULL;  // class from "extends" argument
     class_T **intf_classes = NULL;
+    int	    intf_count = 0;	// number of items in "intf_classes"
     int	    num_enum_values = 0;
 
     cl = ALLOC_CLEAR_ONE(class_T);
@@ -2212,10 +2302,14 @@ early_ret:
 	    fullen = 12;
 	}
 
+	// skip ':' and blanks
+	for (; VIM_ISWHITE(*p) || *p == ':'; ++p)
+	    ;
+	char_u *cmd_start = p;
 	if (checkforcmd(&p, end_name, shortlen))
 	{
-	    if (STRNCMP(line, end_name, fullen) != 0)
-		semsg(_(e_command_cannot_be_shortened_str), line);
+	    if (STRNCMP(cmd_start, end_name, fullen) != 0)
+		semsg(_(e_command_cannot_be_shortened_str), cmd_start);
 	    else if (*p == '|' || !ends_excmd2(line, p))
 		semsg(_(e_trailing_characters_str), p);
 	    else
@@ -2617,7 +2711,7 @@ early_ret:
     ga_init2(&intf_classes_ga, sizeof(class_T *), 5);
 
     if (success && ga_impl.ga_len > 0)
-	success = validate_implements_classes(&ga_impl, &intf_classes_ga,
+	success = validate_implements_classes(cl, &ga_impl, &intf_classes_ga,
 					&objmethods, &objmembers, extends_cl);
 
     // inherit the super class interfaces
@@ -2625,7 +2719,10 @@ early_ret:
 	success = add_super_class_interfaces(extends_cl, &ga_impl,
 							&intf_classes_ga);
 
+    // When validating failed "intf_classes" may have fewer items than
+    // "ga_impl".
     intf_classes = intf_classes_ga.ga_data;
+    intf_count = intf_classes_ga.ga_len;
     intf_classes_ga.ga_len = 0;
 
     // Check no function argument name is used as a class member.
@@ -2741,7 +2838,7 @@ cleanup:
 
     if (intf_classes != NULL)
     {
-	for (int i = 0; i < ga_impl.ga_len; ++i)
+	for (int i = 0; i < intf_count; ++i)
 	    class_unref(intf_classes[i]);
 	vim_free(intf_classes);
     }
@@ -2952,6 +3049,7 @@ ex_type(exarg_T *eap)
 	++tv.vval.v_typealias->ta_refcount;
 	tv.vval.v_typealias->ta_name = vim_strsave(name_start);
 	tv.vval.v_typealias->ta_type = type;
+	tv.vval.v_typealias->ta_depth = parse_type_depth();
     }
     else
     {
@@ -3093,7 +3191,11 @@ call_oc_method(
     char_u *argp = name_end;
     int ret = get_func_arguments(&argp, evalarg, 0, argvars, &argcount, FALSE);
     if (ret == FAIL)
+    {
+	while (--argcount >= 0)
+	    clear_tv(&argvars[argcount]);
 	return FAIL;
+    }
 
     funcexe_T funcexe;
     CLEAR_FIELD(funcexe);
@@ -4291,30 +4393,30 @@ object2string(
 
     if (cl != NULL && IS_ENUM(cl))
     {
-	ga_concat_len(&ga, (char_u *)"enum ", 5);
+	GA_CONCAT_LITERAL(&ga, "enum ");
 	ga_concat_len(&ga, cl->class_name.string, cl->class_name.length);
 	char_u *enum_name = ((typval_T *)(obj + 1))->vval.v_string;
-	ga_concat_len(&ga, (char_u *)".", 1);
+	GA_CONCAT_LITERAL(&ga, ".");
 	ga_concat(&ga, enum_name);
     }
     else
     {
-	ga_concat_len(&ga, (char_u *)"object of ", 10);
+	GA_CONCAT_LITERAL(&ga, "object of ");
 	if (cl == NULL)
-	    ga_concat_len(&ga, (char_u *)"[unknown]", 9);
+	    GA_CONCAT_LITERAL(&ga, "[unknown]");
 	else
 	    ga_concat_len(&ga, cl->class_name.string, cl->class_name.length);
     }
     if (cl != NULL)
     {
-	ga_concat_len(&ga, (char_u *)" {", 2);
+	GA_CONCAT_LITERAL(&ga, " {");
 	for (int i = 0; i < cl->class_obj_member_count; ++i)
 	{
 	    if (i > 0)
-		ga_concat_len(&ga, (char_u *)", ", 2);
+		GA_CONCAT_LITERAL(&ga, ", ");
 	    ocmember_T *m = &cl->class_obj_members[i];
 	    ga_concat_len(&ga, m->ocm_name.string, m->ocm_name.length);
-	    ga_concat_len(&ga, (char_u *)": ", 2);
+	    GA_CONCAT_LITERAL(&ga, ": ");
 	    char_u *tf = NULL;
 	    char_u *s = echo_string_core((typval_T *)(obj + 1) + i,
 					 &tf, numbuf, copyID, echo_style,
@@ -4329,7 +4431,7 @@ object2string(
 	    }
 	    line_breakcheck();
 	}
-	ga_concat_len(&ga, (char_u *)"}", 1);
+	GA_CONCAT_LITERAL(&ga, "}");
     }
     if (ok == FAIL)
     {

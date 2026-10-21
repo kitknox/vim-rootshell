@@ -284,7 +284,7 @@ get_framelayout(frame_T *fr, list_T *l, int outer)
 	    return;
 	if (list_append_list(l, fr_list) == FAIL)
 	{
-	    vim_free(fr_list);
+	    list_free(fr_list);
 	    return;
 	}
     }
@@ -293,21 +293,23 @@ get_framelayout(frame_T *fr, list_T *l, int outer)
     {
 	if (fr->fr_win != NULL)
 	{
-	    list_append_string(fr_list, (char_u *)"leaf", -1);
+	    list_append_string(fr_list, (char_u *)"leaf", STRLEN_LITERAL("leaf"));
 	    list_append_number(fr_list, fr->fr_win->w_id);
 	}
     }
     else
     {
-	list_append_string(fr_list,
-	     fr->fr_layout == FR_ROW ?  (char_u *)"row" : (char_u *)"col", -1);
+	if (fr->fr_layout == FR_ROW)
+	    list_append_string(fr_list, (char_u *)"row", STRLEN_LITERAL("row"));
+	else
+	    list_append_string(fr_list, (char_u *)"col", STRLEN_LITERAL("col"));
 
 	win_list = list_alloc();
 	if (win_list == NULL)
 	    return;
 	if (list_append_list(fr_list, win_list) == FAIL)
 	{
-	    vim_free(win_list);
+	    list_free(win_list);
 	    return;
 	}
 
@@ -792,7 +794,7 @@ f_win_execute(typval_T *argvars, typval_T *rettv)
 
     // Update the status line if the cursor moved.
     if (win_valid(wp) && !EQUAL_POS(curpos, wp->w_cursor))
-	wp->w_redr_status = TRUE;
+	wp->w_redr_status = true;
 
     // In case the command moved the cursor or changed the Visual area,
     // check it is valid.
@@ -1124,7 +1126,12 @@ f_winbufnr(typval_T *argvars, typval_T *rettv)
 f_wincol(typval_T *argvars UNUSED, typval_T *rettv)
 {
     validate_cursor();
-    rettv->vval.v_number = curwin->w_wcol + 1;
+    int col = curwin->w_wcol + 1;
+# ifdef FEAT_RIGHTLEFT
+    if (curwin->w_p_rl)
+	col = curwin->w_width - curwin->w_wcol - cursor_screen_cells() + 1;
+# endif
+    rettv->vval.v_number = col;
 }
 
 /*
@@ -1254,7 +1261,7 @@ f_winrestview(typval_T *argvars, typval_T *rettv UNUSED)
     if (dict_has_key(dict, "curswant"))
     {
 	curwin->w_curswant = (colnr_T)dict_get_number(dict, "curswant");
-	curwin->w_set_curswant = FALSE;
+	curwin->w_set_curswant = false;
     }
 
     if (dict_has_key(dict, "topline"))

@@ -12,9 +12,6 @@
 /* Define unless no Wayland support found */
 #undef HAVE_WAYLAND
 
-/* Define if you want focus stealing support with Wayland clipboard  */
-#undef FEAT_WAYLAND_CLIPBOARD_FS
-
 /* Define when terminfo support found */
 #undef TERMINFO
 
@@ -311,9 +308,6 @@
 /* Define if you have <sys/wait.h> that is POSIX.1 compatible.  */
 #undef HAVE_SYS_WAIT_H
 
-/* Define if you have a <sys/wait.h> that is not POSIX.1 compatible. */
-#undef HAVE_UNION_WAIT
-
 /* This is currently unused in vim: */
 /* Define if you have the ANSI C header files. */
 /* #undef STDC_HEADERS */
@@ -502,6 +496,12 @@
 /* Define if GTK+ GUI is to be linked against GTK+ 3 */
 #undef USE_GTK3
 
+/* Define if GTK GUI is to be linked against GTK 4 */
+#undef USE_GTK4
+
+/* Define to use Pango and Cairo for hardcopy printing */
+#undef FEAT_PRINT_PANGO
+
 /* Define if we have isinf() */
 #undef HAVE_ISINF
 
@@ -514,9 +514,6 @@
 /* Define if we have flock() */
 #undef HAVE_FLOCK
 
-/* Define if we have shm_open() */
-#undef HAVE_SHM_OPEN
-
 /* Define to inline symbol or empty */
 #undef inline
 
@@ -525,3 +522,6 @@
 
 /* Define if you want to load libgpm dynamically */
 #undef DYNAMIC_GPM
+
+/* Define if pixman library is available */
+#undef HAVE_PIXMAN

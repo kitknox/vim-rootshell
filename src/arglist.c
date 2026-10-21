@@ -193,12 +193,14 @@ alist_add(
     char_u	*fname,
     int		set_fnum)	// 1: set buffer number; 2: re-use curbuf
 {
+    win_T	*wp = curwin;
+
     if (fname == NULL)		// don't add NULL file names
 	return;
     if (check_arglist_locked() == FAIL)
 	return;
     arglist_locked = TRUE;
-    curwin->w_locked = TRUE;
+    ++wp->w_locked;
 
 #ifdef BACKSLASH_IN_FILENAME
     slash_adjust(fname);
@@ -210,7 +212,7 @@ alist_add(
     ++al->al_ga.ga_len;
 
     arglist_locked = FALSE;
-    curwin->w_locked = FALSE;
+    --wp->w_locked;
 }
 
 #if defined(BACKSLASH_IN_FILENAME)
@@ -361,6 +363,8 @@ alist_add_list(
     if (check_arglist_locked() != FAIL
 	    && GA_GROW_OK(&ALIST(curwin)->al_ga, count))
     {
+	win_T	*wp = curwin;
+
 	if (after < 0)
 	    after = 0;
 	if (after > ARGCOUNT)
@@ -369,7 +373,7 @@ alist_add_list(
 	    mch_memmove(&(ARGLIST[after + count]), &(ARGLIST[after]),
 				       (ARGCOUNT - after) * sizeof(aentry_T));
 	arglist_locked = TRUE;
-	curwin->w_locked = TRUE;
+	++wp->w_locked;
 	for (i = 0; i < count; ++i)
 	{
 	    int flags = BLN_LISTED | (will_edit ? BLN_CURBUF : 0);
@@ -378,10 +382,10 @@ alist_add_list(
 	    ARGLIST[after + i].ae_fnum = buflist_add(files[i], flags);
 	}
 	arglist_locked = FALSE;
-	curwin->w_locked = FALSE;
-	ALIST(curwin)->al_ga.ga_len += count;
-	if (old_argcount > 0 && curwin->w_arg_idx >= after)
-	    curwin->w_arg_idx += count;
+	--wp->w_locked;
+	ALIST(wp)->al_ga.ga_len += count;
+	if (old_argcount > 0 && wp->w_arg_idx >= after)
+	    wp->w_arg_idx += count;
 	return;
     }
 
@@ -425,7 +429,7 @@ arglist_del_files(garray_T *alist_ga)
 		vim_free(ARGLIST[match].ae_fname);
 		mch_memmove(ARGLIST + match, ARGLIST + match + 1,
 			(ARGCOUNT - match - 1) * sizeof(aentry_T));
-		--ALIST(curwin)->al_ga.ga_len;
+		--ARGCOUNT;
 		if (curwin->w_arg_idx > match)
 		    --curwin->w_arg_idx;
 		--match;
@@ -537,7 +541,7 @@ check_arg_idx(win_T *win)
     {
 	// We are not editing the current entry in the argument list.
 	// Set "arg_had_last" if we are editing the last one.
-	win->w_arg_idx_invalid = TRUE;
+	win->w_arg_idx_invalid = true;
 	if (win->w_arg_idx != WARGCOUNT(win) - 1
 		&& arg_had_last == FALSE
 		&& ALIST(win) == &global_alist
@@ -553,7 +557,7 @@ check_arg_idx(win_T *win)
     {
 	// We are editing the current entry in the argument list.
 	// Set "arg_had_last" if it's also the last one
-	win->w_arg_idx_invalid = FALSE;
+	win->w_arg_idx_invalid = false;
 	if (win->w_arg_idx == WARGCOUNT(win) - 1
 					      && win->w_alist == &global_alist)
 	    arg_had_last = TRUE;
@@ -896,33 +900,37 @@ ex_argdelete(exarg_T *eap)
 	    eap->line2 = ARGCOUNT;
 	n = eap->line2 - eap->line1 + 1;
 	if (*eap->arg != NUL)
+	{
 	    // Can't have both a range and an argument.
 	    emsg(_(e_invalid_argument));
-	else if (n <= 0)
+	    return;
+	}
+	if (n <= 0)
 	{
 	    // Don't give an error for ":%argdel" if the list is empty.
 	    if (eap->line1 != 1 || eap->line2 != 0)
 		emsg(_(e_invalid_range));
+	    return;
 	}
-	else
-	{
-	    for (i = eap->line1; i <= eap->line2; ++i)
-		vim_free(ARGLIST[i - 1].ae_fname);
-	    mch_memmove(ARGLIST + eap->line1 - 1, ARGLIST + eap->line2,
-			(size_t)((ARGCOUNT - eap->line2) * sizeof(aentry_T)));
-	    ALIST(curwin)->al_ga.ga_len -= n;
-	    if (curwin->w_arg_idx >= eap->line2)
-		curwin->w_arg_idx -= n;
-	    else if (curwin->w_arg_idx > eap->line1)
-		curwin->w_arg_idx = eap->line1;
-	    if (ARGCOUNT == 0)
-		curwin->w_arg_idx = 0;
-	    else if (curwin->w_arg_idx >= ARGCOUNT)
-		curwin->w_arg_idx = ARGCOUNT - 1;
-	}
+
+	for (i = eap->line1; i <= eap->line2; ++i)
+	    vim_free(ARGLIST[i - 1].ae_fname);
+	mch_memmove(ARGLIST + eap->line1 - 1, ARGLIST + eap->line2,
+		    (size_t)((ARGCOUNT - eap->line2) * sizeof(aentry_T)));
+	ARGCOUNT -= n;
+	if (curwin->w_arg_idx >= eap->line2)
+	    curwin->w_arg_idx -= n;
+	else if (curwin->w_arg_idx > eap->line1)
+	    curwin->w_arg_idx = eap->line1;
     }
     else
 	do_arglist(eap->arg, AL_DEL, 0, FALSE);
+
+    if (ARGCOUNT == 0)
+	curwin->w_arg_idx = 0;
+    else if (curwin->w_arg_idx >= ARGCOUNT)
+	curwin->w_arg_idx = ARGCOUNT - 1;
+
     maketitle();
 }
 

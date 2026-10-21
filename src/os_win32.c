@@ -160,42 +160,11 @@ static int suppress_winsize = 1;	// don't fiddle with console
 
 static WCHAR *exe_pathw = NULL;
 
-static BOOL win8_or_later = FALSE;
-BOOL win10_22H2_or_later = FALSE;
-BOOL win11_or_later = FALSE; // used in gui_mch_set_titlebar_colors(void)
-
 #if !defined(FEAT_GUI_MSWIN) || defined(VIMDLL)
 static BOOL use_alternate_screen_buffer = FALSE;
 #endif
 
-/*
- * Get version number including build number
- */
-typedef BOOL (WINAPI *PfnRtlGetVersion)(LPOSVERSIONINFOW);
-#define MAKE_VER(major, minor, build) \
-    (((major) << 24) | ((minor) << 16) | (build))
-
-    static DWORD
-get_build_number(void)
-{
-    OSVERSIONINFOW	osver;
-    HMODULE		hNtdll;
-    PfnRtlGetVersion	pRtlGetVersion;
-    DWORD		ver = MAKE_VER(0, 0, 0);
-
-    osver.dwOSVersionInfoSize = sizeof(OSVERSIONINFOW);
-    hNtdll = GetModuleHandle("ntdll.dll");
-    if (hNtdll == NULL)
-	return ver;
-
-    pRtlGetVersion =
-	(PfnRtlGetVersion)GetProcAddress(hNtdll, "RtlGetVersion");
-    pRtlGetVersion(&osver);
-    ver = MAKE_VER(min(osver.dwMajorVersion, 255),
-	    min(osver.dwMinorVersion, 255),
-	    min(osver.dwBuildNumber, 32767));
-    return ver;
-}
+extern DWORD win_version; // this is in os_mswin.c
 
 #if !defined(FEAT_GUI_MSWIN) || defined(VIMDLL)
     static BOOL
@@ -257,7 +226,7 @@ read_console_input(
     if (nLength == -2)
 	return (s_dwMax > 0) ? TRUE : FALSE;
 
-    if (!win8_or_later)
+    if (win_version < MAKE_VER(6, 2, 0)) // Before Windows 8
     {
 	if (nLength == -1)
 	    return PeekConsoleInputW(hInput, lpBuffer, 1, lpEvents);
@@ -727,6 +696,7 @@ char *(*dyn_libintl_bindtextdomain)(const char *, const char *)
 char *(*dyn_libintl_bind_textdomain_codeset)(const char *, const char *)
 				       = null_libintl_bind_textdomain_codeset;
 int (*dyn_libintl_wputenv)(const wchar_t *) = null_libintl_wputenv;
+int *dyn_libintl_nl_msg_cat_cntr = NULL;
 
     int
 dyn_libintl_init(void)
@@ -801,6 +771,11 @@ dyn_libintl_init(void)
     if (dyn_libintl_wputenv == NULL || dyn_libintl_wputenv == _wputenv)
 	dyn_libintl_wputenv = null_libintl_wputenv;
 
+    // The _nl_msg_cat_cntr variable is optional.  It is used to make gettext
+    // drop the translations it cached.
+    dyn_libintl_nl_msg_cat_cntr = (int *)GetProcAddress(hLibintlDLL,
+							 "_nl_msg_cat_cntr");
+
     return 1;
 }
 
@@ -816,6 +791,7 @@ dyn_libintl_end(void)
     dyn_libintl_bindtextdomain	= null_libintl_bindtextdomain;
     dyn_libintl_bind_textdomain_codeset = null_libintl_bind_textdomain_codeset;
     dyn_libintl_wputenv		= null_libintl_wputenv;
+    dyn_libintl_nl_msg_cat_cntr	= NULL;
 }
 
     static char *
@@ -918,39 +894,17 @@ win32_enable_privilege(LPTSTR lpszPrivilege)
 }
 #endif
 
-#ifdef _MSC_VER
-// Suppress the deprecation warning for using GetVersionEx().
-// It is needed for implementing "windowsversion()".
-# pragma warning(push)
-# pragma warning(disable: 4996)
-#endif
 /*
- * Set "win8_or_later" and fill in "windowsVersion" if possible.
+ * Fill in "windowsVersion" if possible and enable security privilege for ACL.
  */
     void
 PlatformId(void)
 {
-    OSVERSIONINFO ovi;
-
-    ovi.dwOSVersionInfoSize = sizeof(ovi);
-    if (!GetVersionEx(&ovi))
-	return;
-
 #ifdef FEAT_EVAL
-    vim_snprintf(windowsVersion, sizeof(windowsVersion), "%d.%d",
-	    (int)ovi.dwMajorVersion, (int)ovi.dwMinorVersion);
+    DWORD major = (win_version >> 24) & 0xFF;
+    DWORD minor = (win_version >> 16) & 0xFF;
+    vim_snprintf(windowsVersion, sizeof(windowsVersion), "%d.%d", major, minor);
 #endif
-    if ((ovi.dwMajorVersion == 6 && ovi.dwMinorVersion >= 2)
-	    || ovi.dwMajorVersion > 6)
-	win8_or_later = TRUE;
-
-    if ((ovi.dwMajorVersion == 10 && ovi.dwBuildNumber >= 19045)
-	    || ovi.dwMajorVersion > 10)
-	win10_22H2_or_later = TRUE;
-
-    if ((ovi.dwMajorVersion == 10 && ovi.dwBuildNumber >= 22000)
-	    || ovi.dwMajorVersion > 10)
-	win11_or_later = TRUE;
 
 #ifdef HAVE_ACL
     // Enable privilege for getting or setting SACLs.
@@ -958,9 +912,6 @@ PlatformId(void)
 	return;
 #endif
 }
-#ifdef _MSC_VER
-# pragma warning(pop)
-#endif
 
 #if !defined(FEAT_GUI_MSWIN) || defined(VIMDLL)
 
@@ -2480,10 +2431,11 @@ mch_inchar(
 # endif
 
     // Keep looping until there is something in the typeahead buffer and more
-    // to get and still room in the buffer (up to two bytes for a char and
-    // three bytes for a modifier).
+    // to get and still room in the buffer.  A mouse event uses up to
+    // 10 bytes: 3 (modifier) + 3 (scroll event) + 4 (coordinates), and a
+    // keyboard input uses up to 7 bytes: 3 (modifier) + 4 (UTF-8 char).
     while ((typeaheadlen == 0 || WaitForChar(0L, FALSE))
-			  && typeaheadlen + 5 + TYPEAHEADSPACE <= TYPEAHEADLEN)
+			  && typeaheadlen + 10 + TYPEAHEADSPACE <= TYPEAHEADLEN)
     {
 	if (typebuf_changed(tb_change_cnt))
 	{
@@ -2744,6 +2696,34 @@ executable_file(char *name, char_u **path)
 }
 
 /*
+ * Check for a matching prefix; "name" includes the trailing wildcard.
+ * An inconclusive search (e.g. a directory which cannot be enumerated) must
+ * not skip the normal checks.
+ */
+    static bool
+executable_prefix_exists(char_u *name)
+{
+    WCHAR		*wn;
+    WIN32_FIND_DATAW	data;
+    HANDLE		handle;
+    DWORD		error;
+
+    wn = enc_to_utf16(name, NULL);
+    if (wn == NULL)
+	return true;
+    handle = FindFirstFileExW(wn, FindExInfoBasic, &data,
+					    FindExSearchNameMatch, NULL, 0);
+    error = GetLastError();
+    vim_free(wn);
+    if (handle != INVALID_HANDLE_VALUE)
+    {
+	FindClose(handle);
+	return true;
+    }
+    return error != ERROR_FILE_NOT_FOUND && error != ERROR_PATH_NOT_FOUND;
+}
+
+/*
  * If "use_path" is TRUE: Return TRUE if "name" is in $PATH.
  * If "use_path" is FALSE: Return TRUE if "name" exists.
  * If "use_pathext" is TRUE search "name" with extensions in $PATHEXT.
@@ -2769,6 +2749,8 @@ executable_exists(
     int		pathext_allocated = FALSE;
     char_u	*shname = NULL;
     int		noext = FALSE;
+    bool	simple_pathext = true;
+    int		ext_count = 0;
     int		retval = FALSE;
 
     if (namelen >= sizeof(buf))	// safety check
@@ -2785,16 +2767,14 @@ executable_exists(
     {
 	pathext.string = mch_getenv("PATHEXT");
 	if (pathext.string == NULL)
-	{
-	    pathext.string = (char_u *)".com;.exe;.bat;.cmd";
-	    pathext.length = 19;
-	}
+	    STR_LITERAL_SET(pathext, ".com;.exe;.bat;.cmd");
 	else
 	    pathext.length = STRLEN(pathext.string);
 
 	if (noext == FALSE)
 	{
 	    char_u  *e;
+	    char_u  *q;
 	    size_t  plen;
 
 	    /*
@@ -2808,6 +2788,8 @@ executable_exists(
 			    || (p[0] == '.' && (p[1] == NUL || p[1] == ';')))
 		{
 		    // Skip empty or single ".".
+		    if (*p == '.')
+			simple_pathext = false;
 		    ++p;
 		    continue;
 		}
@@ -2815,6 +2797,12 @@ executable_exists(
 		if (e == NULL)
 		    e = pathext.string + pathext.length;
 		plen = (size_t)(e - p);
+		++ext_count;
+		if (*p != '.')
+		    simple_pathext = false;
+		for (q = p + 1; q < e; ++q)
+		    if (!ASCII_ISALNUM(*q))
+			simple_pathext = false;
 
 		if (_strnicoll(name + namelen - plen, (char *)p, plen) == 0)
 		{
@@ -2829,10 +2817,7 @@ executable_exists(
 
     // Prepend single "." to pathext, it means no extension added.
     if (pathext.string == NULL)
-    {
-	pathext.string = (char_u *)".";
-	pathext.length = 1;
-    }
+	STR_LITERAL_SET(pathext, ".");
     else if (noext == TRUE)
     {
 	char_u  *tmp;
@@ -2883,10 +2868,7 @@ executable_exists(
      * is an executable file.
      */
     if (pathbuf.string == NULL)
-    {
-	pathbuf.string = (char_u *)".";
-	pathbuf.length = 1;
-    }
+	STR_LITERAL_SET(pathbuf, ".");
     p = pathbuf.string;
     while (*p)
     {
@@ -2921,6 +2903,30 @@ executable_exists(
 		"%.*s%s%s", (int)(e - p), p,
 		!after_pathsep(p, e) ? PATHSEPSTR : "",
 		name);
+	}
+
+	// Most directories in $PATH do not contain this command.  One prefix
+	// search can avoid a separate file query for every extension.  With
+	// few extensions, or an explicit executable suffix, it is cheaper to
+	// use the normal checks.  Leave unusual paths and suffixes to those
+	// checks as well, to preserve their path normalization and semantics.
+	if (!noext && simple_pathext && ext_count >= 3 && buflen > 0
+		&& buflen + 2 <= sizeof(buf)
+		&& buf[buflen - 1] != '.' && buf[buflen - 1] != ' '
+		&& vim_strpbrk(buf, (char_u *)"*?") == NULL
+		&& vim_strchr(gettail(buf), ':') == NULL)
+	{
+	    bool exists;
+
+	    buf[buflen] = '*';
+	    buf[buflen + 1] = NUL;
+	    exists = executable_prefix_exists(buf);
+	    buf[buflen] = NUL;
+	    if (!exists)
+	    {
+		p = e;
+		continue;
+	    }
 	}
 
 	/*
@@ -3971,6 +3977,31 @@ mch_isdir(char_u *name)
 }
 
 /*
+ * Return TRUE if "name" is a directory or does not exist.
+ * Return FALSE otherwise, also when the attributes cannot be obtained for
+ * another reason.
+ */
+    int
+mch_isdir_or_missing(char_u *name)
+{
+    WCHAR	*p;
+    DWORD	attr;
+    DWORD	error = 0;
+
+    p = enc_to_utf16(name, NULL);
+    if (p == NULL)
+	return FALSE;
+    attr = GetFileAttributesW(p);
+    if (attr == INVALID_FILE_ATTRIBUTES)
+	error = GetLastError();
+    vim_free(p);
+
+    if (attr == INVALID_FILE_ATTRIBUTES)
+	return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
+    return (attr & FILE_ATTRIBUTE_DIRECTORY) != 0;
+}
+
+/*
  * return TRUE if "name" is a directory, NOT a symlink to a directory
  * return FALSE if "name" is not a directory
  * return FALSE for error
@@ -4745,6 +4776,48 @@ mch_set_winsize_now(void)
     }
     suppress_winsize = 0;
 }
+
+# if defined(FEAT_IMAGE) || defined(FEAT_EVAL)
+/*
+ * Try to get the current terminal cell size in pixels.
+ */
+    void
+mch_calc_cell_size(struct cellsize *cs_out)
+{
+    CONSOLE_FONT_INFOEX cfi;
+    DWORD cmodeold;
+    DWORD cmodein;
+
+    cs_out->cs_xpixel = -1;
+    cs_out->cs_ypixel = -1;
+
+    if (g_hConOut == INVALID_HANDLE_VALUE)
+	return;
+
+    cfi.cbSize = sizeof(cfi);
+    if (GetCurrentConsoleFontEx(g_hConOut, FALSE, &cfi)
+	    && cfi.dwFontSize.X > 0 && cfi.dwFontSize.Y > 0)
+    {
+	cs_out->cs_xpixel = cfi.dwFontSize.X;
+	cs_out->cs_ypixel = cfi.dwFontSize.Y;
+	return;
+    }
+
+    GetConsoleMode(g_hConIn, &cmodein);
+    cmodeold = cmodein;
+    cmodein &= ~(ENABLE_LINE_INPUT | ENABLE_ECHO_INPUT
+	    | ENABLE_PROCESSED_INPUT);
+    cmodein |= ENABLE_VIRTUAL_TERMINAL_INPUT;
+
+    if (SetConsoleMode(g_hConIn, cmodein))
+    {
+	// We will receive the window dimensions later
+	vtp_printf("\033[14t");
+	SetConsoleMode(g_hConIn, cmodeold);
+    }
+}
+# endif
+
 #endif
 
     static BOOL
@@ -4881,6 +4954,10 @@ mch_system_classic(char *cmd, int options)
 
     // Try to get input focus back.  Doesn't always work though.
     PostMessage(hwnd, WM_SETFOCUS, 0, 0);
+    // To increase the chances that WM_SETFOCUS will work, run the message loop
+    // here.  In addition, it prevents problems caused by delayed WM_SETFOCUS
+    // processing.
+    gui_mch_update();
 
     return ret;
 }
@@ -6012,6 +6089,222 @@ create_pipe_pair(HANDLE handles[2])
     return TRUE;
 }
 
+#endif // FEAT_JOB_CHANNEL
+
+#if defined(FEAT_EVAL)
+/*
+ * Execute "argv" directly without the shell and return the output.
+ * Used by system() and systemlist() when the command is a List.
+ * "infile" is an optional temp file for stdin input.
+ * When "ret_len" is not NULL, set it to the length of the output.
+ * Returns the output in allocated memory (or NULL on error).
+ * Sets v:shell_error to the exit status.
+ */
+    char_u *
+mch_get_cmd_output_direct(
+    char	**argv,
+    char_u	*infile,
+    int		flags UNUSED,
+    int		*ret_len)
+{
+    STARTUPINFO		si;
+    PROCESS_INFORMATION pi;
+    SECURITY_ATTRIBUTES saAttr;
+    HANDLE		hChildStdoutRd = INVALID_HANDLE_VALUE;
+    HANDLE		hChildStdoutWr = INVALID_HANDLE_VALUE;
+    HANDLE		hChildStdinRd = INVALID_HANDLE_VALUE;
+    garray_T		cmd_ga;
+    garray_T		out_ga;
+    char_u		*buffer = NULL;
+    DWORD		exit_code = (DWORD)-1;
+    int			i;
+
+    // Build a command string from argv.
+    ga_init2(&cmd_ga, 1, 256);
+    for (i = 0; argv[i] != NULL; i++)
+    {
+	char_u	*arg = (char_u *)argv[i];
+	char_u	*s = arg;
+	int	has_spaces = FALSE;
+	int	j;
+
+	for (j = 0; s[j] != NUL; j++)
+	    if (s[j] == ' ' || s[j] == '\t' || s[j] == '"')
+	    {
+		has_spaces = TRUE;
+		break;
+	    }
+
+	if (i > 0)
+	    ga_append(&cmd_ga, ' ');
+
+	if (has_spaces)
+	{
+	    int	num_bs;
+
+	    ga_append(&cmd_ga, '"');
+	    for (j = 0; arg[j] != NUL; j++)
+	    {
+		num_bs = 0;
+		while (arg[j] == '\\')
+		{
+		    num_bs++;
+		    j++;
+		}
+
+		if (arg[j] == NUL)
+		{
+		    // Backslashes before closing quote must be doubled.
+		    while (num_bs-- > 0)
+		    {
+			ga_append(&cmd_ga, '\\');
+			ga_append(&cmd_ga, '\\');
+		    }
+		    break;
+		}
+		else if (arg[j] == '"')
+		{
+		    // Backslashes before a double quote must be doubled,
+		    // and the double quote must be escaped.
+		    while (num_bs-- > 0)
+		    {
+			ga_append(&cmd_ga, '\\');
+			ga_append(&cmd_ga, '\\');
+		    }
+		    ga_append(&cmd_ga, '\\');
+		    ga_append(&cmd_ga, '"');
+		}
+		else
+		{
+		    while (num_bs-- > 0)
+			ga_append(&cmd_ga, '\\');
+		    ga_append(&cmd_ga, arg[j]);
+		}
+	    }
+	    ga_append(&cmd_ga, '"');
+	}
+	else
+	    ga_concat(&cmd_ga, arg);
+    }
+    ga_append(&cmd_ga, NUL);
+
+    ga_init2(&out_ga, 1, 4096);
+
+    saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
+    saAttr.bInheritHandle = TRUE;
+    saAttr.lpSecurityDescriptor = NULL;
+
+    // Create a pipe for the child's stdout.
+    if (!CreatePipe(&hChildStdoutRd, &hChildStdoutWr, &saAttr, 0)
+	    || !SetHandleInformation(hChildStdoutRd, HANDLE_FLAG_INHERIT, 0))
+    {
+	emsg(_(e_cannot_create_pipes));
+	goto done;
+    }
+
+    // Set up stdin from infile if provided.
+    if (infile != NULL)
+    {
+	WCHAR *winfile = enc_to_utf16(infile, NULL);
+
+	if (winfile != NULL)
+	{
+	    hChildStdinRd = CreateFileW(winfile, GENERIC_READ,
+		    FILE_SHARE_READ, &saAttr, OPEN_EXISTING,
+		    FILE_ATTRIBUTE_NORMAL, NULL);
+	    vim_free(winfile);
+	}
+    }
+
+    ZeroMemory(&pi, sizeof(pi));
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+    si.hStdOutput = hChildStdoutWr;
+    si.hStdError = hChildStdoutWr;
+    si.hStdInput = (hChildStdinRd != INVALID_HANDLE_VALUE)
+		    ? hChildStdinRd : INVALID_HANDLE_VALUE;
+
+    ch_log(NULL, "directly executing: %s", (char *)cmd_ga.ga_data);
+
+    // Create the child process directly, without going through the shell.
+    if (!vim_create_process((char *)cmd_ga.ga_data, TRUE,
+		CREATE_DEFAULT_ERROR_MODE | CREATE_NEW_PROCESS_GROUP,
+		&si, &pi, NULL, NULL))
+    {
+	semsg(_(e_invalid_argument_str), cmd_ga.ga_data);
+	goto done;
+    }
+
+    // Close the write end of stdout pipe and stdin in the parent so that
+    // ReadFile() will get EOF when the child process exits.
+    CloseHandle(hChildStdoutWr);
+    hChildStdoutWr = INVALID_HANDLE_VALUE;
+    if (hChildStdinRd != INVALID_HANDLE_VALUE)
+    {
+	CloseHandle(hChildStdinRd);
+	hChildStdinRd = INVALID_HANDLE_VALUE;
+    }
+
+    // Read output from child process.
+    for (;;)
+    {
+	char	buf[4096];
+	DWORD	n;
+
+	if (!ReadFile(hChildStdoutRd, buf, sizeof(buf), &n, NULL) || n == 0)
+	    break;
+	if (ga_grow(&out_ga, (int)n) == OK)
+	{
+	    mch_memmove((char *)out_ga.ga_data + out_ga.ga_len, buf, n);
+	    out_ga.ga_len += (int)n;
+	}
+    }
+
+    // Wait for child to finish and get exit code.
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    GetExitCodeProcess(pi.hProcess, &exit_code);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    set_vim_var_nr(VV_SHELL_ERROR, (long)exit_code);
+
+    if (out_ga.ga_len > 0)
+    {
+	buffer = alloc(out_ga.ga_len + 1);
+	if (buffer != NULL)
+	{
+	    mch_memmove(buffer, out_ga.ga_data, out_ga.ga_len);
+	    if (ret_len == NULL)
+	    {
+		// Change NUL into SOH, otherwise the string is truncated.
+		for (i = 0; i < out_ga.ga_len; ++i)
+		    if (buffer[i] == NUL)
+			buffer[i] = 1;
+		buffer[out_ga.ga_len] = NUL;
+	    }
+	    else
+		*ret_len = out_ga.ga_len;
+	}
+    }
+    else if (ret_len != NULL)
+	*ret_len = 0;
+
+done:
+    ga_clear(&cmd_ga);
+    ga_clear(&out_ga);
+    if (hChildStdoutRd != INVALID_HANDLE_VALUE)
+	CloseHandle(hChildStdoutRd);
+    if (hChildStdoutWr != INVALID_HANDLE_VALUE)
+	CloseHandle(hChildStdoutWr);
+    if (hChildStdinRd != INVALID_HANDLE_VALUE)
+	CloseHandle(hChildStdinRd);
+    return buffer;
+}
+#endif // FEAT_EVAL
+
+#if defined(FEAT_JOB_CHANNEL)
     void
 mch_job_start(char *cmd, job_T *job, jobopt_T *options)
 {
@@ -6948,9 +7241,19 @@ cursor_visible(BOOL fVisible)
     s_cursor_visible = fVisible;
 
     if (vtp_working)
+    {
+	// In vtp mode, visibility is controlled solely by DECTCEM.  Skip
+	// mch_update_cursor() since shape is independent of visibility and
+	// re-emitting DECSCUSR can cause the terminal to briefly redisplay
+	// the cursor while a redraw is in progress.
 	vtp_printf("\033[?25%c", fVisible ? 'h' : 'l');
+	return;
+    }
 
 # ifdef MCH_CURSOR_SHAPE
+    // Non-vtp Windows console: SetConsoleCursorInfo() consults
+    // s_cursor_visible inside mch_set_cursor_shape(), so the call is needed
+    // to apply the new visibility.
     mch_update_cursor();
 # endif
 }
@@ -7172,6 +7475,52 @@ sgrn2cn(
     return p && p[0] == 0x0a && p[1] == '\033' ? ++p : NULL;
 }
 
+static bool in_dcs = false;	// inside a DCS (sixel) sequence
+static bool dcs_esc = false;	// last DCS byte written was ESC
+
+/*
+ * Write "len" bytes at "s" with WriteConsoleW, so that the console's own VT
+ * parser processes them.  Needed for DCS sequences when USE_VTP is off.
+ */
+    static void
+write_vt(char_u *s, int len)
+{
+    int		wlen;
+    WCHAR	*ws;
+    DWORD	written;
+
+    wlen = MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)s, len, NULL, 0);
+    if (wlen <= 0)
+	return;
+    ws = ALLOC_MULT(WCHAR, wlen);
+    if (ws == NULL)
+	return;
+    MultiByteToWideChar(CP_UTF8, 0, (LPCSTR)s, len, ws, wlen);
+    WriteConsoleW(g_hConOut, ws, wlen, &written, NULL);
+    vim_free(ws);
+}
+
+/*
+ * Return the pointer just after the ST (ESC '\') that ends a DCS sequence.
+ * Returns "end" when the ST is not in this chunk; "in_dcs" then stays set so
+ * that the next mch_write() call continues the scan.
+ */
+    static char_u *
+skip_dcs(char_u *s, char_u *end)
+{
+    for (char_u *p = s; p < end; ++p)
+    {
+	if (dcs_esc && *p == '\\')
+	{
+	    dcs_esc = false;
+	    in_dcs = false;
+	    return p + 1;
+	}
+	dcs_esc = *p == ESC;
+    }
+    return end;
+}
+
 /*
  * mch_write(): write the output buffer to the screen, translating ESC
  * sequences into calls to console output routines.
@@ -7206,6 +7555,18 @@ mch_write(
 	{
 	    redraw_all_later(UPD_CLEAR);
 	    return;
+	}
+
+	if (in_dcs)
+	{
+	    // Continuation of a DCS sequence split over several writes.
+	    int	l = (int)(skip_dcs(s, end) - s);
+
+	    if (vtp_working)
+		write_vt(s, l);
+	    len -= l - 1;
+	    s += l;
+	    continue;
 	}
 
 	while (s + ++prefix < end)
@@ -7492,18 +7853,39 @@ notsgr:
 	}
 	else if (s[0] == ESC && len >= 3-1 && s[1] == '[')
 	{
+	    // CSI sequences should not be written as plain text to the
+	    // console.  Parse the sequence and skip over it.  When
+	    // USE_VTP is active, pass through known safe ones (e.g.
+	    // DECSCUSR for cursor shape) via vtp_printf().
 	    int l = 2;
 
-	    if (SAFE_isdigit(s[l]))
+	    // skip parameter and intermediate bytes (0x20-0x3F)
+	    while (s + l < end && s[l] >= 0x20 && s[l] <= 0x3F)
 		l++;
-	    if (s[l] == ' ' && s[l + 1] == 'q')
+	    // skip the final byte (0x40-0x7E)
+	    if (s + l < end && s[l] >= 0x40 && s[l] <= 0x7E)
 	    {
-		// DECSCUSR (cursor style) sequences
-		if (vtp_working)
-		    vtp_printf("%.*s", l + 2, s);   // Pass through
-		s += l + 2;
-		len -= l + 1;
+		// DECSCUSR (cursor style): pass through to terminal
+		if (USE_VTP && s[l] == 'q')
+		    vtp_printf("%.*s", l + 1, s);
+		l++;
 	    }
+	    len -= l - 1;
+	    s += l;
+	}
+	else if (s[0] == ESC && len >= 2-1 && s[1] == 'P')
+	{
+	    // DCS (e.g. sixel image): write_chars() would print it as raw text
+	    // when USE_VTP is off, so let the console's VT parser handle it.
+	    int	l;
+
+	    in_dcs = true;
+	    dcs_esc = false;
+	    l = (int)(skip_dcs(s + 2, end) - s);
+	    if (vtp_working)
+		write_vt(s, l);
+	    len -= l - 1;
+	    s += l;
 	}
 	else
 	{
@@ -7927,7 +8309,8 @@ mch_fopen(const char *name, const char *mode)
     vim_free(wm);
 
 #if defined(DEBUG) && _MSC_VER >= 1400
-    _set_fmode(oldMode);
+    if (oldMode != 0)
+	_set_fmode(oldMode);
 #endif
     return f;
 }
@@ -8288,7 +8671,9 @@ static int	*used_file_indexes = NULL; // indexes in global_argv[] for
 static int	used_file_count = 0;	// nr of entries in used_file_indexes
 static int	used_file_literal = FALSE;  // take file names literally
 static int	used_file_full_path = FALSE;  // file name was full path
+#ifdef FEAT_DIFF
 static int	used_file_diff_mode = FALSE;  // file name was with diff mode
+#endif
 static int	used_alist_count = 0;
 
 
@@ -8378,7 +8763,9 @@ used_file_arg(char *name, int literal, int full_path, int diff_mode)
 	}
     used_file_literal = literal;
     used_file_full_path = full_path;
+#ifdef FEAT_DIFF
     used_file_diff_mode = diff_mode;
+#endif
 }
 
 /*
@@ -8442,13 +8829,15 @@ fix_arg_enc(void)
 	    if (used_file_diff_mode && mch_isdir(str) && GARGCOUNT > 0
 				      && !mch_isdir(alist_name(&GARGLIST[0])))
 	    {
-		char_u	    *r;
+		char_u	    *tail;
+		string_T    ret;
 
-		r = concat_fnames(str, gettail(alist_name(&GARGLIST[0])), TRUE);
-		if (r != NULL)
+		tail = gettail(alist_name(&GARGLIST[0]));
+		concat_fnames(str, STRLEN(str), tail, STRLEN(tail), TRUE, &ret);
+		if (ret.string != NULL)
 		{
 		    vim_free(str);
-		    str = r;
+		    str = ret.string;
 		}
 	    }
 #endif
@@ -8533,7 +8922,7 @@ mch_setenv(char *var, char *value, int x UNUSED)
  * Support for 256 colors and 24-bit colors was added in Windows 10
  * version 1703 (Creators update).
  */
-#define VTP_FIRST_SUPPORT_BUILD MAKE_VER(10, 0, 15063)
+#define VTP_FIRST_SUPPORT_BUILD	    MAKE_VER(10, 0, 15063)
 
 /*
  * Support for pseudo-console (ConPTY) was added in windows 10
@@ -8565,11 +8954,11 @@ mch_setenv(char *var, char *value, int x UNUSED)
 #define CONPTY_INSIDER_BUILD	    MAKE_VER(10, 0, 18995)
 
 /*
- * Not stable now.
+ * Make conpty default on Windows 11
  */
-#define CONPTY_STABLE_BUILD	    MAKE_VER(10, 0, 32767)  // T.B.D.
+#define CONPTY_STABLE_BUILD	    MAKE_VER(10, 0, 22000)
 // Notes:
-// Win 10 22H2 Final is build 19045, it's conpty is widely used.
+// Win 10 22H2 Final is build 19045, its conpty is widely used.
 // Strangely, 19045 is newer but is a lower build number than the 2020 insider
 // preview which had a build 19587.  And, not sure how stable that was?
 // Win Server 2022 (May 10, 2022) is build 20348, its conpty is widely used.
@@ -8578,7 +8967,6 @@ mch_setenv(char *var, char *value, int x UNUSED)
     static void
 vtp_flag_init(void)
 {
-    DWORD   ver = get_build_number();
 #if !defined(FEAT_GUI_MSWIN) || defined(VIMDLL)
     DWORD   mode;
     HANDLE  out;
@@ -8589,7 +8977,7 @@ vtp_flag_init(void)
     {
 	out = GetStdHandle(STD_OUTPUT_HANDLE);
 
-	vtp_working = (ver >= VTP_FIRST_SUPPORT_BUILD) ? 1 : 0;
+	vtp_working = (win_version >= VTP_FIRST_SUPPORT_BUILD) ? 1 : 0;
 	GetConsoleMode(out, &mode);
 	mode |= (ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
 	if (SetConsoleMode(out, mode) == 0)
@@ -8597,26 +8985,26 @@ vtp_flag_init(void)
 
 	// VTP uses alternate screen buffer.
 	// But, not if running in a nested terminal
-	use_alternate_screen_buffer = win10_22H2_or_later && p_rs && vtp_working
-						&& !mch_getenv("VIM_TERMINAL");
+	use_alternate_screen_buffer = win_version >= MAKE_VER(10, 0, 19045)
+	    && p_rs && vtp_working && !mch_getenv("VIM_TERMINAL");
     }
 #endif
 
-    if (ver >= CONPTY_FIRST_SUPPORT_BUILD)
+    if (win_version >= CONPTY_FIRST_SUPPORT_BUILD)
 	conpty_working = 1;
-    if (ver >= CONPTY_STABLE_BUILD)
+    if (win_version >= CONPTY_STABLE_BUILD)
 	conpty_stable = 1;
 
-    if (ver <= CONPTY_INSIDER_BUILD)
+    if (win_version <= CONPTY_INSIDER_BUILD)
 	conpty_type = 3;
-    if (ver <= CONPTY_1909_BUILD)
+    if (win_version <= CONPTY_1909_BUILD)
 	conpty_type = 2;
-    if (ver <= CONPTY_1903_BUILD)
+    if (win_version <= CONPTY_1903_BUILD)
 	conpty_type = 2;
-    if (ver < CONPTY_FIRST_SUPPORT_BUILD)
+    if (win_version < CONPTY_FIRST_SUPPORT_BUILD)
 	conpty_type = 1;
 
-    if (ver >= CONPTY_NEXT_UPDATE_BUILD)
+    if (win_version >= CONPTY_NEXT_UPDATE_BUILD)
 	conpty_fix_type = 1;
 }
 

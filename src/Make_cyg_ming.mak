@@ -25,7 +25,14 @@
 #     http://www.matcode.com/mpress.htm
 #
 # Maintained by Ron Aaron <ronaharon@yahoo.com> et al.
-# Last Update: 2025 May 14.
+# Last Update: 2026 Mar 22.
+
+# If you want to build some optional features without modifying the source, you
+# can set EXTRA_DEFINES on the command line. Here's an example of setting
+# MODIFIED_BY:
+#
+#	mingw-make -f Make_ming.mvc \
+#	  'EXTRA_DEFINES=-DMODIFIED_BY=\"yourmail@example.com\"'
 
 #>>>>> choose options:
 # FEATURES=[TINY | NORMAL | HUGE]
@@ -44,6 +51,10 @@ COVERAGE=no
 # Better encryption support using libsodium.
 # Set to yes or specify the path to the libsodium directory to enable it.
 #SODIUM=yes
+
+# Pixman library support, used for image feature. Set to the path of the pixman directory to
+# enable it. Default is "no"
+#PIXMAN=[path to pixman directory]
 
 # Set to SIZE for size, SPEED for speed, MAXSPEED for maximum optimization.
 OPTIMIZE=MAXSPEED
@@ -536,7 +547,8 @@ endif # RUBY
 # Any other defines can be included here.
 DEF_GUI=-DFEAT_GUI_MSWIN -DFEAT_CLIPBOARD
 DEFINES=-DWIN32 -DWINVER=$(WINVER) -D_WIN32_WINNT=$(WINVER) \
-	-DHAVE_PATHDEF -DFEAT_$(FEATURES) -DHAVE_STDINT_H
+	-DHAVE_PATHDEF -DFEAT_$(FEATURES) -DHAVE_STDINT_H \
+	$(EXTRA_DEFINES)
 
 #>>>>> end of choices
 ###########################################################################
@@ -678,6 +690,15 @@ TERM_DEPS = \
 	libvterm/src/vterm_internal.h
 endif
 
+ifndef PIXMAN
+PIXMAN = no
+endif
+
+ifneq ($(PIXMAN),no)
+DEFINES += -DHAVE_PIXMAN
+CFLAGS += -I$(PIXMAN)/include/pixman-1
+endif
+
 ifeq ($(SOUND),yes)
 DEFINES += -DFEAT_SOUND
 endif
@@ -736,7 +757,7 @@ XPM = no
  endif
  ifdef XPM
   ifneq ($(XPM),no)
-CFLAGS += -DFEAT_XPM_W32 -I $(XPM)/include -I $(XPM)/../include
+CFLAGS += -DFEAT_XPM_W32 -I $(XPM)/include -I $(XPM)/include/X11 -I $(XPM)/../include
   endif
  endif
 
@@ -826,10 +847,14 @@ OBJ = \
 	$(OUTDIR)/gc.o \
 	$(OUTDIR)/gui_xim.o \
 	$(OUTDIR)/hardcopy.o \
+	$(OUTDIR)/hardcopy_postscript.o \
 	$(OUTDIR)/hashtab.o \
 	$(OUTDIR)/help.o \
 	$(OUTDIR)/highlight.o \
 	$(OUTDIR)/if_cscope.o \
+	$(OUTDIR)/image.o \
+	$(OUTDIR)/image_kitty.o \
+	$(OUTDIR)/image_sixel.o \
 	$(OUTDIR)/indent.o \
 	$(OUTDIR)/insexpand.o \
 	$(OUTDIR)/json.o \
@@ -869,10 +894,12 @@ OBJ = \
 	$(OUTDIR)/session.o \
 	$(OUTDIR)/sha256.o \
 	$(OUTDIR)/sign.o \
+	$(OUTDIR)/socketserver.o \
 	$(OUTDIR)/spell.o \
 	$(OUTDIR)/spellfile.o \
 	$(OUTDIR)/spellsuggest.o \
 	$(OUTDIR)/strings.o \
+	$(OUTDIR)/strptime.o \
 	$(OUTDIR)/syntax.o \
 	$(OUTDIR)/tabpanel.o \
 	$(OUTDIR)/tag.o \
@@ -972,6 +999,10 @@ OBJ += $(OUTDIR)/xpm_w32.o
 # You'll need libXpm.a from http://gnuwin32.sf.net
 LIB += -L$(XPM)/lib -lXpm
  endif
+endif
+
+ifneq ($(PIXMAN),no)
+LIB += -L$(PIXMAN)/lib -lpixman-1
 endif
 
 ifeq ($(TERMINAL),yes)
@@ -1149,8 +1180,10 @@ endif
 
 all: $(MAIN_TARGET) vimrun.exe xxd/xxd.exe tee/tee.exe install.exe uninstall.exe GvimExt/gvimext.dll
 
+# Coverage instrumentation makes _wsystem() in vimrun hang, and vimrun is not
+# part of Vim itself, so never instrument it.
 vimrun.exe: vimrun.c
-	$(CC) $(CFLAGS) -o vimrun.exe vimrun.c $(LIB)
+	$(CC) $(filter-out --coverage,$(CFLAGS)) -o vimrun.exe vimrun.c $(LIB)
 
 install.exe: dosinst.c dosinst.h version.h
 	$(CC) $(CFLAGS) -o install.exe dosinst.c $(LIB) -lole32 -luuid
@@ -1310,6 +1343,8 @@ $(OUTDIR)/ex_cmds2.o: ex_cmds2.c $(INCL) version.h
 $(OUTDIR)/ex_docmd.o: ex_docmd.c $(INCL) ex_cmdidxs.h
 
 $(OUTDIR)/hardcopy.o: hardcopy.c $(INCL) version.h
+
+$(OUTDIR)/hardcopy_postscript.o: hardcopy_postscript.c $(INCL) version.h
 
 $(OUTDIR)/misc1.o: misc1.c $(INCL) version.h
 

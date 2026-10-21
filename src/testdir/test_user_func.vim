@@ -584,6 +584,18 @@ func Test_func_dict()
   call assert_fails('call mydict.nonexist()', 'E716:')
 endfunc
 
+func Test_func_dict_bracket_key()
+  " Dictionary function can be defined with bracket notation using a key
+  " that does not follow function naming rules (e.g. containing a hyphen).
+  let obj = {}
+  function obj['foo-bar']() dict
+    return self.value
+  endfunction
+  let obj.value = 42
+  call assert_equal(42, obj['foo-bar']())
+  call assert_equal(42, call(obj['foo-bar'], []))
+endfunc
+
 func Test_func_range()
   new
   call setline(1, range(1, 8))
@@ -1073,6 +1085,31 @@ func Test_func_return_in_try_verbose()
   delfunc TryReturnList
   delfunc TryReturnNumber
   delfunc TryReturnOverlongString
+endfunc
+
+" Memory allocation failure when registering a deferred function: the ga_grow()
+" in add_defer() fails, so the deferred function must not be registered and
+" "saved_name" must not leak
+func Test_defer_alloc_fail()
+  let g:defer_log = []
+  func DeferLogTarget()
+    call add(g:defer_log, 'ran')
+  endfunc
+  func CallWithDefer()
+    defer DeferLogTarget()
+  endfunc
+
+  call test_alloc_fail(GetAllocId('defer'), 0, 0)
+  call assert_fails('call CallWithDefer()', 'E342:')
+  call assert_equal([], g:defer_log)
+
+  " Without the injected failure it registers and runs at function exit.
+  call CallWithDefer()
+  call assert_equal(['ran'], g:defer_log)
+
+  delfunc DeferLogTarget
+  delfunc CallWithDefer
+  unlet g:defer_log
 endfunc
 
 " vim: shiftwidth=2 sts=2 expandtab

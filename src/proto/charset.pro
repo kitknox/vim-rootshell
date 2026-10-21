@@ -1,4 +1,4 @@
-/* charset.c */
+// charset.c
 int init_chartab(void);
 int buf_init_chartab(buf_T *buf, int global);
 int check_isopt(char_u *var);
@@ -24,6 +24,7 @@ int win_linetabsize(win_T *wp, linenr_T lnum, char_u *line, colnr_T len);
 int linetabsize(win_T *wp, linenr_T lnum);
 int linetabsize_eol(win_T *wp, linenr_T lnum);
 int linetabsize_no_outer(win_T *wp, linenr_T lnum);
+int linetabsize_no_outer_eol(win_T *wp, linenr_T lnum);
 void win_linetabsize_cts(chartabsize_T *cts, colnr_T len);
 int vim_isIDc(int c);
 int vim_isNormalIDc(int c);
@@ -40,11 +41,11 @@ void init_chartabsize_arg(chartabsize_T *cts, win_T *wp, linenr_T lnum, colnr_T 
 void clear_chartabsize_arg(chartabsize_T *cts);
 int lbr_chartabsize(chartabsize_T *cts);
 int lbr_chartabsize_adv(chartabsize_T *cts);
-int win_lbr_chartabsize(chartabsize_T *cts, int *headp);
-void getvcol(win_T *wp, pos_T *pos, colnr_T *start, colnr_T *cursor, colnr_T *end);
+int win_lbr_chartabsize(chartabsize_T *cts, int *headp, int *tailp);
+void getvcol(win_T *wp, pos_T *pos, colnr_T *start, colnr_T *cursor, colnr_T *end, int flags);
 colnr_T getvcol_nolist(pos_T *posp);
-void getvvcol(win_T *wp, pos_T *pos, colnr_T *start, colnr_T *cursor, colnr_T *end);
-void getvcols(win_T *wp, pos_T *pos1, pos_T *pos2, colnr_T *left, colnr_T *right);
+void getvvcol(win_T *wp, pos_T *pos, colnr_T *start, colnr_T *cursor, colnr_T *end, int flags);
+void getvcols(win_T *wp, pos_T *pos1, pos_T *pos2, colnr_T *left, colnr_T *right, int flags);
 char_u *skipwhite(char_u *q);
 char_u *skipwhite_and_nl(char_u *q);
 int getwhitecols_curline(void);
@@ -74,4 +75,4 @@ int hexhex2nr(char_u *p);
 int rem_backslash(char_u *str);
 void backslash_halve(char_u *p);
 char_u *backslash_halve_save(char_u *p);
-/* vim: set ft=c : */
+// vim: ft=c

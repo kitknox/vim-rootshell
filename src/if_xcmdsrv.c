@@ -311,10 +311,13 @@ DoRegisterName(Display *dpy, char_u *name)
 
     if (!got_x_error)
     {
+	size_t	namelen;
+
+	namelen = STRLEN(name);
 # ifdef FEAT_EVAL
-	set_vim_var_string(VV_SEND_SERVER, name, -1);
+	set_vim_var_string(VV_SEND_SERVER, name, (int)namelen);
 # endif
-	serverName = vim_strsave(name);
+	serverName = vim_strnsave(name, namelen);
 	need_maketitle = TRUE;
 	return 0;
     }
@@ -418,7 +421,7 @@ serverSendToVim(
 	    {
 		LookupName(dpy, loosename ? loosename : name,
 			   /*DELETE=*/TRUE, NULL);
-		vim_free(loosename);
+		VIM_CLEAR(loosename);
 		continue;
 	    }
 	}
@@ -626,9 +629,9 @@ ServerWait(
  * Fetch a list of all the Vim instance names currently registered for the
  * display.
  *
- * Returns a newline separated list in allocated memory or NULL.
+ * Returns a list of strings or NULL on failure.
  */
-    char_u *
+    list_T *
 serverGetVimNames(Display *dpy)
 {
     char_u	*regProp;
@@ -636,13 +639,17 @@ serverGetVimNames(Display *dpy)
     char_u	*p;
     long_u	numItems;
     int_u	w;
-    garray_T	ga;
+    list_T	*list;
 
     if (registryProperty == None)
     {
 	if (SendInit(dpy) < 0)
 	    return NULL;
     }
+
+    list = list_alloc();
+    if (list == NULL)
+	return NULL;
 
     /*
      * Read the registry property.
@@ -653,7 +660,6 @@ serverGetVimNames(Display *dpy)
     /*
      * Scan all of the names out of the property.
      */
-    ga_init2(&ga, 1, 100);
     for (p = regProp; (long_u)(p - regProp) < numItems; p++)
     {
 	entry = p;
@@ -664,18 +670,14 @@ serverGetVimNames(Display *dpy)
 	    w = None;
 	    sscanf((char *)entry, "%x", &w);
 	    if (WindowValid(dpy, (Window)w))
-	    {
-		ga_concat(&ga, p + 1);
-		ga_concat_len(&ga, (char_u *)"\n", 1);
-	    }
+		list_append_string(list, p + 1, -1);
 	    while (*p != 0)
 		p++;
 	}
     }
     if (regProp != empty_prop)
 	XFree(regProp);
-    ga_append(&ga, NUL);
-    return ga.ga_data;
+    return list;
 }
 
 /////////////////////////////////////////////////////////////
@@ -950,8 +952,9 @@ LookupName(
 	    if (*p != 0 && IsSerialName(p + 1)
 		    && STRNICMP(name, p + 1, STRLEN(name)) == 0)
 	    {
-		sscanf((char *)entry, "%x", &returnValue);
-		*loose = vim_strsave(p + 1);
+		if (sscanf((char *)entry, "%x", &returnValue) == 1
+			&& returnValue != (int_u)None)
+		    *loose = vim_strsave(p + 1);
 		break;
 	    }
 	    while (*p != 0)
@@ -1330,7 +1333,7 @@ server_parse_message(
 
 			// Initialize the result property.
 			ga_init2(&reply, 1, 100);
-			(void)ga_grow(&reply, 50 + STRLEN(p_enc));
+			(void)ga_grow(&reply, 50 + STRLEN(p_enc) + STRLEN(serial));
 			sprintf(reply.ga_data, "%cr%c-E %s%c-s %s%c-r ",
 						   0, 0, p_enc, 0, serial, 0);
 			reply.ga_len = 14 + STRLEN(p_enc) + STRLEN(serial);
@@ -1343,7 +1346,7 @@ server_parse_message(
 			    ga_concat(&reply,
 				   (char_u *)_(e_invalid_expression_received));
 			    ga_append(&reply, 0);
-			    ga_concat_len(&reply, (char_u *)"-c 1", 4);
+			    GA_CONCAT_LITERAL(&reply, "-c 1");
 			}
 			ga_append(&reply, NUL);
 			(void)AppendPropCarefully(dpy, resWindow, commProperty,

@@ -495,12 +495,12 @@ u_savecommon(
     size = bot - top - 1;
 
     /*
-     * If curbuf->b_u_synced == TRUE make a new header.
+     * If curbuf->b_u_synced is true make a new header.
      */
     if (curbuf->b_u_synced)
     {
 	// Need to create new entry in b_changelist.
-	curbuf->b_new_change = TRUE;
+	curbuf->b_new_change = true;
 
 	if (get_undolevel() >= 0)
 	{
@@ -559,7 +559,7 @@ u_savecommon(
 	{
 	    if (old_curhead != NULL)
 		u_freebranch(curbuf, old_curhead, NULL);
-	    curbuf->b_u_synced = FALSE;
+	    curbuf->b_u_synced = false;
 	    return OK;
 	}
 
@@ -653,7 +653,7 @@ u_savecommon(
 			// entry now.  Following deleted/inserted lines go to
 			// the re-used entry.
 			u_getbot();
-			curbuf->b_u_synced = FALSE;
+			curbuf->b_u_synced = false;
 
 			// Move the found entry to become the last entry.  The
 			// order of undo/redo doesn't matter for the entries
@@ -740,7 +740,7 @@ u_savecommon(
 	uep->ue_array = NULL;
     uep->ue_next = curbuf->b_u_newhead->uh_entry;
     curbuf->b_u_newhead->uh_entry = uep;
-    curbuf->b_u_synced = FALSE;
+    curbuf->b_u_synced = false;
     undo_undoes = FALSE;
 
 #ifdef U_DEBUG
@@ -804,7 +804,7 @@ u_get_undo_file_name(char_u *buf_ffname, int reading)
 {
     char_u	*dirp;
     char_u	dir_name[IOSIZE + 1];
-    char_u	*munged_name = NULL;
+    string_T	munged_name = {NULL, 0};
     char_u	*undo_file_name = NULL;
     int		dir_len;
     char_u	*p;
@@ -862,16 +862,20 @@ u_get_undo_file_name(char_u *buf_ffname, int reading)
 	    dir_name[dir_len] = NUL;
 	    if (mch_isdir(dir_name))
 	    {
-		if (munged_name == NULL)
+		string_T    ret;
+
+		if (munged_name.string == NULL)
 		{
-		    munged_name = vim_strnsave(ffname, ffnamelen);
-		    if (munged_name == NULL)
+		    munged_name.string = vim_strnsave(ffname, ffnamelen);
+		    if (munged_name.string == NULL)
 			return NULL;
-		    for (p = munged_name; *p != NUL; MB_PTR_ADV(p))
+		    munged_name.length = ffnamelen;
+		    for (p = munged_name.string; *p != NUL; MB_PTR_ADV(p))
 			if (vim_ispathsep(*p))
 			    *p = '%';
 		}
-		undo_file_name = concat_fnames(dir_name, munged_name, TRUE);
+		undo_file_name = concat_fnames(dir_name, (size_t)dir_len,
+		    munged_name.string, munged_name.length, TRUE, &ret);
 	    }
 	}
 
@@ -882,7 +886,7 @@ u_get_undo_file_name(char_u *buf_ffname, int reading)
 	VIM_CLEAR(undo_file_name);
     }
 
-    vim_free(munged_name);
+    vim_free(munged_name.string);
     return undo_file_name;
 }
 
@@ -1445,7 +1449,7 @@ unserialize_uep(bufinfo_T *bi, int *error, char_u *file_name)
     uep->ue_size = undo_read_4c(bi);
     if (uep->ue_size > 0)
     {
-	if (uep->ue_size < LONG_MAX / (int)sizeof(char_u *))
+	if (uep->ue_size < LONG_MAX / (long)sizeof(undoline_T))
 	    array = U_ALLOC_LINE(sizeof(undoline_T) * uep->ue_size);
 	if (array == NULL)
 	{
@@ -1813,6 +1817,43 @@ theend:
 }
 
 /*
+ * Compare undo headers on the sequence number, for sorting uhp_table.
+ */
+    static int
+uhp_seq_cmp(const void *v1, const void *v2)
+{
+    const u_header_T *u1 = *(u_header_T **)v1;
+    const u_header_T *u2 = *(u_header_T **)v2;
+
+    return u1->uh_seq == u2->uh_seq ? 0 : u1->uh_seq > u2->uh_seq ? 1 : -1;
+}
+
+/*
+ * Find the header with sequence number "seq" in "uhp_table", which has
+ * "num_head" entries and is sorted on uh_seq.
+ * Return the table index of the header or -1 when not found.
+ */
+    static long
+uhp_table_find(u_header_T **uhp_table, long num_head, long seq)
+{
+    long    lo = 0;
+    long    hi = num_head - 1;
+
+    while (lo <= hi)
+    {
+	long mid = lo + (hi - lo) / 2;
+
+	if (uhp_table[mid]->uh_seq < seq)
+	    lo = mid + 1;
+	else if (uhp_table[mid]->uh_seq > seq)
+	    hi = mid - 1;
+	else
+	    return mid;
+    }
+    return -1;
+}
+
+/*
  * Load the undo tree from an undo file.
  * If "name" is not NULL use it as the undo file name.  This also means being
  * a bit more verbose.
@@ -1833,10 +1874,10 @@ u_read_undo(char_u *name, char_u *hash, char_u *orig_name UNUSED)
     long	old_header_seq, new_header_seq, cur_header_seq;
     long	seq_last, seq_cur;
     long	last_save_nr = 0;
-    short	old_idx = -1, new_idx = -1, cur_idx = -1;
+    long	old_idx = -1, new_idx = -1, cur_idx = -1;
     long	num_read_uhps = 0;
     time_t	seq_time;
-    int		i, j;
+    long	i;
     int		c;
     u_header_T	*uhp;
     u_header_T	**uhp_table = NULL;
@@ -1877,6 +1918,7 @@ u_read_undo(char_u *name, char_u *hash, char_u *orig_name UNUSED)
 								   file_name);
 		verbose_leave();
 	    }
+	    vim_free(file_name);
 	    return;
 	}
 # endif
@@ -2062,53 +2104,47 @@ u_read_undo(char_u *name, char_u *hash, char_u *orig_name UNUSED)
 #  define SET_FLAG(j)
 # endif
 
-    // We have put all of the headers into a table. Now we iterate through the
-    // table and swizzle each sequence number we have stored in uh_*_seq into
-    // a pointer corresponding to the header with that sequence number.
+    // We have put all of the headers into a table.  Each header stores the
+    // sequence numbers of the headers it links to; resolve those into
+    // pointers.  Every entry is non-NULL: a header that failed to
+    // unserialize or a count mismatch was an error above.
+    if (num_head > 0)
+	qsort(uhp_table, (size_t)num_head, sizeof(u_header_T *), uhp_seq_cmp);
+
+    // In the sorted table two headers with the same uh_seq are neighbours.
+    for (i = 0; i < num_head - 1; i++)
+    {
+	if (uhp_table[i]->uh_seq == uhp_table[i + 1]->uh_seq)
+	{
+	    corruption_error("duplicate uh_seq", file_name);
+	    goto error;
+	}
+    }
+
+    // Resolve the sequence number "link".seq into a pointer to the header
+    // with that number.  A number that does not match any header, including
+    // zero (written for a NULL pointer) and the own sequence number of the
+    // header "hidx", resolves to NULL.
+# define SWIZZLE_SEQ(link, hidx) \
+    do { \
+	long fidx = uhp_table_find(uhp_table, num_head, (link).seq); \
+	\
+	if (fidx >= 0 && fidx != (hidx)) \
+	{ \
+	    (link).ptr = uhp_table[fidx]; \
+	    SET_FLAG(fidx); \
+	} \
+	else \
+	    (link).ptr = NULL; \
+    } while (0)
+
     for (i = 0; i < num_head; i++)
     {
 	uhp = uhp_table[i];
-	if (uhp == NULL)
-	    continue;
-	for (j = 0; j < num_head; j++)
-	    if (uhp_table[j] != NULL && i != j
-			      && uhp_table[i]->uh_seq == uhp_table[j]->uh_seq)
-	    {
-		corruption_error("duplicate uh_seq", file_name);
-		goto error;
-	    }
-	for (j = 0; j < num_head; j++)
-	    if (uhp_table[j] != NULL
-				  && uhp_table[j]->uh_seq == uhp->uh_next.seq)
-	    {
-		uhp->uh_next.ptr = uhp_table[j];
-		SET_FLAG(j);
-		break;
-	    }
-	for (j = 0; j < num_head; j++)
-	    if (uhp_table[j] != NULL
-				  && uhp_table[j]->uh_seq == uhp->uh_prev.seq)
-	    {
-		uhp->uh_prev.ptr = uhp_table[j];
-		SET_FLAG(j);
-		break;
-	    }
-	for (j = 0; j < num_head; j++)
-	    if (uhp_table[j] != NULL
-			      && uhp_table[j]->uh_seq == uhp->uh_alt_next.seq)
-	    {
-		uhp->uh_alt_next.ptr = uhp_table[j];
-		SET_FLAG(j);
-		break;
-	    }
-	for (j = 0; j < num_head; j++)
-	    if (uhp_table[j] != NULL
-			      && uhp_table[j]->uh_seq == uhp->uh_alt_prev.seq)
-	    {
-		uhp->uh_alt_prev.ptr = uhp_table[j];
-		SET_FLAG(j);
-		break;
-	    }
+	SWIZZLE_SEQ(uhp->uh_next, i);
+	SWIZZLE_SEQ(uhp->uh_prev, i);
+	SWIZZLE_SEQ(uhp->uh_alt_next, i);
+	SWIZZLE_SEQ(uhp->uh_alt_prev, i);
 	if (old_header_seq > 0 && old_idx < 0 && uhp->uh_seq == old_header_seq)
 	{
 	    old_idx = i;
@@ -2125,6 +2161,7 @@ u_read_undo(char_u *name, char_u *hash, char_u *orig_name UNUSED)
 	    SET_FLAG(i);
 	}
     }
+# undef SWIZZLE_SEQ
 
     // Now that we have read the undo info successfully, free the current undo
     // info and use the info from the file.
@@ -2142,7 +2179,7 @@ u_read_undo(char_u *name, char_u *hash, char_u *orig_name UNUSED)
     curbuf->b_u_save_nr_last = last_save_nr;
     curbuf->b_u_save_nr_cur = last_save_nr;
 
-    curbuf->b_u_synced = TRUE;
+    curbuf->b_u_synced = true;
     vim_free(uhp_table);
 
 # ifdef U_DEBUG
@@ -2195,7 +2232,7 @@ u_undo(int count)
      * original vi. If this happens twice in one macro the result will not
      * be compatible.
      */
-    if (curbuf->b_u_synced == FALSE)
+    if (!curbuf->b_u_synced)
     {
 	u_sync(TRUE);
 	count = 1;
@@ -2258,7 +2295,8 @@ u_doit(int startcount)
 		beep_flush();
 		if (count == startcount - 1)
 		{
-		    msg(_("Already at oldest change"));
+		    if (!shortmess(SHM_UNDO))
+			msg(_("Already at oldest change"));
 		    return;
 		}
 		break;
@@ -2273,7 +2311,8 @@ u_doit(int startcount)
 		beep_flush();	// nothing to redo
 		if (count == startcount - 1)
 		{
-		    msg(_("Already at newest change"));
+		    if (!shortmess(SHM_UNDO))
+			msg(_("Already at newest change"));
 		    return;
 		}
 		break;
@@ -2329,7 +2368,7 @@ undo_time(
     }
 
     // First make sure the current undoable change is synced.
-    if (curbuf->b_u_synced == FALSE)
+    if (!curbuf->b_u_synced)
 	u_sync(TRUE);
 
     u_newcount = 0;
@@ -2526,10 +2565,13 @@ undo_time(
 
 	if (closest == closest_start)
 	{
-	    if (step < 0)
-		msg(_("Already at oldest change"));
-	    else
-		msg(_("Already at newest change"));
+	    if (!shortmess(SHM_UNDO))
+	    {
+		if (step < 0)
+		    msg(_("Already at oldest change"));
+		else
+		    msg(_("Already at newest change"));
+	    }
 	    return;
 	}
 
@@ -2821,6 +2863,22 @@ u_undoredo(int undo)
 	    vim_free((char_u *)uep->ue_array);
 	}
 
+#ifdef FEAT_PROP_POPUP
+	// A property may have been added or removed across the edges of the
+	// restored lines after they were saved.  What was cleared on the lines
+	// around them the last time is given back first, so that undoing and
+	// redoing again joins what it split.
+	restore_props_for_undo(curbuf, top, &uep->ue_props, UNDOPROP_ABOVE);
+	restore_props_for_undo(curbuf, top + newsize + 1, &uep->ue_props,
+								UNDOPROP_BELOW);
+	ga_clear(&uep->ue_props);
+	adjust_props_for_undo(curbuf, top, &uep->ue_props, UNDOPROP_ABOVE,
+			      newsize > 0 ? UNDOPROP_NONE : UNDOPROP_BELOW);
+	if (newsize > 0)
+	    adjust_props_for_undo(curbuf, top + newsize, &uep->ue_props,
+						  UNDOPROP_NONE, UNDOPROP_BELOW);
+#endif
+
 	// adjust marks
 	if (oldsize != newsize)
 	{
@@ -2992,7 +3050,8 @@ u_undo_end(
 #endif
 
     if (global_busy	    // no messages now, wait until global is finished
-	    || !messaging())  // 'lazyredraw' set, don't do messages now
+	    || !messaging() // 'lazyredraw' set, don't do messages now
+	    || shortmess(SHM_UNDO))
 	return;
 
     if (curbuf->b_ml.ml_flags & ML_EMPTY)
@@ -3074,7 +3133,7 @@ u_sync(
 	return;		    // XIM is busy, don't break an undo sequence
 #endif
     if (get_undolevel() < 0)
-	curbuf->b_u_synced = TRUE;  // no entries, nothing to do
+	curbuf->b_u_synced = true;  // no entries, nothing to do
     else
     {
 	u_getbot();		    // compute ue_bot of previous u_save
@@ -3211,7 +3270,7 @@ ex_undojoin(exarg_T *eap UNUSED)
 	return;		    // no entries, nothing to do
     else
 	// Append next change to the last entry
-	curbuf->b_u_synced = FALSE;
+	curbuf->b_u_synced = false;
 }
 
 /*
@@ -3222,7 +3281,7 @@ ex_undojoin(exarg_T *eap UNUSED)
 u_unchanged(buf_T *buf)
 {
     u_unch_branch(buf->b_u_oldhead);
-    buf->b_did_warn = FALSE;
+    buf->b_did_warn = false;
 }
 
 /*
@@ -3315,7 +3374,7 @@ u_get_headentry(void)
 
 /*
  * u_getbot(): compute the line number of the previous u_save
- *		It is called only when b_u_synced is FALSE.
+ *		It is called only when b_u_synced is false.
  */
     static void
 u_getbot(void)
@@ -3349,7 +3408,7 @@ u_getbot(void)
 	curbuf->b_u_newhead->uh_getbot_entry = NULL;
     }
 
-    curbuf->b_u_synced = TRUE;
+    curbuf->b_u_synced = true;
 }
 
 /*
@@ -3463,6 +3522,9 @@ u_freeentry(u_entry_T *uep, long n)
     while (n > 0)
 	vim_free(uep->ue_array[--n].ul_line);
     vim_free((char_u *)uep->ue_array);
+#ifdef FEAT_PROP_POPUP
+    ga_clear(&uep->ue_props);
+#endif
 #ifdef U_DEBUG
     uep->ue_magic = 0;
 #endif
@@ -3476,7 +3538,7 @@ u_freeentry(u_entry_T *uep, long n)
 u_clearall(buf_T *buf)
 {
     buf->b_u_newhead = buf->b_u_oldhead = buf->b_u_curhead = NULL;
-    buf->b_u_synced = TRUE;
+    buf->b_u_synced = true;
     buf->b_u_numhead = 0;
     buf->b_u_line_ptr.ul_line = NULL;
     buf->b_u_line_ptr.ul_len = 0;

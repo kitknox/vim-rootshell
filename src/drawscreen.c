@@ -69,6 +69,7 @@ static void win_update(win_T *wp);
 #ifdef FEAT_STL_OPT
 static void redraw_custom_statusline(win_T *wp);
 #endif
+static void borrow_stl_vsep_hl(void);
 #if defined(FEAT_SEARCH_EXTRA) || defined(FEAT_CLIPBOARD)
 static __thread int  did_update_one_window;
 #endif
@@ -97,6 +98,10 @@ update_screen(int type_arg)
 #endif
     int		no_update = FALSE;
     int		save_pum_will_redraw = pum_will_redraw;
+#ifdef FEAT_PROP_POPUP
+    int		did_redraw_window = FALSE;
+#endif
+    bool	override_success;
 
     // Don't do anything if the screen structures are (not yet) valid.
     if (!screen_valid(TRUE))
@@ -156,6 +161,13 @@ update_screen(int type_arg)
     }
     updating_screen = TRUE;
 
+    // Hide the cursor while redrawing when sync output is not active, to
+    // avoid visible cursor flicker on terminals like Windows ConPTY.
+    int hid_cursor = !sync_output_active();
+    if (hid_cursor)
+	cursor_off();
+    term_set_sync_output(TERM_SYNC_OUTPUT_ENABLE);
+
 #ifdef FEAT_PROP_POPUP
     // Update popup_mask if needed.  This may set w_redraw_top and w_redraw_bot
     // in some windows.
@@ -206,7 +218,7 @@ update_screen(int type_arg)
 			    wp->w_redr_type = UPD_NOT_VALID;
 			    if (W_WINROW(wp) + wp->w_height
 					 + wp->w_status_height <= msg_scrolled)
-				wp->w_redr_status = TRUE;
+				wp->w_redr_status = true;
 			}
 		    }
 		}
@@ -316,9 +328,14 @@ update_screen(int type_arg)
 #endif
     FOR_ALL_WINDOWS(wp)
     {
+	override_success = push_highlight_overrides(wp->w_hl, wp->w_hl_len);
+
 	if (wp->w_redr_type != 0)
 	{
 	    cursor_off();
+#ifdef FEAT_PROP_POPUP
+	    did_redraw_window = TRUE;
+#endif
 #ifdef FEAT_GUI
 	    if (!did_one)
 	    {
@@ -347,6 +364,10 @@ update_screen(int type_arg)
 	    cursor_off();
 	    win_redr_status(wp, TRUE); // any popup menu will be redrawn below
 	}
+
+	if (override_success)
+	    pop_highlight_overrides();
+
     }
 #if defined(FEAT_SEARCH_EXTRA)
     end_search_hl();
@@ -356,14 +377,27 @@ update_screen(int type_arg)
     pum_will_redraw = save_pum_will_redraw;
     pum_may_redraw();
 
+    // Redraw vertical separators to update VertSplit/VertSplitNC highlights
+    // when the current window has changed.
+    if (redraw_vseps)
+    {
+	redraw_vseps = FALSE;
+	FOR_ALL_WINDOWS(wp)
+	    if (wp->w_vsep_width > 0)
+		draw_vsep_win(wp, 0);
+    }
+
+    borrow_stl_vsep_hl();
+
     // Reset b_mod_set flags.  Going through all windows is probably faster
     // than going through all buffers (there could be many buffers).
     FOR_ALL_WINDOWS(wp)
-	wp->w_buffer->b_mod_set = FALSE;
+	wp->w_buffer->b_mod_set = false;
 
 #ifdef FEAT_PROP_POPUP
     // Display popup windows on top of the windows and command line.
-    update_popups(win_update);
+    if (did_redraw_window || popup_need_redraw())
+	update_popups(win_update);
 #endif
 
 #ifdef FEAT_TERMINAL
@@ -415,10 +449,19 @@ update_screen(int type_arg)
     }
 #endif
 
+#ifdef FEAT_IMAGE
+    // Make sure to do this last!
+    draw_image_placements();
+#endif
+
 #ifdef FEAT_EVAL
     invoke_redraw_listener_start_or_end(false);
     redraw_listener_cleanup();
 #endif
+
+    term_set_sync_output(TERM_SYNC_OUTPUT_DISABLE);
+    if (hid_cursor)
+	cursor_on();
 
     return OK;
 }
@@ -450,6 +493,7 @@ win_redr_status(win_T *wp, int ignore_pum UNUSED)
     int		row;
     int		fillchar;
     int		attr;
+    int		i;
     static __thread int  busy = FALSE;
 
     // It's possible to get here recursively when 'statusline' (indirectly)
@@ -460,7 +504,7 @@ win_redr_status(win_T *wp, int ignore_pum UNUSED)
 
     row = statusline_row(wp);
 
-    wp->w_redr_status = FALSE;
+    wp->w_redr_status = false;
     if (wp->w_status_height == 0)
     {
 	// no status line, can only be last window
@@ -472,7 +516,7 @@ win_redr_status(win_T *wp, int ignore_pum UNUSED)
 	    || (!ignore_pum && pum_visible()))
     {
 	// Don't redraw right now, do it later.
-	wp->w_redr_status = TRUE;
+	wp->w_redr_status = true;
     }
 #ifdef FEAT_STL_OPT
     else if (*p_stl != NUL || *wp->w_p_stl != NUL)
@@ -528,8 +572,6 @@ win_redr_status(win_T *wp, int ignore_pum UNUSED)
 	}
 	else if (has_mbyte)
 	{
-	    int	i;
-
 	    // Count total number of display cells.
 	    plen = mb_string2cells(p, -1);
 
@@ -554,7 +596,11 @@ win_redr_status(win_T *wp, int ignore_pum UNUSED)
 
 	screen_puts(p, row, wp->w_wincol, attr);
 	screen_fill(row, row + 1, plen + wp->w_wincol,
-			this_ru_col + wp->w_wincol, fillchar, fillchar, attr);
+		    this_ru_col + wp->w_wincol, fillchar, fillchar, attr);
+	// Fill extra status line rows entirely with fillchar.
+	for (i = 1; i < wp->w_status_height; i++)
+	    screen_fill(row + i, row + i + 1, wp->w_wincol,
+			W_ENDCOL(wp), fillchar, fillchar, attr);
 	if ((NameBufflen = get_keymap_str(wp, (char_u *)"<%s>", NameBuff, MAXPATHL)) > 0
 		&& (this_ru_col - plen) > (NameBufflen + 1))
 	    screen_puts(NameBuff, row, (int)(this_ru_col - NameBufflen
@@ -571,6 +617,7 @@ win_redr_status(win_T *wp, int ignore_pum UNUSED)
 	    if (width > 0)
 		screen_puts_len(showcmd_buf, width, row,
 				wp->w_wincol + this_ru_col - width - 1, attr);
+	    showcmd_update_clear_state();
 	}
     }
 
@@ -579,13 +626,111 @@ win_redr_status(win_T *wp, int ignore_pum UNUSED)
      */
     if (wp->w_vsep_width != 0 && wp->w_status_height != 0 && redrawing())
     {
-	if (stl_connected(wp))
-	    fillchar = fillchar_status(&attr, wp);
-	else
-	    fillchar = fillchar_vsep(&attr, wp);
-	screen_putchar(fillchar, row, W_ENDCOL(wp), attr);
+	for (i = 0; i < wp->w_status_height; i++)
+	{
+	    int r = row + i;
+	    if (stl_connected(wp))
+		fillchar = fillchar_status(&attr, wp);
+	    else
+		fillchar = fillchar_vsep(&attr, wp, r);
+	    screen_putchar(fillchar, r, W_ENDCOL(wp), attr);
+	}
     }
     busy = FALSE;
+}
+
+/*
+ * Borrow status line edge highlight to adjacent vsep cells.
+ *  - When the pair involves curwin: borrow curwin's edge attr so custom
+ *    statusline highlights flow into the vsep cell.
+ *  - When both windows are non-current: borrow the left window's right-edge
+ *    attr only if the status fillchar is a space, so StatusLineNC blends
+ *    over the join without changing visible characters.
+ *  - Cells where the vsep char is drawn (stl_connected == FALSE) are left
+ *    untouched so the VertSplit highlight is preserved.
+ * Called for every cursor movement, thus only cells whose attribute changed
+ * are written to the screen.
+ */
+    static void
+borrow_stl_vsep_hl(void)
+{
+    win_T   *left = NULL;
+    win_T   *right = NULL;
+
+    // In silent Ex mode the screen is not allocated, so LineOffset and
+    // ScreenAttrs are NULL; there is nothing to borrow.
+    if (!redrawing() || ScreenLines == NULL)
+	return;
+
+    FOR_ALL_WINDOWS(left)
+    {
+	if (left->w_status_height == 0 || left->w_vsep_width == 0)
+	    continue;
+	// A window of zero width has no status line cell to borrow from.
+	if (left->w_width == 0)
+	    continue;
+	if (!stl_connected(left))
+	    continue;
+
+	// Find a right neighbour whose status line rows overlap.
+	win_T	*neighbour = NULL;
+	int start = 0;
+	int end = 0;
+
+	FOR_ALL_WINDOWS(right)
+	{
+	    if (right == left || right->w_status_height == 0)
+		continue;
+	    if (right->w_wincol != W_ENDCOL(left) + 1)
+		continue;
+	    int l_stl_row = W_WINROW(left) + left->w_height;
+	    int r_stl_row = W_WINROW(right) + right->w_height;
+
+	    start = l_stl_row > r_stl_row ? l_stl_row : r_stl_row;
+	    end = l_stl_row + left->w_status_height
+				< r_stl_row + right->w_status_height
+		? l_stl_row + left->w_status_height
+		: r_stl_row + right->w_status_height;
+	    if (start < end)
+	    {
+		neighbour = right;
+		break;
+	    }
+	}
+	if (neighbour == NULL)
+	    continue;
+
+	// For non-current pairs only borrow when the status fillchar is a
+	// space; otherwise the visible character would be repainted with a
+	// foreign highlight.
+	int	hl;
+	if (left != curwin && neighbour != curwin
+		&& fillchar_status(&hl, left) != ' ')
+	    continue;
+
+	// Source: prefer curwin's side; otherwise left window's right edge.
+	int dst_col = W_ENDCOL(left);
+	int src_col = (neighbour == curwin)
+				? neighbour->w_wincol : W_ENDCOL(left) - 1;
+
+	// The windows may be laid out for a size the screen does not have yet.
+	if (dst_col >= screen_Columns || src_col >= screen_Columns)
+	    continue;
+	if (end > screen_Rows)
+	    end = screen_Rows;
+
+	for (int r = start; r < end; r++)
+	{
+	    unsigned	dst_off = LineOffset[r] + dst_col;
+	    sattr_T	attr = ScreenAttrs[LineOffset[r] + src_col];
+
+	    if (ScreenAttrs[dst_off] != attr)
+	    {
+		ScreenAttrs[dst_off] = attr;
+		screen_char(dst_off, r, dst_col);
+	    }
+	}
+    }
 }
 
 #ifdef FEAT_STL_OPT
@@ -624,12 +769,15 @@ showruler(int always)
     if (pum_visible())
     {
 	// Don't redraw right now, do it later.
-	curwin->w_redr_status = TRUE;
+	curwin->w_redr_status = true;
 	return;
     }
 #if defined(FEAT_STL_OPT)
     if ((*p_stl != NUL || *curwin->w_p_stl != NUL) && curwin->w_status_height)
+    {
 	redraw_custom_statusline(curwin);
+	borrow_stl_vsep_hl();
+    }
     else
 #endif
 	win_redr_ruler(curwin, always, FALSE);
@@ -725,6 +873,8 @@ win_redr_ruler(win_T *wp, int always, int ignore_pum)
 	int	this_ru_col;
 	int	n1;			    // scratch value
 	int	n2;			    // scratch value
+	bool	override_success =
+	    push_highlight_overrides(wp->w_hl, wp->w_hl_len);
 
 	cursor_off();
 	if (wp->w_status_height)
@@ -748,7 +898,7 @@ win_redr_ruler(win_T *wp, int always, int ignore_pum)
 	if (wp->w_p_list && wp->w_lcs_chars.tab1 == NUL)
 	{
 	    wp->w_p_list = FALSE;
-	    getvvcol(wp, &wp->w_cursor, NULL, &virtcol, NULL);
+	    getvvcol(wp, &wp->w_cursor, NULL, &virtcol, NULL, 0);
 	    wp->w_p_list = TRUE;
 	}
 
@@ -830,6 +980,9 @@ win_redr_ruler(win_T *wp, int always, int ignore_pum)
 #ifdef FEAT_DIFF
 	wp->w_ru_topfill = wp->w_topfill;
 #endif
+
+	if (override_success)
+	    pop_highlight_overrides();
     }
 }
 
@@ -1010,6 +1163,8 @@ redraw_win_toolbar(win_T *wp)
     int		col = 0;
     int		next_col;
     int		off = (int)(current_ScreenLine - ScreenLines);
+    bool	override_success =
+	push_highlight_overrides(wp->w_hl, wp->w_hl_len);
     int		fill_attr = syn_name2attr((char_u *)"ToolbarLine");
     int		button_attr = syn_name2attr((char_u *)"ToolbarButton");
 
@@ -1061,6 +1216,9 @@ redraw_win_toolbar(win_T *wp)
 
     screen_line(wp, wp->w_winrow, wp->w_wincol, wp->w_width,
 							  wp->w_width, -1, 0);
+
+    if (override_success)
+	pop_highlight_overrides();
 }
 #endif
 
@@ -1403,7 +1561,7 @@ fold_line(
     {
 	curwin->w_cline_row = row;
 	curwin->w_cline_height = 1;
-	curwin->w_cline_folded = TRUE;
+	curwin->w_cline_folded = true;
 	curwin->w_valid |= (VALID_CHEIGHT|VALID_CROW);
     }
 
@@ -1499,6 +1657,7 @@ win_update(win_T *wp)
 #if defined(FEAT_SYN_HL) || defined(FEAT_SEARCH_EXTRA)
     int		save_got_int;
 #endif
+    bool	override_success;
 
 #if defined(FEAT_SEARCH_EXTRA) || defined(FEAT_CLIPBOARD)
     // This needs to be done only for the first window when update_screen() is
@@ -1519,11 +1678,18 @@ win_update(win_T *wp)
     }
 #endif
 
+#ifdef FEAT_SYN_HL
+    // 'cursorcolumn' is drawn with w_virtcol, make sure it is up to date.
+    // This may set w_redr_type, thus do it before using it below.
+    if (wp->w_p_cuc)
+	validate_virtcol_win(wp);
+#endif
+
     type = wp->w_redr_type;
 
     if (type == UPD_NOT_VALID)
     {
-	wp->w_redr_status = TRUE;
+	wp->w_redr_status = true;
 	wp->w_lines_valid = 0;
     }
 
@@ -1548,6 +1714,9 @@ win_update(win_T *wp)
 	return;
     }
 
+    override_success = push_highlight_overrides(wp->w_hl, wp->w_hl_len);
+
+
 #ifdef FEAT_TERMINAL
     // If this window contains a terminal, redraw works completely differently.
     if (term_do_update_window(wp))
@@ -1559,6 +1728,8 @@ win_update(win_T *wp)
 	    redraw_win_toolbar(wp);
 # endif
 	wp->w_redr_type = 0;
+	if (override_success)
+	    pop_highlight_overrides();
 	return;
     }
 #endif
@@ -2043,17 +2214,10 @@ win_update(win_T *wp)
 	    if (VIsual_mode == Ctrl_V)
 	    {
 		colnr_T	    fromc, toc;
-#if defined(FEAT_LINEBREAK)
-		int	    save_ve_flags = curwin->w_ve_flags;
 
-		if (curwin->w_p_lbr)
-		    curwin->w_ve_flags = VE_ALL;
-#endif
-		getvcols(wp, &VIsual, &curwin->w_cursor, &fromc, &toc);
+		getvcols(wp, &VIsual, &curwin->w_cursor, &fromc, &toc,
+							 GETVCOL_END_EXCL_LBR);
 		++toc;
-#if defined(FEAT_LINEBREAK)
-		curwin->w_ve_flags = save_ve_flags;
-#endif
 		// Highlight to the end of the line, unless 'virtualedit' has
 		// "block".
 		if (curwin->w_curswant == MAXCOL)
@@ -2075,7 +2239,7 @@ win_update(win_T *wp)
 			    colnr_T t;
 
 			    pos.col = (int)ml_get_buf_len(wp->w_buffer, pos.lnum);
-			    getvvcol(wp, &pos, NULL, NULL, &t);
+			    getvvcol(wp, &pos, NULL, NULL, &t, 0);
 			    if (toc < t)
 				toc = t;
 			}
@@ -2118,12 +2282,11 @@ win_update(win_T *wp)
 
 	// If we know the value of w_botline, use it to restrict the update to
 	// the lines that are visible in the window.
+	// Note: w_botline may be partially visible or completely invisible.
 	if (wp->w_valid & VALID_BOTLINE)
 	{
-	    if (from >= wp->w_botline)
-		from = wp->w_botline - 1;
-	    if (to >= wp->w_botline)
-		to = wp->w_botline - 1;
+	    from = MIN(from, wp->w_botline);
+	    to = MIN(to, wp->w_botline);
 	}
 
 	// Find the minimal part to be updated.
@@ -2624,10 +2787,10 @@ win_update(win_T *wp)
 		if ((*mb_off2cells)(LineOffset[k] + topframe->fr_width - 2,
 					   LineOffset[k] + screen_Columns) > 1)
 		    screen_draw_rectangle(k, topframe->fr_width - 2, 1, 2,
-			    FALSE);
+			    FALSE, FALSE);
 		else
 		    screen_draw_rectangle(k, topframe->fr_width - 1, 1, 1,
-			    FALSE);
+			    FALSE, FALSE);
 	    else
 		screen_char(LineOffset[k] + topframe->fr_width - 1, k,
 			cmdline_width - 1);
@@ -2808,13 +2971,13 @@ win_update(win_T *wp)
 	    if (wp->w_redr_type != 0)
 	    {
 		// Don't update for changes in buffer again.
-		i = curbuf->b_mod_set;
-		curbuf->b_mod_set = FALSE;
+		bool b = curbuf->b_mod_set;
+		curbuf->b_mod_set = false;
 		j = curbuf->b_mod_xlines;
 		curbuf->b_mod_xlines = 0;
 		curs_columns(TRUE);
 		win_update(curwin);
-		curbuf->b_mod_set = i;
+		curbuf->b_mod_set = b;
 		curbuf->b_mod_xlines = j;
 	    }
 	    // Other windows might have w_redr_type raised in update_topline().
@@ -2831,6 +2994,9 @@ win_update(win_T *wp)
     if (!got_int)
 	got_int = save_got_int;
 #endif
+
+    if (override_success)
+	pop_highlight_overrides();
 }
 
 #if defined(FEAT_NETBEANS_INTG) || defined(FEAT_GUI)
@@ -3129,6 +3295,8 @@ redraw_after_callback(int call_update_screen, int do_message)
 {
     ++redrawing_for_callback;
 
+    term_set_sync_output(TERM_SYNC_OUTPUT_ENABLE);
+
     if (State == MODE_HITRETURN || State == MODE_ASKMORE
 	    || State == MODE_SETWSIZE || State == MODE_EXTERNCMD
 	    || State == MODE_CONFIRM || exmode_active)
@@ -3173,6 +3341,7 @@ redraw_after_callback(int call_update_screen, int do_message)
 	}
     }
     cursor_on();
+    term_set_sync_output(TERM_SYNC_OUTPUT_DISABLE);
 #ifdef FEAT_GUI
     if (gui.in_use && !gui_mch_is_blink_off())
 	// Don't update the cursor when it is blinking and off to avoid
@@ -3291,6 +3460,15 @@ redraw_buf_later(buf_T *buf, int type)
 	if (wp->w_buffer == buf)
 	    redraw_win_later(wp, type);
     }
+#ifdef FEAT_PROP_POPUP
+    // popup windows are not in the list of windows
+    FOR_ALL_POPUPWINS(wp)
+	if (wp->w_buffer == buf)
+	    redraw_win_later(wp, type);
+    FOR_ALL_POPUPWINS_IN_TAB(curtab, wp)
+	if (wp->w_buffer == buf)
+	    redraw_win_later(wp, type);
+#endif
 #if defined(FEAT_TERMINAL) && defined(FEAT_PROP_POPUP)
     // terminal in popup window is not in list of windows
     if (curwin->w_buffer == buf)
@@ -3326,11 +3504,22 @@ redraw_buf_and_status_later(buf_T *buf, int type)
 	if (wp->w_buffer == buf)
 	{
 	    redraw_win_later(wp, type);
-	    wp->w_redr_status = TRUE;
+	    wp->w_redr_status = true;
 	}
     }
 }
 #endif
+
+/*
+ * mark the ruler for redraw when the last window has no status line and the
+ * ruler takes its place in the last screen line; showmode() draws it
+ */
+    static void
+ruler_redraw_lastwin(void)
+{
+    if (p_ru && lastwin->w_status_height == 0)
+	redraw_cmdline = TRUE;
+}
 
 /*
  * mark all status lines for redraw; used after first :cd
@@ -3343,9 +3532,10 @@ status_redraw_all(void)
     FOR_ALL_WINDOWS(wp)
 	if (wp->w_status_height)
 	{
-	    wp->w_redr_status = TRUE;
+	    wp->w_redr_status = true;
 	    redraw_later(UPD_VALID);
 	}
+    ruler_redraw_lastwin();
 }
 
 /*
@@ -3359,9 +3549,11 @@ status_redraw_curbuf(void)
     FOR_ALL_WINDOWS(wp)
 	if (wp->w_status_height != 0 && wp->w_buffer == curbuf)
 	{
-	    wp->w_redr_status = TRUE;
+	    wp->w_redr_status = true;
 	    redraw_later(UPD_VALID);
 	}
+    if (lastwin->w_buffer == curbuf)
+	ruler_redraw_lastwin();
 }
 
 /*
@@ -3374,7 +3566,13 @@ redraw_statuslines(void)
 
     FOR_ALL_WINDOWS(wp)
 	if (wp->w_redr_status)
+	{
+	    bool ret = push_highlight_overrides(wp->w_hl, wp->w_hl_len);
 	    win_redr_status(wp, FALSE);
+	    if (ret)
+		pop_highlight_overrides();
+	}
+    borrow_stl_vsep_hl();
     if (redraw_tabline)
 	draw_tabline();
 
@@ -3391,7 +3589,7 @@ redraw_statuslines(void)
 win_redraw_last_status(frame_T *frp)
 {
     if (frp->fr_layout == FR_LEAF)
-	frp->fr_win->w_redr_status = TRUE;
+	frp->fr_win->w_redr_status = true;
     else if (frp->fr_layout == FR_ROW)
     {
 	FOR_ALL_FRAMES(frp, frp->fr_child)
@@ -3438,6 +3636,28 @@ redraw_win_range_later(
     }
 }
 
+/*
+ * Like redraw_win_range_later() but do not raise the global must_redraw.
+ * Use this from inside an update_screen() pass (where the redraw will be
+ * picked up this cycle), to avoid triggering an extra full redraw cycle.
+ */
+    void
+redraw_win_range_now(
+    win_T	*wp,
+    linenr_T	first,
+    linenr_T	last)
+{
+    if (last >= wp->w_topline && first < wp->w_botline)
+    {
+	if (wp->w_redraw_top == 0 || wp->w_redraw_top > first)
+	    wp->w_redraw_top = first;
+	if (wp->w_redraw_bot == 0 || wp->w_redraw_bot < last)
+	    wp->w_redraw_bot = last;
+	if (wp->w_redr_type < UPD_VALID)
+	    wp->w_redr_type = UPD_VALID;
+    }
+}
+
 #ifdef FEAT_EVAL
 static __thread bool redraw_cb_in_progress = false;
 
@@ -3449,6 +3669,9 @@ f_redraw_listener_add(typval_T *argvars, typval_T *rettv)
     typval_T		tv;
     bool		got_one = false;
     static __thread int		id;
+
+    if (check_secure())
+	return;
 
     if (redraw_cb_in_progress)
     {
