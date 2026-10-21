@@ -15,13 +15,13 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "vim",
-            url: "https://github.com/kitknox/vim-rootshell/releases/download/v0.1.1/vim.xcframework.zip",
-            checksum: "a11bec68baf98be35abeca5aaabb3dbcbe783ead04316823d4ef19b9fae284e8"
+            url: "https://github.com/kitknox/vim-rootshell/releases/download/v0.2.0/vim.xcframework.zip",
+            checksum: "b4bef6d5d5f938ea1061b4e00ccc531a77dc0d889c66e1a6b05704c9f41b27e4"
         ),
         .binaryTarget(
             name: "xxd",
-            url: "https://github.com/kitknox/vim-rootshell/releases/download/v0.1.1/xxd.xcframework.zip",
-            checksum: "91787ae557870d6ae437e75dd4081fd10981c2552566e47fc0823934f8e0e4e2"
+            url: "https://github.com/kitknox/vim-rootshell/releases/download/v0.2.0/xxd.xcframework.zip",
+            checksum: "f8c58447454de2bdbafdc1e4d3a40a7ddb4e159b8b3a6d1b15a4086edb88312f"
         ),
     ]
 )
