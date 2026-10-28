@@ -546,6 +546,7 @@ no_mapping = FALSE;
 no_zero_mapping = 0;
 allow_keys = FALSE;
 no_reduce_keys = FALSE;
+no_simplify_keys = 0;
 no_u_sync = 0;
 #ifdef FEAT_EVAL
 u_sync_once = 0;

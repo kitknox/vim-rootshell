@@ -147,7 +147,7 @@ static __thread char *(p_fdm_values[]) = {"manual", "expr", "marker", "indent", 
 static __thread char *(p_fcl_values[]) = {"all", NULL};
 #endif
 static __thread char *(p_cfc_values[]) = {"keyword", "files", "whole_line", NULL};
-static __thread char *(p_cot_values[]) = {"menu", "menuone", "longest", "preview", "popup", "popuphidden", "noinsert", "noselect", "fuzzy", "nosort", "preinsert", "nearest", NULL};
+static __thread char *(p_cot_values[]) = {"menu", "menuone", "longest", "preview", "popup", "popuphidden", "noinsert", "noselect", "fuzzy", "nosort", "preinsert", "nearest", "pathopt", NULL};
 #ifdef BACKSLASH_IN_FILENAME
 static __thread char *(p_csl_values[]) = {"slash", "backslash", NULL};
 #endif

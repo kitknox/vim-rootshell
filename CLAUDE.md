@@ -120,5 +120,5 @@ The build also gates every slice:
 
 ## Current source baseline
 
-The fork is based on Vim 9.2.1225 plus rootshell's Apple-platform integration
+The fork is based on Vim 9.2.1252 plus rootshell's Apple-platform integration
 changes. The build uses the huge feature set without Lua or Python interpreters.
