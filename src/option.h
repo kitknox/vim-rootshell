@@ -130,7 +130,7 @@ typedef enum {
 #define ENC_UCSBOM	"ucs-bom"	// check for BOM at start of file
 
 // default value for 'encoding'
-#if defined(MSWIN) || defined(__MVS__)
+#if defined(MSWIN) || defined(__MVS__) || defined(VIM_APPLE_SANDBOX)
 # define ENC_DFLT	"utf-8"
 #else
 # define ENC_DFLT	"latin1"

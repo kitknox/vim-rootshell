@@ -596,10 +596,12 @@ set_init_default_encoding(void)
     char_u	*p;
     int		opt_idx;
 
-#if defined(MSWIN) || defined(__MVS__)
+#if defined(MSWIN) || defined(__MVS__) || defined(VIM_APPLE_SANDBOX)
     // MS-Windows has builtin support for conversion to and from Unicode, using
     // "utf-8" for 'encoding' should work best for most users.
     // z/OS built should default to UTF-8 mode as setlocale does not respect utf-8 environment variable locales
+    // iOS ships no locale data, so setlocale() falls back to "C" and the
+    // locale would pick latin1; the host terminal is always UTF-8.
     p = vim_strnsave((char_u *)ENC_DFLT, STRLEN_LITERAL(ENC_DFLT));
 #else
     // enc_locale() will try to find the encoding of the current locale.
